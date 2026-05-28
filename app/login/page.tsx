@@ -141,35 +141,76 @@ function LoginContent() {
             </p>
           </div>
 
-          <div className="space-y-3">
-            {DEMO_BUTTONS.map(({ role, label, description, icon, iconBg, hoverBorder }) => {
-              const isLoading = loadingDemo === role
-              const isDisabled = loadingDemo !== null
+          <div className="space-y-4">
+            {/* Management section */}
+            <div>
+              <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">Management</p>
+              <div className="space-y-3">
+                {DEMO_BUTTONS.filter(({ role }) => role === 'ADMIN' || role === 'FACILITY').map(({ role, label, description, icon, iconBg, hoverBorder }) => {
+                  const isLoading = loadingDemo === role
+                  const isDisabled = loadingDemo !== null
 
-              return (
-                <form key={role} method="POST" action="/api/demo-login">
-                  <input type="hidden" name="role" value={role} />
-                  <button
-                    type="submit"
-                    disabled={isDisabled}
-                    onClick={() => setLoadingDemo(role)}
-                    className={`w-full flex items-center p-4 bg-white border rounded-2xl transition-all text-left group
-                      ${isDisabled ? 'opacity-60 cursor-not-allowed' : `${hoverBorder} cursor-pointer`}`}
-                  >
-                    <div className={`p-3 ${iconBg} rounded-xl mr-4 shrink-0 ${!isDisabled ? 'group-hover:scale-105 transition-transform' : ''}`}>
-                      {isLoading ? <Loader2 className="w-6 h-6 animate-spin" /> : icon}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <h3 className="font-bold text-navy text-sm">{label}</h3>
-                      <p className="text-xs text-gray-500 mt-0.5">{description}</p>
-                    </div>
-                    {isLoading && (
-                      <span className="text-xs text-gray-400 ml-2 shrink-0">Loading…</span>
-                    )}
-                  </button>
-                </form>
-              )
-            })}
+                  return (
+                    <form key={role} method="POST" action="/api/demo-login">
+                      <input type="hidden" name="role" value={role} />
+                      <button
+                        type="submit"
+                        disabled={isDisabled}
+                        onClick={() => setLoadingDemo(role)}
+                        className={`w-full flex items-center p-4 bg-white border rounded-2xl transition-all text-left group
+                          ${isDisabled ? 'opacity-60 cursor-not-allowed' : `${hoverBorder} cursor-pointer`}`}
+                      >
+                        <div className={`p-3 ${iconBg} rounded-xl mr-4 shrink-0 ${!isDisabled ? 'group-hover:scale-105 transition-transform' : ''}`}>
+                          {isLoading ? <Loader2 className="w-6 h-6 animate-spin" /> : icon}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <h3 className="font-bold text-navy text-sm">{label}</h3>
+                          <p className="text-xs text-gray-500 mt-0.5">{description}</p>
+                        </div>
+                        {isLoading && (
+                          <span className="text-xs text-gray-400 ml-2 shrink-0">Loading…</span>
+                        )}
+                      </button>
+                    </form>
+                  )
+                })}
+              </div>
+            </div>
+
+            {/* Healthcare Workers section */}
+            <div>
+              <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">Healthcare Workers</p>
+              <div className="space-y-3">
+                {DEMO_BUTTONS.filter(({ role }) => role === 'NURSE').map(({ role, label, description, icon, iconBg, hoverBorder }) => {
+                  const isLoading = loadingDemo === role
+                  const isDisabled = loadingDemo !== null
+
+                  return (
+                    <form key={role} method="POST" action="/api/demo-login">
+                      <input type="hidden" name="role" value={role} />
+                      <button
+                        type="submit"
+                        disabled={isDisabled}
+                        onClick={() => setLoadingDemo(role)}
+                        className={`w-full flex items-center p-4 bg-white border rounded-2xl transition-all text-left group
+                          ${isDisabled ? 'opacity-60 cursor-not-allowed' : `${hoverBorder} cursor-pointer`}`}
+                      >
+                        <div className={`p-3 ${iconBg} rounded-xl mr-4 shrink-0 ${!isDisabled ? 'group-hover:scale-105 transition-transform' : ''}`}>
+                          {isLoading ? <Loader2 className="w-6 h-6 animate-spin" /> : icon}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <h3 className="font-bold text-navy text-sm">{label}</h3>
+                          <p className="text-xs text-gray-500 mt-0.5">{description}</p>
+                        </div>
+                        {isLoading && (
+                          <span className="text-xs text-gray-400 ml-2 shrink-0">Loading…</span>
+                        )}
+                      </button>
+                    </form>
+                  )
+                })}
+              </div>
+            </div>
           </div>
 
           <p className="text-xs text-center text-gray-400">
