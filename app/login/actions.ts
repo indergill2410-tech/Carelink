@@ -81,7 +81,7 @@ export async function demoLogin(formData: FormData) {
     await new Promise(resolve => setTimeout(resolve, 1500))
 
     try {
-      const mappedRole = role === 'FACILITY' ? 'ADMIN' : role
+      const mappedRole = (role === 'FACILITY' ? 'ADMIN' : role) as 'ADMIN' | 'NURSE' | 'EN' | 'PCA'
       await prisma.user.update({
         where: { id: signUpData.user!.id },
         data: { role: mappedRole, name, complianceStatus: 'GREEN' } // Make demo nurses GREEN so they look good
