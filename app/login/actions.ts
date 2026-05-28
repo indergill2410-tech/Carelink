@@ -108,32 +108,50 @@ export async function demoLogin(formData: FormData) {
   const config = DEMO_CONFIGS[demoRoleInput]
   if (!config) redirect('/login?error=Invalid+demo+role')
 
-  // Gate on password being set — if DEMO_ACCOUNT_PASSWORD is configured,
-  // demo accounts are enabled regardless of NODE_ENV.
   const demoPassword = process.env.DEMO_ACCOUNT_PASSWORD
   if (!demoPassword) redirect('/login?error=DEMO_ACCOUNT_PASSWORD+env+var+not+set')
 
   const supabase = createClient()
 
-  // Happy path: account already exists — just sign in
+  // Happy path: account already exists and is properly provisioned
   const { error: signInError } = await supabase.auth.signInWithPassword({
     email: config.email,
     password: demoPassword,
   })
   if (!signInError) redirect(config.destination)
 
-  // First-time setup: provision via admin API (bypasses email confirmation)
+  // Sign-in failed — the account may have been created via SQL without the
+  // auth.identities record that GoTrue requires for email/password login.
+  // Fix: delete the broken auth user + public.User row, then recreate properly
+  // via the admin API (which sets up auth.identities correctly).
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
   const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY
-
   if (!supabaseUrl || !serviceRoleKey) {
-    redirect('/login?error=SUPABASE_SERVICE_ROLE_KEY+not+configured+on+this+server')
+    redirect('/login?error=Server+not+configured+for+demo+accounts')
   }
 
   const adminClient = createSupabaseAdminClient(supabaseUrl, serviceRoleKey, {
     auth: { autoRefreshToken: false, persistSession: false },
   })
 
+  // Look up any existing public.User row so we can clean up auth too
+  let existingId: string | null = null
+  try {
+    const dbUser = await prisma.user.findUnique({
+      where: { email: config.email },
+      select: { id: true },
+    })
+    existingId = dbUser?.id ?? null
+  } catch { /* ignore — proceed to create */ }
+
+  if (existingId) {
+    // Remove public.User FIRST so the re-create trigger won't hit a unique-email conflict
+    try { await prisma.user.delete({ where: { id: existingId } }) } catch { /* ignore */ }
+    // Remove the broken auth user (missing auth.identities)
+    try { await adminClient.auth.admin.deleteUser(existingId) } catch { /* ignore */ }
+  }
+
+  // Create a properly provisioned auth user (sets up auth.identities for email/password)
   const { data: created, error: createError } = await adminClient.auth.admin.createUser({
     email: config.email,
     password: demoPassword,
@@ -141,16 +159,18 @@ export async function demoLogin(formData: FormData) {
     user_metadata: { name: config.name },
   })
 
-  if (createError || !created.user) {
-    redirect('/login?error=' + encodeURIComponent(createError?.message ?? 'Could not create demo account'))
+  if (createError || !created?.user) {
+    redirect('/login?error=' + encodeURIComponent(createError?.message ?? 'Could not provision demo account'))
   }
 
-  // Upsert the User row — safe whether the auth trigger has already fired or not
+  const userId = created.user.id
+
+  // Upsert public.User with the correct role (the trigger creates it as PCA/RED)
   try {
     await prisma.user.upsert({
-      where: { id: created.user.id },
+      where: { id: userId },
       create: {
-        id: created.user.id,
+        id: userId,
         email: config.email,
         name: config.name,
         role: config.dbRole,
@@ -163,15 +183,14 @@ export async function demoLogin(formData: FormData) {
       },
     })
   } catch {
-    redirect('/login?error=Database+error+during+demo+setup.+Check+DATABASE_URL.')
+    redirect('/login?error=Database+error+during+demo+setup')
   }
 
-  // Sign in with the newly created, pre-confirmed account
+  // Sign in with the freshly provisioned account
   const { error: finalSignInError } = await supabase.auth.signInWithPassword({
     email: config.email,
     password: demoPassword,
   })
-
   if (finalSignInError) {
     redirect('/login?error=' + encodeURIComponent(finalSignInError.message))
   }

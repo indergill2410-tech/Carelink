@@ -1,6 +1,6 @@
 'use client'
 
-import { Suspense, useState, useEffect, useRef } from 'react'
+import { Suspense, useState, useEffect } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { login, signup, demoLogin } from './actions'
 import { Button } from '@/components/ui/button'
@@ -8,63 +8,46 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Activity, ShieldCheck, Building2, Stethoscope, AlertCircle, Loader2 } from 'lucide-react'
 
-function ErrorBanner() {
+const DEMO_BUTTONS = [
+  {
+    role: 'ADMIN',
+    label: 'Agency Admin Dashboard',
+    description: 'Global dispatch, compliance monitoring, workforce overview.',
+    icon: <ShieldCheck className="w-6 h-6" />,
+    iconBg: 'bg-navy text-white',
+    hoverBorder: 'hover:border-teal',
+  },
+  {
+    role: 'FACILITY',
+    label: 'Facility Client Portal',
+    description: 'Request staff, post shifts, view your live roster.',
+    icon: <Building2 className="w-6 h-6" />,
+    iconBg: 'bg-blue-100 text-blue-600',
+    hoverBorder: 'hover:border-blue-500',
+  },
+  {
+    role: 'NURSE',
+    label: 'Mobile Worker App',
+    description: 'Browse open shifts and accept bookings instantly.',
+    icon: <Stethoscope className="w-6 h-6" />,
+    iconBg: 'bg-teal-100 text-teal-600',
+    hoverBorder: 'hover:border-teal',
+  },
+]
+
+// Inner component — uses useSearchParams, so it must live inside <Suspense>
+function LoginContent() {
   const searchParams = useSearchParams()
   const errorMessage = searchParams.get('error')
-  if (!errorMessage) return null
-  return (
-    <div className="flex items-center gap-2 p-3 mb-4 bg-red-50 border border-red-200 rounded-xl text-red-700 text-sm">
-      <AlertCircle className="w-4 h-4 shrink-0" />
-      <span>{decodeURIComponent(errorMessage)}</span>
-    </div>
-  )
-}
 
-export default function LoginPage() {
   const [isRegistering, setIsRegistering] = useState(false)
   const [loadingDemo, setLoadingDemo] = useState<string | null>(null)
-  const demoTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
-  // Auto-reset loading state after 30 s in case the server action hangs
-  // (e.g. Render cold-start + Supabase latency). The action always redirects
-  // on both success and failure, so if the spinner is still showing after 30 s
-  // something went wrong that didn't produce a redirect.
+  // Reset spinner on any URL change — handles the case where the server action
+  // redirects back to /login?error=... (same route, component doesn't unmount)
   useEffect(() => {
-    if (demoTimeoutRef.current) clearTimeout(demoTimeoutRef.current)
-    if (loadingDemo) {
-      demoTimeoutRef.current = setTimeout(() => setLoadingDemo(null), 30_000)
-    }
-    return () => {
-      if (demoTimeoutRef.current) clearTimeout(demoTimeoutRef.current)
-    }
-  }, [loadingDemo])
-
-  const demoButtons = [
-    {
-      role: 'ADMIN',
-      label: 'Agency Admin Dashboard',
-      description: 'Global dispatch, compliance monitoring, workforce overview.',
-      icon: <ShieldCheck className="w-6 h-6" />,
-      iconBg: 'bg-navy text-white',
-      hoverBorder: 'hover:border-teal',
-    },
-    {
-      role: 'FACILITY',
-      label: 'Facility Client Portal',
-      description: 'Request staff, post shifts, view your live roster.',
-      icon: <Building2 className="w-6 h-6" />,
-      iconBg: 'bg-blue-100 text-blue-600',
-      hoverBorder: 'hover:border-blue-500',
-    },
-    {
-      role: 'NURSE',
-      label: 'Mobile Worker App',
-      description: 'Browse open shifts and accept bookings instantly.',
-      icon: <Stethoscope className="w-6 h-6" />,
-      iconBg: 'bg-teal-100 text-teal-600',
-      hoverBorder: 'hover:border-teal',
-    },
-  ]
+    setLoadingDemo(null)
+  }, [searchParams])
 
   return (
     <div className="min-h-screen grid grid-cols-1 md:grid-cols-2 bg-background">
@@ -87,9 +70,12 @@ export default function LoginPage() {
           </CardHeader>
 
           <CardContent>
-            <Suspense>
-              <ErrorBanner />
-            </Suspense>
+            {errorMessage && (
+              <div className="flex items-center gap-2 p-3 mb-4 bg-red-50 border border-red-200 rounded-xl text-red-700 text-sm">
+                <AlertCircle className="w-4 h-4 shrink-0" />
+                <span>{decodeURIComponent(errorMessage)}</span>
+              </div>
+            )}
 
             <form className="space-y-4">
               {isRegistering && (
@@ -158,7 +144,7 @@ export default function LoginPage() {
           </div>
 
           <div className="space-y-3">
-            {demoButtons.map(({ role, label, description, icon, iconBg, hoverBorder }) => {
+            {DEMO_BUTTONS.map(({ role, label, description, icon, iconBg, hoverBorder }) => {
               const isLoading = loadingDemo === role
               const isDisabled = loadingDemo !== null
 
@@ -199,5 +185,13 @@ export default function LoginPage() {
       </div>
 
     </div>
+  )
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen bg-background" />}>
+      <LoginContent />
+    </Suspense>
   )
 }
