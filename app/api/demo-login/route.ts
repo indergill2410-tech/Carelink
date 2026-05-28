@@ -20,6 +20,14 @@ const DEMO_CONFIGS: Record<string, DemoConfig> = {
     email: 'nurse@demo.carelink.app',
     destination: '/worker',
   },
+  EN: {
+    email: 'en@demo.carelink.app',
+    destination: '/worker',
+  },
+  PCA: {
+    email: 'pca@demo.carelink.app',
+    destination: '/worker',
+  },
 }
 
 function errorRedirect(req: NextRequest, msg: string) {

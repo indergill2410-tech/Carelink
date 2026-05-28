@@ -4,7 +4,7 @@ import { prisma } from './prisma'
 
 type DemoConfig = {
   email: string
-  dbRole: 'ADMIN' | 'NURSE'
+  dbRole: 'ADMIN' | 'NURSE' | 'EN' | 'PCA'
   name: string
   complianceStatus: string
   destination: string
@@ -30,6 +30,20 @@ const DEMO_CONFIGS: Record<string, DemoConfig> = {
     dbRole: 'NURSE',
     name: 'Demo Nurse',
     complianceStatus: 'GREEN',
+    destination: '/worker',
+  },
+  EN: {
+    email: 'en@demo.carelink.app',
+    dbRole: 'EN',
+    name: 'Demo EN Worker',
+    complianceStatus: 'AMBER',
+    destination: '/worker',
+  },
+  PCA: {
+    email: 'pca@demo.carelink.app',
+    dbRole: 'PCA',
+    name: 'Demo PCA Worker',
+    complianceStatus: 'RED',
     destination: '/worker',
   },
 }
@@ -160,15 +174,15 @@ async function ensureAccount(
   return userId
 }
 
-async function seedDemoData(facilityManagerId: string, nurseId: string) {
+async function seedDemoData(facilityManagerId: string, nurseId: string, enId: string, pcaId: string) {
   try {
-    // Get or create the demo facility
-    let facility = await prisma.facility.findFirst({
+    // Find or create Sunrise Aged Care (Demo)
+    let sunrise = await prisma.facility.findFirst({
       where: { name: 'Sunrise Aged Care (Demo)' },
     })
 
-    if (!facility) {
-      facility = await prisma.facility.create({
+    if (!sunrise) {
+      sunrise = await prisma.facility.create({
         data: {
           name: 'Sunrise Aged Care (Demo)',
           address: '123 Sunrise Drive, Melbourne VIC 3000',
@@ -176,15 +190,29 @@ async function seedDemoData(facilityManagerId: string, nurseId: string) {
       })
     }
 
-    // Assign facility to facility manager
+    // Assign Sunrise to facility manager
     await prisma.user.update({
       where: { id: facilityManagerId },
-      data: { facilityId: facility.id },
+      data: { facilityId: sunrise.id },
     })
 
-    // Skip if the facility already has shifts
+    // Find or create Oakwood Nursing Home (Demo)
+    let oakwood = await prisma.facility.findFirst({
+      where: { name: 'Oakwood Nursing Home (Demo)' },
+    })
+
+    if (!oakwood) {
+      oakwood = await prisma.facility.create({
+        data: {
+          name: 'Oakwood Nursing Home (Demo)',
+          address: '45 Oakwood Avenue, Richmond VIC 3121',
+        },
+      })
+    }
+
+    // Skip if Sunrise already has shifts
     const existingShiftCount = await prisma.shift.count({
-      where: { facilityId: facility.id },
+      where: { facilityId: sunrise.id },
     })
 
     if (existingShiftCount > 0) {
@@ -206,49 +234,59 @@ async function seedDemoData(facilityManagerId: string, nurseId: string) {
       return melbourneTime
     }
 
-    // Create 5 demo shifts
+    // Sunrise shifts (8 rows)
     await prisma.shift.createMany({
       data: [
-        // PENDING NURSE — tomorrow 07:00–15:00
+        // 1. PENDING NURSE — day+1 07:00–15:00
         {
-          facilityId: facility.id,
+          facilityId: sunrise.id,
           role: 'NURSE',
           status: 'PENDING',
           startTime: melbourneDate(1, 7),
           endTime: melbourneDate(1, 15),
           hourlyRate: 55,
         },
-        // PENDING EN — day+2 07:00–15:00
+        // 2. PENDING EN — day+1 15:00–23:00
         {
-          facilityId: facility.id,
+          facilityId: sunrise.id,
           role: 'EN',
           status: 'PENDING',
-          startTime: melbourneDate(2, 7),
-          endTime: melbourneDate(2, 15),
+          startTime: melbourneDate(1, 15),
+          endTime: melbourneDate(1, 23),
           hourlyRate: 45,
         },
-        // PENDING PCA — day+3 07:00–15:00
+        // 3. PENDING PCA — day+3 07:00–15:00
         {
-          facilityId: facility.id,
+          facilityId: sunrise.id,
           role: 'PCA',
           status: 'PENDING',
           startTime: melbourneDate(3, 7),
           endTime: melbourneDate(3, 15),
           hourlyRate: 32.5,
         },
-        // MATCHED NURSE (assigned to nurseId) — day+2 15:00–23:00
+        // 4. MATCHED NURSE — day+2 07:00–15:00
         {
-          facilityId: facility.id,
+          facilityId: sunrise.id,
           role: 'NURSE',
           status: 'MATCHED',
-          startTime: melbourneDate(2, 15),
-          endTime: melbourneDate(2, 23),
+          startTime: melbourneDate(2, 7),
+          endTime: melbourneDate(2, 15),
           hourlyRate: 55,
           workerId: nurseId,
         },
-        // COMPLETED NURSE (assigned to nurseId) — yesterday 07:00–15:00
+        // 5. MATCHED EN — day+2 15:00–23:00
         {
-          facilityId: facility.id,
+          facilityId: sunrise.id,
+          role: 'EN',
+          status: 'MATCHED',
+          startTime: melbourneDate(2, 15),
+          endTime: melbourneDate(2, 23),
+          hourlyRate: 45,
+          workerId: enId,
+        },
+        // 6. COMPLETED NURSE — day-1 07:00–15:00
+        {
+          facilityId: sunrise.id,
           role: 'NURSE',
           status: 'COMPLETED',
           startTime: melbourneDate(-1, 7),
@@ -256,10 +294,53 @@ async function seedDemoData(facilityManagerId: string, nurseId: string) {
           hourlyRate: 55,
           workerId: nurseId,
         },
+        // 7. COMPLETED NURSE — day-3 07:00–15:00
+        {
+          facilityId: sunrise.id,
+          role: 'NURSE',
+          status: 'COMPLETED',
+          startTime: melbourneDate(-3, 7),
+          endTime: melbourneDate(-3, 15),
+          hourlyRate: 55,
+          workerId: nurseId,
+        },
+        // 8. CANCELLED PCA — day-2 07:00–15:00
+        {
+          facilityId: sunrise.id,
+          role: 'PCA',
+          status: 'CANCELLED',
+          startTime: melbourneDate(-2, 7),
+          endTime: melbourneDate(-2, 15),
+          hourlyRate: 32.5,
+        },
       ],
     })
 
-    console.log('[demo] Seeded demo shifts for facility:', facility.id)
+    // Oakwood shifts (2 rows)
+    await prisma.shift.createMany({
+      data: [
+        // 9. PENDING NURSE — day+2 07:00–15:00
+        {
+          facilityId: oakwood.id,
+          role: 'NURSE',
+          status: 'PENDING',
+          startTime: melbourneDate(2, 7),
+          endTime: melbourneDate(2, 15),
+          hourlyRate: 55,
+        },
+        // 10. PENDING PCA — day+4 07:00–15:00
+        {
+          facilityId: oakwood.id,
+          role: 'PCA',
+          status: 'PENDING',
+          startTime: melbourneDate(4, 7),
+          endTime: melbourneDate(4, 15),
+          hourlyRate: 32.5,
+        },
+      ],
+    })
+
+    console.log('[demo] Seeded demo shifts for Sunrise:', sunrise.id, 'and Oakwood:', oakwood.id)
   } catch (err) {
     console.error('[demo] Failed to seed demo data:', err)
   }
@@ -295,11 +376,13 @@ export async function provisionDemoAccounts(): Promise<void> {
 
     const facilityManagerId = results['FACILITY']
     const nurseId = results['NURSE']
+    const enId = results['EN']
+    const pcaId = results['PCA']
 
-    if (facilityManagerId && nurseId) {
-      await seedDemoData(facilityManagerId, nurseId)
+    if (facilityManagerId && nurseId && enId && pcaId) {
+      await seedDemoData(facilityManagerId, nurseId, enId, pcaId)
     } else {
-      console.error('[demo] Skipping seed — missing facilityManagerId or nurseId', results)
+      console.error('[demo] Skipping seed — missing facilityManagerId, nurseId, enId, or pcaId', results)
     }
   } catch (err) {
     console.error('[demo] provisionDemoAccounts failed:', err)
