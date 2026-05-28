@@ -113,7 +113,13 @@ export default async function WorkerPortal({ searchParams }: { searchParams: { e
               ? 'You must be fully compliant before accepting shifts. Please upload your documents.'
               : errorMessage === 'shift_already_taken'
               ? 'This shift was just taken by another worker. Please choose a different shift.'
-              : decodeURIComponent(errorMessage)}
+              : (() => {
+                  try {
+                    return decodeURIComponent(errorMessage);
+                  } catch {
+                    return errorMessage;
+                  }
+                })()}
           </div>
         )}
         <h2 className="font-bold text-navy mb-4 text-lg">Available Shifts Near You</h2>
