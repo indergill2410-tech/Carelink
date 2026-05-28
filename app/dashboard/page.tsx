@@ -1,10 +1,36 @@
 import { Activity, Clock, FileWarning, Users } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { PrismaClient } from '@prisma/client';
 
-export default function Dashboard() {
+const prisma = new PrismaClient();
+
+// This runs on the server, making it fast and secure
+async function getDashboardData() {
+  const [shifts, workers, facilities] = await Promise.all([
+    prisma.shift.findMany({
+      include: { facility: true, worker: true },
+      orderBy: { startTime: 'asc' },
+      take: 10
+    }),
+    prisma.user.findMany({
+      where: { role: { in: ['NURSE', 'EN', 'PCA'] } }
+    }),
+    prisma.facility.count()
+  ]);
+
+  const activeShifts = shifts.filter(s => s.status === 'CLOCKED_IN' || s.status === 'FILLED');
+  const unfilledShifts = shifts.filter(s => s.status === 'REQUESTED');
+  const complianceAlerts = workers.filter(w => w.complianceStatus === 'RED' || w.complianceStatus === 'AMBER');
+
+  return { shifts, workers, activeShifts, unfilledShifts, complianceAlerts, facilities };
+}
+
+export default async function Dashboard() {
+  const data = await getDashboardData();
+
   return (
-    <div className="flex min-h-screen">
+    <div className="flex min-h-screen bg-background">
       {/* Sidebar */}
       <aside className="w-64 bg-navy text-white p-6 hidden md:flex flex-col gap-6">
         <div className="flex items-center gap-3">
@@ -16,7 +42,7 @@ export default function Dashboard() {
         </div>
 
         <nav className="flex flex-col gap-2 mt-8">
-          <a href="#" className="px-4 py-3 rounded-xl bg-white/10 text-white font-medium">Dashboard</a>
+          <a href="/dashboard" className="px-4 py-3 rounded-xl bg-white/10 text-white font-medium">Dashboard</a>
           <a href="#" className="px-4 py-3 rounded-xl text-gray-400 hover:text-white hover:bg-white/5 transition">Live Shifts</a>
           <a href="#" className="px-4 py-3 rounded-xl text-gray-400 hover:text-white hover:bg-white/5 transition">Compliance</a>
           <a href="#" className="px-4 py-3 rounded-xl text-gray-400 hover:text-white hover:bg-white/5 transition">Workforce</a>
@@ -46,8 +72,8 @@ export default function Dashboard() {
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-3xl font-bold text-navy">148</div>
-              <p className="text-xs text-mint mt-1 font-medium">+12 from yesterday</p>
+              <div className="text-3xl font-bold text-navy">{data.shifts.length}</div>
+              <p className="text-xs text-mint mt-1 font-medium">Tracking currently</p>
             </CardContent>
           </Card>
 
@@ -58,8 +84,8 @@ export default function Dashboard() {
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-3xl font-bold text-navy">12</div>
-              <p className="text-xs text-amber-500 mt-1 font-medium">4 start within 2 hrs</p>
+              <div className="text-3xl font-bold text-navy">{data.unfilledShifts.length}</div>
+              <p className="text-xs text-amber-500 mt-1 font-medium">Require action</p>
             </CardContent>
           </Card>
 
@@ -70,8 +96,8 @@ export default function Dashboard() {
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-3xl font-bold text-navy">23</div>
-              <p className="text-xs text-gray-500 mt-1 font-medium">7 expiring this week</p>
+              <div className="text-3xl font-bold text-navy">{data.complianceAlerts.length}</div>
+              <p className="text-xs text-gray-500 mt-1 font-medium">Expiring documents</p>
             </CardContent>
           </Card>
 
@@ -82,8 +108,8 @@ export default function Dashboard() {
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-3xl font-bold text-navy">89</div>
-              <p className="text-xs text-gray-500 mt-1 font-medium">31 RN · 18 EN · 40 PCA</p>
+              <div className="text-3xl font-bold text-navy">{data.workers.length}</div>
+              <p className="text-xs text-gray-500 mt-1 font-medium">Across {data.facilities} facilities</p>
             </CardContent>
           </Card>
         </div>
@@ -96,22 +122,33 @@ export default function Dashboard() {
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
-                {[
-                  { fac: "BlueCross Carlton", role: "RN", time: "7:00 PM - 7:00 AM", status: "Requested", worker: "Unassigned", color: "bg-amber-100 text-amber-800" },
-                  { fac: "Mercy Place Keon Park", role: "PCA", time: "3:00 PM - 11:00 PM", status: "Filled", worker: "Mia Collins", color: "bg-teal-100 text-teal-800" },
-                  { fac: "Bupa Ashbury", role: "RN", time: "7:00 AM - 3:00 PM", status: "Clocked In", worker: "Sarah Nguyen", color: "bg-mint text-white" }
-                ].map((s, i) => (
-                  <div key={i} className="flex items-center justify-between p-4 border rounded-xl bg-gray-50/50">
-                    <div className="flex gap-4 items-center">
-                      <div className="w-10 h-10 rounded-full bg-white border flex items-center justify-center font-bold text-navy text-xs">{s.role}</div>
-                      <div>
-                        <p className="font-semibold text-navy">{s.fac}</p>
-                        <p className="text-sm text-gray-500">{s.time} · {s.worker}</p>
+                {data.shifts.length === 0 ? (
+                   <div className="p-8 text-center text-gray-500 border border-dashed rounded-xl">
+                     No shifts requested yet. Broadcast a shift to get started.
+                   </div>
+                ) : (
+                  data.shifts.map((s) => (
+                    <div key={s.id} className="flex items-center justify-between p-4 border rounded-xl bg-gray-50/50">
+                      <div className="flex gap-4 items-center">
+                        <div className="w-10 h-10 rounded-full bg-white border flex items-center justify-center font-bold text-navy text-xs">{s.roleRequired}</div>
+                        <div>
+                          <p className="font-semibold text-navy">{s.facility.name}</p>
+                          <p className="text-sm text-gray-500">
+                            {new Date(s.startTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} - {new Date(s.endTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} 
+                            {' '}· {s.worker ? s.worker.name : 'Unassigned'}
+                          </p>
+                        </div>
                       </div>
+                      <span className={`px-3 py-1 rounded-full text-xs font-bold ${
+                        s.status === 'REQUESTED' ? 'bg-amber-100 text-amber-800' : 
+                        s.status === 'CLOCKED_IN' ? 'bg-mint text-white' : 
+                        'bg-teal-100 text-teal-800'
+                      }`}>
+                        {s.status}
+                      </span>
                     </div>
-                    <span className={`px-3 py-1 rounded-full text-xs font-bold ${s.color}`}>{s.status}</span>
-                  </div>
-                ))}
+                  ))
+                )}
               </div>
             </CardContent>
           </Card>
@@ -121,16 +158,23 @@ export default function Dashboard() {
               <CardTitle>Urgent Action Required</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="p-4 bg-red-50 border border-red-100 rounded-xl">
-                <p className="font-bold text-red-900 text-sm">2 RN Night Shifts</p>
-                <p className="text-red-700 text-xs mt-1 mb-3">BlueCross Carlton · Starts in 90 min</p>
-                <Button size="sm" variant="destructive" className="w-full">Override Dispatch</Button>
-              </div>
-              <div className="p-4 bg-amber-50 border border-amber-100 rounded-xl">
-                <p className="font-bold text-amber-900 text-sm">Police Check Expiring</p>
-                <p className="text-amber-700 text-xs mt-1 mb-3">Olivia Tan · Expires in 3 days</p>
-                <Button size="sm" variant="outline" className="w-full bg-white text-amber-900 border-amber-200">Review Compliance</Button>
-              </div>
+              {data.unfilledShifts.map(s => (
+                <div key={s.id} className="p-4 bg-red-50 border border-red-100 rounded-xl">
+                  <p className="font-bold text-red-900 text-sm">{s.roleRequired} Shift</p>
+                  <p className="text-red-700 text-xs mt-1 mb-3">{s.facility.name} · Unfilled</p>
+                  <Button size="sm" variant="destructive" className="w-full">Override Dispatch</Button>
+                </div>
+              ))}
+              {data.complianceAlerts.slice(0,3).map(w => (
+                <div key={w.id} className="p-4 bg-amber-50 border border-amber-100 rounded-xl">
+                  <p className="font-bold text-amber-900 text-sm">Compliance Review</p>
+                  <p className="text-amber-700 text-xs mt-1 mb-3">{w.name || w.email} · {w.complianceStatus}</p>
+                  <Button size="sm" variant="outline" className="w-full bg-white text-amber-900 border-amber-200">Review</Button>
+                </div>
+              ))}
+              {data.unfilledShifts.length === 0 && data.complianceAlerts.length === 0 && (
+                <p className="text-sm text-gray-500 text-center py-4">You're all caught up!</p>
+              )}
             </CardContent>
           </Card>
         </div>
