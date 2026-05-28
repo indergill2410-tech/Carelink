@@ -1,6 +1,6 @@
 'use client'
 
-import { Suspense, useState } from 'react'
+import { Suspense, useState, useEffect, useRef } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { login, signup, demoLogin } from './actions'
 import { Button } from '@/components/ui/button'
@@ -23,6 +23,21 @@ function ErrorBanner() {
 export default function LoginPage() {
   const [isRegistering, setIsRegistering] = useState(false)
   const [loadingDemo, setLoadingDemo] = useState<string | null>(null)
+  const demoTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  // Auto-reset loading state after 30 s in case the server action hangs
+  // (e.g. Render cold-start + Supabase latency). The action always redirects
+  // on both success and failure, so if the spinner is still showing after 30 s
+  // something went wrong that didn't produce a redirect.
+  useEffect(() => {
+    if (demoTimeoutRef.current) clearTimeout(demoTimeoutRef.current)
+    if (loadingDemo) {
+      demoTimeoutRef.current = setTimeout(() => setLoadingDemo(null), 30_000)
+    }
+    return () => {
+      if (demoTimeoutRef.current) clearTimeout(demoTimeoutRef.current)
+    }
+  }, [loadingDemo])
 
   const demoButtons = [
     {

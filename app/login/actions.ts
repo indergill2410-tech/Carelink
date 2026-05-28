@@ -17,15 +17,20 @@ export async function login(formData: FormData) {
   const { data: authData, error } = await supabase.auth.signInWithPassword(parsed.data)
   if (error) redirect('/login?error=' + encodeURIComponent(error.message))
 
+  // Resolve role outside any try/catch — redirect() throws internally and
+  // must not be caught by a generic catch block.
+  let dbRole: string | null = null
   try {
     const dbUser = await prisma.user.findUnique({ where: { id: authData.user!.id } })
-    if (!dbUser) redirect('/login?error=Account+not+found')
-    if (dbUser.role === 'ADMIN') redirect('/dashboard')
-    if (['NURSE', 'EN', 'PCA'].includes(dbUser.role)) redirect('/worker')
-    redirect('/facility')
+    dbRole = dbUser?.role ?? null
   } catch {
-    redirect('/login?error=Server+error')
+    redirect('/login?error=Database+error.+Please+try+again.')
   }
+
+  if (!dbRole) redirect('/login?error=Account+not+found')
+  if (dbRole === 'ADMIN') redirect('/dashboard')
+  if (['NURSE', 'EN', 'PCA'].includes(dbRole)) redirect('/worker')
+  redirect('/facility')
 }
 
 export async function signup(formData: FormData) {
@@ -52,24 +57,19 @@ export async function signup(formData: FormData) {
 
   if (authData.user) {
     await new Promise(resolve => setTimeout(resolve, 1000))
+    let destination = '/worker'
     try {
       if (role === 'FACILITY') {
-        await prisma.user.update({
-          where: { id: authData.user.id },
-          data: { role: 'ADMIN', name },
-        })
-        redirect('/facility')
+        await prisma.user.update({ where: { id: authData.user.id }, data: { role: 'ADMIN', name } })
+        destination = '/facility'
       } else {
         const dbRole = role as 'NURSE' | 'EN' | 'PCA'
-        await prisma.user.update({
-          where: { id: authData.user.id },
-          data: { role: dbRole, name },
-        })
-        redirect('/worker')
+        await prisma.user.update({ where: { id: authData.user.id }, data: { role: dbRole, name } })
       }
     } catch {
-      redirect('/worker')
+      // DB update failed — auth succeeded, so let them in anyway
     }
+    redirect(destination)
   }
   redirect('/login')
 }
@@ -108,11 +108,13 @@ export async function demoLogin(formData: FormData) {
   const config = DEMO_CONFIGS[demoRoleInput]
   if (!config) redirect('/login?error=Invalid+demo+role')
 
-  const demoPassword = process.env.DEMO_ACCOUNT_PASSWORD
-  if (!demoPassword) redirect('/login?error=Demo+accounts+not+configured+%E2%80%94+set+DEMO_ACCOUNT_PASSWORD')
-
   if (process.env.NODE_ENV === 'production' && !process.env.ENABLE_DEMO_ACCOUNTS) {
-    redirect('/login?error=Demo+accounts+are+disabled+in+production')
+    redirect('/login?error=Demo+accounts+are+disabled+on+this+server')
+  }
+
+  const demoPassword = process.env.DEMO_ACCOUNT_PASSWORD
+  if (!demoPassword) {
+    redirect('/login?error=DEMO_ACCOUNT_PASSWORD+not+configured+on+this+server')
   }
 
   const supabase = createClient()
@@ -122,17 +124,14 @@ export async function demoLogin(formData: FormData) {
     email: config.email,
     password: demoPassword,
   })
-
   if (!signInError) redirect(config.destination)
 
-  // First-time setup: create a pre-confirmed account via the admin API.
-  // Using signUp() with the anon key creates an unconfirmed account that can't
-  // log in when email confirmation is enabled — the admin API bypasses that.
+  // First-time setup: provision via admin API (bypasses email confirmation)
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
   const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY
 
   if (!supabaseUrl || !serviceRoleKey) {
-    redirect('/login?error=Demo+setup+requires+SUPABASE_SERVICE_ROLE_KEY')
+    redirect('/login?error=SUPABASE_SERVICE_ROLE_KEY+not+configured+on+this+server')
   }
 
   const adminClient = createSupabaseAdminClient(supabaseUrl, serviceRoleKey, {
@@ -150,23 +149,26 @@ export async function demoLogin(formData: FormData) {
     redirect('/login?error=' + encodeURIComponent(createError?.message ?? 'Could not create demo account'))
   }
 
-  // Upsert the User record — safe whether the auth trigger has already
-  // fired (update path) or hasn't yet (create path).
-  await prisma.user.upsert({
-    where: { id: created.user.id },
-    create: {
-      id: created.user.id,
-      email: config.email,
-      name: config.name,
-      role: config.dbRole,
-      complianceStatus: 'GREEN',
-    },
-    update: {
-      role: config.dbRole,
-      name: config.name,
-      complianceStatus: 'GREEN',
-    },
-  })
+  // Upsert the User row — safe whether the auth trigger has already fired or not
+  try {
+    await prisma.user.upsert({
+      where: { id: created.user.id },
+      create: {
+        id: created.user.id,
+        email: config.email,
+        name: config.name,
+        role: config.dbRole,
+        complianceStatus: 'GREEN',
+      },
+      update: {
+        role: config.dbRole,
+        name: config.name,
+        complianceStatus: 'GREEN',
+      },
+    })
+  } catch {
+    redirect('/login?error=Database+error+during+demo+setup.+Check+DATABASE_URL.')
+  }
 
   // Sign in with the newly created, pre-confirmed account
   const { error: finalSignInError } = await supabase.auth.signInWithPassword({
