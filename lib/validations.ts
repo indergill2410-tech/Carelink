@@ -19,7 +19,7 @@ export const AcceptShiftSchema = z.object({
 })
 
 export const ShiftRequestSchema = z.object({
-  role: z.enum(['RN', 'EN', 'PCA'], { errorMap: () => ({ message: 'Invalid role' }) }),
+  role: z.enum(['NURSE', 'EN', 'PCA'], { errorMap: () => ({ message: 'Invalid role' }) }),
   date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Invalid date format'),
 })
 

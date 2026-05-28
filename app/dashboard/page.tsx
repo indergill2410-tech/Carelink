@@ -20,8 +20,8 @@ async function getDashboardData() {
     prisma.facility.count()
   ]);
 
-  const activeShifts = shifts.filter(s => s.status === 'CLOCKED_IN' || s.status === 'FILLED');
-  const unfilledShifts = shifts.filter(s => s.status === 'REQUESTED');
+  const activeShifts = shifts.filter(s => s.status === 'MATCHED' || s.status === 'COMPLETED');
+  const unfilledShifts = shifts.filter(s => s.status === 'PENDING');
   const complianceAlerts = workers.filter(w => w.complianceStatus === 'RED' || w.complianceStatus === 'AMBER');
 
   return { shifts, workers, activeShifts, unfilledShifts, complianceAlerts, facilities };
@@ -139,7 +139,7 @@ export default async function Dashboard() {
                   data.shifts.map((s) => (
                     <div key={s.id} className="flex items-center justify-between p-4 border rounded-xl bg-gray-50/50">
                       <div className="flex gap-4 items-center">
-                        <div className="w-10 h-10 rounded-full bg-white border flex items-center justify-center font-bold text-navy text-xs">{s.roleRequired}</div>
+                        <div className="w-10 h-10 rounded-full bg-white border flex items-center justify-center font-bold text-navy text-xs">{s.role}</div>
                         <div>
                           <p className="font-semibold text-navy">{s.facility.name}</p>
                           <p className="text-sm text-gray-500">
@@ -149,8 +149,8 @@ export default async function Dashboard() {
                         </div>
                       </div>
                       <span className={`px-3 py-1 rounded-full text-xs font-bold ${
-                        s.status === 'REQUESTED' ? 'bg-amber-100 text-amber-800' : 
-                        s.status === 'CLOCKED_IN' ? 'bg-mint text-white' : 
+                        s.status === 'PENDING' ? 'bg-amber-100 text-amber-800' :
+                        s.status === 'MATCHED' ? 'bg-mint text-white' :
                         'bg-teal-100 text-teal-800'
                       }`}>
                         {s.status}
@@ -169,7 +169,7 @@ export default async function Dashboard() {
             <CardContent className="space-y-4">
               {data.unfilledShifts.map(s => (
                 <div key={s.id} className="p-4 bg-red-50 border border-red-100 rounded-xl">
-                  <p className="font-bold text-red-900 text-sm">{s.roleRequired} Shift</p>
+                  <p className="font-bold text-red-900 text-sm">{s.role} Shift</p>
                   <p className="text-red-700 text-xs mt-1 mb-3">{s.facility.name} · Unfilled</p>
                   <Button size="sm" variant="destructive" className="w-full">Override Dispatch</Button>
                 </div>
@@ -182,7 +182,7 @@ export default async function Dashboard() {
                 </div>
               ))}
               {data.unfilledShifts.length === 0 && data.complianceAlerts.length === 0 && (
-                <p className="text-sm text-gray-500 text-center py-4">You're all caught up!</p>
+                <p className="text-sm text-gray-500 text-center py-4">You&apos;re all caught up!</p>
               )}
             </CardContent>
           </Card>
