@@ -2,7 +2,7 @@
 
 import { Suspense, useState, useEffect } from 'react'
 import { useSearchParams } from 'next/navigation'
-import { login, signup, demoLogin } from './actions'
+import { login, signup } from './actions'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
@@ -15,7 +15,7 @@ const DEMO_BUTTONS = [
     description: 'Global dispatch, compliance monitoring, workforce overview.',
     icon: <ShieldCheck className="w-6 h-6" />,
     iconBg: 'bg-navy text-white',
-    hoverBorder: 'hover:border-teal',
+    hoverBorder: 'hover:border-teal hover:shadow-md',
   },
   {
     role: 'FACILITY',
@@ -23,7 +23,7 @@ const DEMO_BUTTONS = [
     description: 'Request staff, post shifts, view your live roster.',
     icon: <Building2 className="w-6 h-6" />,
     iconBg: 'bg-blue-100 text-blue-600',
-    hoverBorder: 'hover:border-blue-500',
+    hoverBorder: 'hover:border-blue-400 hover:shadow-md',
   },
   {
     role: 'NURSE',
@@ -31,11 +31,10 @@ const DEMO_BUTTONS = [
     description: 'Browse open shifts and accept bookings instantly.',
     icon: <Stethoscope className="w-6 h-6" />,
     iconBg: 'bg-teal-100 text-teal-600',
-    hoverBorder: 'hover:border-teal',
+    hoverBorder: 'hover:border-teal hover:shadow-md',
   },
 ]
 
-// Inner component — uses useSearchParams, so it must live inside <Suspense>
 function LoginContent() {
   const searchParams = useSearchParams()
   const errorMessage = searchParams.get('error')
@@ -43,8 +42,7 @@ function LoginContent() {
   const [isRegistering, setIsRegistering] = useState(false)
   const [loadingDemo, setLoadingDemo] = useState<string | null>(null)
 
-  // Reset spinner on any URL change — handles the case where the server action
-  // redirects back to /login?error=... (same route, component doesn't unmount)
+  // Reset spinner if we're redirected back to /login (e.g. on error)
   useEffect(() => {
     setLoadingDemo(null)
   }, [searchParams])
@@ -138,7 +136,7 @@ function LoginContent() {
           <div className="text-center mb-2">
             <h2 className="text-2xl font-bold text-navy">Try the Platform</h2>
             <p className="text-gray-500 mt-2 text-sm">
-              One click to enter any of the three portals as a pre-loaded demo account.
+              One tap to enter any portal as a pre-loaded demo account.
               No sign-up needed.
             </p>
           </div>
@@ -149,27 +147,24 @@ function LoginContent() {
               const isDisabled = loadingDemo !== null
 
               return (
-                <form key={role} action={demoLogin}>
+                <form key={role} method="POST" action="/api/demo-login">
+                  <input type="hidden" name="role" value={role} />
                   <button
                     type="submit"
-                    name="demo_role"
-                    value={role}
                     disabled={isDisabled}
                     onClick={() => setLoadingDemo(role)}
                     className={`w-full flex items-center p-4 bg-white border rounded-2xl transition-all text-left group
-                      ${isDisabled ? 'opacity-60 cursor-not-allowed' : `${hoverBorder} hover:shadow-md cursor-pointer`}`}
+                      ${isDisabled ? 'opacity-60 cursor-not-allowed' : `${hoverBorder} cursor-pointer`}`}
                   >
                     <div className={`p-3 ${iconBg} rounded-xl mr-4 shrink-0 ${!isDisabled ? 'group-hover:scale-105 transition-transform' : ''}`}>
-                      {isLoading
-                        ? <Loader2 className="w-6 h-6 animate-spin" />
-                        : icon}
+                      {isLoading ? <Loader2 className="w-6 h-6 animate-spin" /> : icon}
                     </div>
                     <div className="flex-1 min-w-0">
                       <h3 className="font-bold text-navy text-sm">{label}</h3>
                       <p className="text-xs text-gray-500 mt-0.5">{description}</p>
                     </div>
                     {isLoading && (
-                      <span className="text-xs text-gray-400 ml-2 shrink-0">Setting up…</span>
+                      <span className="text-xs text-gray-400 ml-2 shrink-0">Loading…</span>
                     )}
                   </button>
                 </form>
