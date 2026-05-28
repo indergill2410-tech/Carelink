@@ -15,89 +15,84 @@ export async function login(formData: FormData) {
   }
 
   const { data: authData, error } = await supabase.auth.signInWithPassword(data)
+  if (error) redirect('/login?error=Could not authenticate user')
 
-  if (error) {
-    redirect('/login?error=Could not authenticate user')
-  }
-
-  // Check the user's role in Prisma to route them correctly
   if (authData.user) {
-    const dbUser = await prisma.user.findUnique({
-      where: { id: authData.user.id }
-    })
-
-    if (dbUser?.role === 'ADMIN') {
-      redirect('/dashboard')
-    } else if (dbUser?.role === 'NURSE' || dbUser?.role === 'EN' || dbUser?.role === 'PCA') {
-      redirect('/worker')
-    }
+    const dbUser = await prisma.user.findUnique({ where: { id: authData.user.id } })
+    if (dbUser?.role === 'ADMIN') redirect('/dashboard')
+    if (dbUser?.role === 'NURSE' || dbUser?.role === 'EN' || dbUser?.role === 'PCA') redirect('/worker')
   }
-
-  redirect('/dashboard')
+  redirect('/facility')
 }
 
 export async function signup(formData: FormData) {
   const supabase = createClient()
-
-  // For the MVP, we let them pick their role on signup.
-  // In production, you would verify this later.
   const email = formData.get('email') as string
   const password = formData.get('password') as string
-  const role = formData.get('role') as string // 'NURSE', 'FACILITY', or 'ADMIN'
+  const role = formData.get('role') as string 
   const name = formData.get('name') as string
 
   const { data: authData, error } = await supabase.auth.signUp({
-    email,
-    password,
-    options: {
-      data: {
-        name: name,
-        requested_role: role
-      }
-    }
+    email, password, options: { data: { name, requested_role: role } }
   })
 
-  if (error) {
-    redirect('/login?error=' + error.message)
-  }
-
-  // NOTE: The Supabase trigger we created earlier automatically inserts them into the Prisma table.
-  // However, because we just added 'requested_role' to the metadata, we can update our SQL trigger later.
-  // For now, we manually update the Prisma record to ensure they get the right role if the trigger defaulted them to NURSE.
+  if (error) redirect('/login?error=' + error.message)
 
   if (authData.user) {
-    // Small delay to ensure the Supabase Trigger finished inserting the row first
     await new Promise(resolve => setTimeout(resolve, 1000))
-
     try {
       if (role === 'FACILITY') {
-        // We don't have a FACILITY role in the User enum, facilities are separate.
-        // For MVP, we'll make them an ADMIN so they can see the dashboard, 
-        // but normally they would get a special FACILITY_MANAGER role.
-        await prisma.user.update({
-          where: { id: authData.user.id },
-          data: { role: 'ADMIN', name: name }
-        })
+        await prisma.user.update({ where: { id: authData.user.id }, data: { role: 'ADMIN', name } })
         redirect('/facility')
       } else if (role === 'ADMIN') {
-        await prisma.user.update({
-          where: { id: authData.user.id },
-          data: { role: 'ADMIN', name: name }
-        })
+        await prisma.user.update({ where: { id: authData.user.id }, data: { role: 'ADMIN', name } })
         redirect('/dashboard')
       } else {
-        // They are a worker
-        await prisma.user.update({
-          where: { id: authData.user.id },
-          data: { role: 'NURSE', name: name }
-        })
+        await prisma.user.update({ where: { id: authData.user.id }, data: { role: 'NURSE', name } })
         redirect('/worker')
       }
     } catch (e) {
-      console.error("Error updating role post-signup:", e)
-      redirect('/worker') // Default fallback
+      redirect('/worker')
+    }
+  }
+  redirect('/login')
+}
+
+export async function demoLogin(formData: FormData) {
+  const role = formData.get('demo_role') as string
+  const email = `${role.toLowerCase()}@demo.com`
+  const password = 'DemoPassword123!'
+  const name = `Demo ${role}`
+
+  const supabase = createClient()
+
+  // 1. Try to log in
+  let { data: authData, error } = await supabase.auth.signInWithPassword({ email, password })
+
+  // 2. If it fails, create the demo account
+  if (error) {
+    const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
+      email, password, options: { data: { name, requested_role: role } }
+    })
+
+    if (signUpError) redirect(`/login?error=Demo setup failed: ${signUpError.message}`)
+
+    // Give trigger time
+    await new Promise(resolve => setTimeout(resolve, 1500))
+
+    try {
+      const mappedRole = role === 'FACILITY' ? 'ADMIN' : role
+      await prisma.user.update({
+        where: { id: signUpData.user!.id },
+        data: { role: mappedRole, name, complianceStatus: 'GREEN' } // Make demo nurses GREEN so they look good
+      })
+    } catch (e) {
+      console.log("Demo role update error", e)
     }
   }
 
-  redirect('/login?message=Check email to continue sign in process')
+  // 3. Route to proper dashboard
+  if (role === 'ADMIN') redirect('/dashboard')
+  if (role === 'FACILITY') redirect('/facility')
+  redirect('/worker')
 }
