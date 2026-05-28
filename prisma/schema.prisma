@@ -1,0 +1,90 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id               String    @id @default(uuid())
+  name             String
+  email            String    @unique
+  role             Role      @default(NURSE)
+  status           Status    @default(PENDING)
+  ahpraNumber      String?
+  complianceStatus String    @default("RED")
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  shifts           Shift[]   @relation("WorkerShifts")
+}
+
+model Facility {
+  id          String   @id @default(uuid())
+  name        String
+  address     String?
+  defaultRate Decimal? @db.Decimal(10, 2)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  shifts      Shift[]
+}
+
+model Shift {
+  id           String      @id @default(uuid())
+  facilityId   String
+  roleRequired String
+  startTime    DateTime
+  endTime      DateTime
+  status       ShiftStatus @default(REQUESTED)
+  workerId     String?
+  billRate     Decimal?    @db.Decimal(10, 2)
+  payRate      Decimal?    @db.Decimal(10, 2)
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+
+  facility     Facility    @relation(fields: [facilityId], references: [id])
+  worker       User?       @relation("WorkerShifts", fields: [workerId], references: [id])
+  timesheets   Timesheet[]
+}
+
+model Timesheet {
+  id        String          @id @default(uuid())
+  shiftId   String
+  clockIn   DateTime?
+  clockOut  DateTime?
+  status    TimesheetStatus @default(PENDING_APPROVAL)
+  createdAt DateTime        @default(now())
+  updatedAt DateTime        @updatedAt
+
+  shift     Shift           @relation(fields: [shiftId], references: [id])
+}
+
+enum Role {
+  ADMIN
+  NURSE
+  EN
+  PCA
+}
+
+enum Status {
+  ACTIVE
+  PENDING
+  BLOCKED
+}
+
+enum ShiftStatus {
+  REQUESTED
+  FILLED
+  CLOCKED_IN
+  COMPLETED
+  CANCELLED
+}
+
+enum TimesheetStatus {
+  PENDING_APPROVAL
+  APPROVED
+  INVOICED
+}
