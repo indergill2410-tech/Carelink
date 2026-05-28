@@ -73,7 +73,7 @@ export default async function WorkerPortal() {
             <p className="text-xs text-teal-100">Status</p>
             <div className="flex items-center gap-2 mt-1">
               <div className={`w-2 h-2 rounded-full ${user.complianceStatus === 'GREEN' ? 'bg-mint' : 'bg-rose-400'}`}></div>
-              <span className="text-sm font-semibold">{user.complianceStatus === 'GREEN' ? 'Compliant' : 'Action Needed'}</span>
+              <a href="/worker/compliance" className="text-sm font-semibold underline text-white">{user.complianceStatus === 'GREEN' ? 'Compliant' : 'Upload Docs'}</a>
             </div>
           </div>
           <div className="bg-white/10 rounded-xl p-3 flex-1">
