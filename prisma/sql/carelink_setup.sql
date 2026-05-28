@@ -176,7 +176,7 @@ CREATE POLICY "admins_update_any_shift"      ON public."Shift" FOR UPDATE USING 
 
 -- -------------------------
 -- 5. DEMO ACCOUNTS
--- Password for all 3 demo accounts: CareLink2026!
+-- Password for all 3 demo accounts: Veerji786  (matches DEMO_ACCOUNT_PASSWORD env var)
 -- -------------------------
 
 DO $$
