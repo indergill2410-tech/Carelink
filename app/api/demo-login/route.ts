@@ -37,8 +37,10 @@ function errorRedirect(req: NextRequest, msg: string) {
   )
 }
 
-export async function GET(req: NextRequest) {
-  const role = req.nextUrl.searchParams.get('role') ?? ''
+// POST — side-effecting route must not be GET (browsers/crawlers prefetch GET links)
+export async function POST(req: NextRequest) {
+  const body = await req.formData()
+  const role = (body.get('role') as string) ?? ''
   const config = DEMO_CONFIGS[role]
   if (!config) return errorRedirect(req, 'Invalid demo role')
 
@@ -56,8 +58,7 @@ export async function GET(req: NextRequest) {
     return NextResponse.redirect(new URL(config.destination, req.url))
   }
 
-  // Sign-in failed — account was likely created via SQL without auth.identities.
-  // Delete the broken record and recreate via admin API (which sets up auth.identities).
+  // Sign-in failed — account likely created via SQL without auth.identities.
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
   const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY
   if (!supabaseUrl || !serviceRoleKey) {
@@ -68,7 +69,7 @@ export async function GET(req: NextRequest) {
     auth: { autoRefreshToken: false, persistSession: false },
   })
 
-  // Find existing public.User ID so we can clean up auth.users too
+  // Find the existing public.User row
   let existingId: string | null = null
   try {
     const dbUser = await prisma.user.findUnique({
@@ -79,13 +80,44 @@ export async function GET(req: NextRequest) {
   } catch { /* proceed to create */ }
 
   if (existingId) {
-    // Delete public.User FIRST — avoids a unique-email conflict when the
-    // auth trigger fires during the re-create step below.
-    try { await prisma.user.delete({ where: { id: existingId } }) } catch { /* ignore */ }
+    // Nullify any FK references to this user before deleting, so the delete
+    // cannot be blocked by foreign key constraints on Shift.workerId.
+    try {
+      await prisma.shift.updateMany({
+        where: { workerId: existingId },
+        data: { workerId: null },
+      })
+    } catch { /* ignore — best-effort */ }
+
+    let publicUserDeleted = false
+    try {
+      await prisma.user.delete({ where: { id: existingId } })
+      publicUserDeleted = true
+    } catch { /* ignore */ }
+
+    if (!publicUserDeleted) {
+      // Fallback: if the public.User row can't be removed, reset the auth
+      // password in place instead of delete+recreate (avoids email uniqueness
+      // conflict on the subsequent create trigger).
+      try {
+        await adminClient.auth.admin.updateUserById(existingId, {
+          password: demoPassword,
+          email_confirm: true,
+        })
+      } catch { /* ignore */ }
+      const { error: retryErr } = await supabase.auth.signInWithPassword({
+        email: config.email,
+        password: demoPassword,
+      })
+      if (!retryErr) return NextResponse.redirect(new URL(config.destination, req.url))
+      return errorRedirect(req, retryErr.message)
+    }
+
+    // public.User deleted — now safe to remove the auth record
     try { await adminClient.auth.admin.deleteUser(existingId) } catch { /* ignore */ }
   }
 
-  // Create a properly provisioned auth user (auth.identities included)
+  // Create a properly provisioned auth user (sets up auth.identities)
   const { data: created, error: createError } = await adminClient.auth.admin.createUser({
     email: config.email,
     password: demoPassword,
