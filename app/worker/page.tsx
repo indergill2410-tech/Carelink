@@ -39,20 +39,40 @@ export default async function WorkerPortal() {
 
   async function acceptShift(formData: FormData) {
     'use server'
-    const shiftId = formData.get('shiftId') as string
+    const { AcceptShiftSchema } = await import('@/lib/validations')
+    const parsed = AcceptShiftSchema.safeParse({ shiftId: formData.get('shiftId') })
+    if (!parsed.success) redirect('/worker?error=Invalid+shift')
 
-    // In production, check compliance status here before allowing!
-    await prisma.shift.update({
-      where: { id: shiftId },
+    const supabase = createClient()
+    const { data: { user: authUser } } = await supabase.auth.getUser()
+    if (!authUser) redirect('/login')
+
+    const dbUser = await prisma.user.findUnique({ where: { id: authUser.id } })
+    if (!dbUser) redirect('/login')
+
+    if (dbUser.complianceStatus !== 'GREEN') {
+      redirect('/worker?error=compliance_required')
+    }
+
+    const result = await prisma.shift.updateMany({
+      where: {
+        id: parsed.data.shiftId,
+        workerId: null,
+        status: 'REQUESTED',
+      },
       data: {
-        workerId: user.id,
-        status: 'FILLED'
-      }
+        workerId: dbUser.id,
+        status: 'FILLED',
+      },
     })
 
+    if (result.count === 0) {
+      redirect('/worker?error=shift_already_taken')
+    }
+
     revalidatePath('/worker')
-    revalidatePath('/dashboard') // Revalidate dashboard too
-    revalidatePath('/facility')  // Revalidate facility too
+    revalidatePath('/dashboard')
+    revalidatePath('/facility')
   }
 
   return (
