@@ -1,3 +1,4 @@
+import { createHash } from 'crypto'
 import { createClient as createAnonClient } from '@supabase/supabase-js'
 import { createClient as createAdminClient } from '@supabase/supabase-js'
 import { prisma } from './prisma'
@@ -48,6 +49,13 @@ const DEMO_CONFIGS: Record<string, DemoConfig> = {
   },
 }
 
+// Fix 4: deterministic UUID from a stable seed string so createMany({ skipDuplicates })
+// is truly idempotent across re-runs.
+function deterministicUuid(seed: string): string {
+  const hash = createHash('sha1').update('carelink-demo-' + seed).digest('hex')
+  return `${hash.slice(0, 8)}-${hash.slice(8, 12)}-${hash.slice(12, 16)}-${hash.slice(16, 20)}-${hash.slice(20, 32)}`
+}
+
 async function ensureAccount(
   config: DemoConfig,
   demoPassword: string,
@@ -95,8 +103,23 @@ async function ensureAccount(
     return userId
   }
 
-  // Sign-in failed — account was likely created via direct SQL without auth.identities
-  // Find existing public.User row
+  // If both signInError and signInData.user are falsy (shouldn't happen), bail out
+  if (!signInError) return null
+
+  // Fix 1: detect transient errors (rate-limit, server error) before doing any
+  // destructive deletion — only proceed for 400/401/422 credential/account errors.
+  const isAccountBroken =
+    signInError.status === 400 || signInError.status === 401 || signInError.status === 422
+  if (!isAccountBroken) {
+    console.warn('[demo] Transient sign-in error for', config.email, signInError.status, signInError.message)
+    const dbUser = await prisma.user
+      .findUnique({ where: { email: config.email }, select: { id: true } })
+      .catch(() => null)
+    return dbUser?.id ?? null
+  }
+
+  // Sign-in failed with a credential/account error — account was likely created via
+  // direct SQL without auth.identities. Find existing public.User row.
   let existingId: string | null = null
   try {
     const dbUser = await prisma.user.findUnique({
@@ -174,6 +197,36 @@ async function ensureAccount(
   return userId
 }
 
+// Fix 5: DST-aware Melbourne date — probes with UTC+10 then corrects for actual
+// AEST (+10) / AEDT (+11) offset via Intl.DateTimeFormat.
+function melbourneDate(dayOffset: number, hour: number, minute = 0): Date {
+  const now = new Date()
+  // 'sv' locale formats as 'YYYY-MM-DD' — gives today in Melbourne timezone
+  const todayMelb = new Intl.DateTimeFormat('sv', { timeZone: 'Australia/Melbourne' }).format(now)
+  const [y, mo, d] = todayMelb.split('-').map(Number)
+
+  // Initial probe assuming UTC+10
+  const probe = new Date(Date.UTC(y, mo - 1, d + dayOffset, hour - 10, minute))
+
+  // Get actual Melbourne time components to detect DST offset
+  const parts = new Intl.DateTimeFormat('en', {
+    timeZone: 'Australia/Melbourne',
+    hour: 'numeric',
+    minute: 'numeric',
+    hour12: false,
+  }).formatToParts(probe)
+  const pHour = parseInt(parts.find(p => p.type === 'hour')!.value) % 24
+  const pMin = parseInt(parts.find(p => p.type === 'minute')!.value)
+
+  // Correct for DST — normalise across midnight boundary
+  let diffH = hour - pHour
+  if (diffH > 12) diffH -= 24
+  if (diffH < -12) diffH += 24
+  const diffMs = (diffH * 60 + (minute - pMin)) * 60000
+
+  return new Date(probe.getTime() + diffMs)
+}
+
 async function seedDemoData(facilityManagerId: string, nurseId: string, enId: string, pcaId: string) {
   try {
     // Find or create Sunrise Aged Care (Demo)
@@ -210,35 +263,15 @@ async function seedDemoData(facilityManagerId: string, nurseId: string, enId: st
       })
     }
 
-    // Skip if Sunrise already has shifts
-    const existingShiftCount = await prisma.shift.count({
-      where: { facilityId: sunrise.id },
-    })
-
-    if (existingShiftCount > 0) {
-      return
-    }
-
-    // Calculate relative dates in Melbourne timezone (+10:00)
-    const now = new Date()
-    const melbourneOffsetMs = 10 * 60 * 60 * 1000 // +10:00
-
-    const melbourneDate = (dayOffset: number, hour: number, minute = 0): Date => {
-      // Get today's date in Melbourne timezone
-      const nowMelbourne = new Date(now.getTime() + melbourneOffsetMs)
-      const year = nowMelbourne.getUTCFullYear()
-      const month = nowMelbourne.getUTCMonth()
-      const day = nowMelbourne.getUTCDate()
-      // Construct the target date in Melbourne time, then convert to UTC
-      const melbourneTime = new Date(Date.UTC(year, month, day + dayOffset, hour - 10, minute, 0))
-      return melbourneTime
-    }
-
-    // Sunrise shifts (8 rows)
+    // Fix 4: deterministic IDs + skipDuplicates makes this fully idempotent
     await prisma.shift.createMany({
+      skipDuplicates: true,
       data: [
+        // Sunrise shifts (8 rows)
+
         // 1. PENDING NURSE — day+1 07:00–15:00
         {
+          id: deterministicUuid('sunrise-nurse-pending-d1'),
           facilityId: sunrise.id,
           role: 'NURSE',
           status: 'PENDING',
@@ -248,6 +281,7 @@ async function seedDemoData(facilityManagerId: string, nurseId: string, enId: st
         },
         // 2. PENDING EN — day+1 15:00–23:00
         {
+          id: deterministicUuid('sunrise-en-pending-d1'),
           facilityId: sunrise.id,
           role: 'EN',
           status: 'PENDING',
@@ -257,6 +291,7 @@ async function seedDemoData(facilityManagerId: string, nurseId: string, enId: st
         },
         // 3. PENDING PCA — day+3 07:00–15:00
         {
+          id: deterministicUuid('sunrise-pca-pending-d3'),
           facilityId: sunrise.id,
           role: 'PCA',
           status: 'PENDING',
@@ -266,6 +301,7 @@ async function seedDemoData(facilityManagerId: string, nurseId: string, enId: st
         },
         // 4. MATCHED NURSE — day+2 07:00–15:00
         {
+          id: deterministicUuid('sunrise-nurse-matched-d2'),
           facilityId: sunrise.id,
           role: 'NURSE',
           status: 'MATCHED',
@@ -276,6 +312,7 @@ async function seedDemoData(facilityManagerId: string, nurseId: string, enId: st
         },
         // 5. MATCHED EN — day+2 15:00–23:00
         {
+          id: deterministicUuid('sunrise-en-matched-d2'),
           facilityId: sunrise.id,
           role: 'EN',
           status: 'MATCHED',
@@ -286,6 +323,7 @@ async function seedDemoData(facilityManagerId: string, nurseId: string, enId: st
         },
         // 6. COMPLETED NURSE — day-1 07:00–15:00
         {
+          id: deterministicUuid('sunrise-nurse-completed-dm1'),
           facilityId: sunrise.id,
           role: 'NURSE',
           status: 'COMPLETED',
@@ -296,6 +334,7 @@ async function seedDemoData(facilityManagerId: string, nurseId: string, enId: st
         },
         // 7. COMPLETED NURSE — day-3 07:00–15:00
         {
+          id: deterministicUuid('sunrise-nurse-completed-dm3'),
           facilityId: sunrise.id,
           role: 'NURSE',
           status: 'COMPLETED',
@@ -306,6 +345,7 @@ async function seedDemoData(facilityManagerId: string, nurseId: string, enId: st
         },
         // 8. CANCELLED PCA — day-2 07:00–15:00
         {
+          id: deterministicUuid('sunrise-pca-cancelled-dm2'),
           facilityId: sunrise.id,
           role: 'PCA',
           status: 'CANCELLED',
@@ -313,14 +353,12 @@ async function seedDemoData(facilityManagerId: string, nurseId: string, enId: st
           endTime: melbourneDate(-2, 15),
           hourlyRate: 32.5,
         },
-      ],
-    })
 
-    // Oakwood shifts (2 rows)
-    await prisma.shift.createMany({
-      data: [
+        // Oakwood shifts (2 rows)
+
         // 9. PENDING NURSE — day+2 07:00–15:00
         {
+          id: deterministicUuid('oakwood-nurse-pending-d2'),
           facilityId: oakwood.id,
           role: 'NURSE',
           status: 'PENDING',
@@ -330,6 +368,7 @@ async function seedDemoData(facilityManagerId: string, nurseId: string, enId: st
         },
         // 10. PENDING PCA — day+4 07:00–15:00
         {
+          id: deterministicUuid('oakwood-pca-pending-d4'),
           facilityId: oakwood.id,
           role: 'PCA',
           status: 'PENDING',
@@ -346,7 +385,7 @@ async function seedDemoData(facilityManagerId: string, nurseId: string, enId: st
   }
 }
 
-export async function provisionDemoAccounts(): Promise<void> {
+export async function provisionDemoAccounts(force = false): Promise<void> {
   const demoPassword = process.env.DEMO_ACCOUNT_PASSWORD
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
   const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
@@ -355,6 +394,16 @@ export async function provisionDemoAccounts(): Promise<void> {
   if (!demoPassword || !supabaseUrl || !anonKey || !serviceRoleKey) {
     // Return early — this is a no-op in environments without demo config
     return
+  }
+
+  // Fix 2: fast-path — skip the whole provisioning pass when all accounts already
+  // exist in the DB (normal case after first boot). Pass force=true to bypass.
+  if (!force) {
+    const emails = Object.values(DEMO_CONFIGS).map(c => c.email)
+    const existingCount = await prisma.user
+      .count({ where: { email: { in: emails } } })
+      .catch(() => 0)
+    if (existingCount === emails.length) return
   }
 
   try {

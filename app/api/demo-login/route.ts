@@ -55,8 +55,8 @@ export async function POST(req: NextRequest) {
   })
   if (!signInError) return NextResponse.redirect(new URL(config.destination, req.url))
 
-  // Fallback — provision this account and retry (idempotent, handles errors internally)
-  await provisionDemoAccounts()
+  // Fallback — force re-provision this account and retry (idempotent, handles errors internally)
+  await provisionDemoAccounts(true)
 
   const { error: retryError } = await supabase.auth.signInWithPassword({
     email: config.email,
