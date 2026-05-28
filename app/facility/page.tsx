@@ -7,6 +7,7 @@ import { Building2, Clock, CalendarPlus } from 'lucide-react'
 import { revalidatePath } from 'next/cache'
 import { signOut } from '@/app/login/actions'
 import { ShiftRequestSchema } from '@/lib/validations'
+import { Role } from '@prisma/client'
 
 export const dynamic = 'force-dynamic';
 
@@ -27,7 +28,7 @@ async function getFacilityData() {
   if (!facility) {
     facility = await prisma.$transaction(async (tx) => {
       const newFacility = await tx.facility.create({
-        data: { name: `${dbUser.name ?? 'My'} Facility`, defaultRate: 85.00 },
+        data: { name: `${dbUser.name ?? 'My'} Facility`, address: 'Address to be configured' },
       })
       await tx.user.update({
         where: { id: dbUser.id },
@@ -47,6 +48,12 @@ async function getFacilityData() {
   return { facility, liveShifts }
 }
 
+const ROLE_RATES: Record<string, number> = {
+  NURSE: 55.00,
+  EN: 45.00,
+  PCA: 32.50,
+}
+
 export default async function FacilityPortal({ searchParams }: { searchParams: { error?: string } }) {
   const { facility, liveShifts } = await getFacilityData()
   const error = searchParams.error
@@ -62,15 +69,17 @@ export default async function FacilityPortal({ searchParams }: { searchParams: {
     const { role, date } = parsed.data
     const startTime = new Date(`${date}T07:00:00.000+10:00`)
     const endTime = new Date(`${date}T15:00:00.000+10:00`)
+    const hourlyRate = ROLE_RATES[role] ?? 45.00
 
     try {
       await prisma.shift.create({
         data: {
           facilityId: facility.id,
-          roleRequired: role,
+          role: role as Role,
           startTime,
           endTime,
-          status: 'REQUESTED',
+          hourlyRate,
+          status: 'PENDING',
         },
       })
     } catch {
@@ -116,7 +125,7 @@ export default async function FacilityPortal({ searchParams }: { searchParams: {
                 <div className="space-y-2">
                   <label className="text-sm font-medium text-navy">Role Needed</label>
                   <select name="role" className="w-full flex h-11 rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal" required>
-                    <option value="RN">Registered Nurse (RN)</option>
+                    <option value="NURSE">Registered Nurse (RN)</option>
                     <option value="EN">Enrolled Nurse (EN)</option>
                     <option value="PCA">Personal Care Assistant (PCA)</option>
                   </select>
@@ -138,7 +147,7 @@ export default async function FacilityPortal({ searchParams }: { searchParams: {
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
-                <Clock className="w-5 h-5 text-gray-500" /> Active & Upcoming Shifts
+                <Clock className="w-5 h-5 text-gray-500" /> Active &amp; Upcoming Shifts
               </CardTitle>
             </CardHeader>
             <CardContent>
@@ -151,8 +160,8 @@ export default async function FacilityPortal({ searchParams }: { searchParams: {
                   {liveShifts.map(shift => (
                     <div key={shift.id} className="flex items-center justify-between p-4 border rounded-xl bg-white hover:border-teal transition-colors">
                       <div className="flex gap-4 items-center">
-                        <div className={`w-12 h-12 rounded-xl flex items-center justify-center font-bold text-sm ${shift.status === 'REQUESTED' ? 'bg-amber-100 text-amber-800' : 'bg-teal-100 text-teal-800'}`}>
-                          {shift.roleRequired}
+                        <div className={`w-12 h-12 rounded-xl flex items-center justify-center font-bold text-sm ${shift.status === 'PENDING' ? 'bg-amber-100 text-amber-800' : 'bg-teal-100 text-teal-800'}`}>
+                          {shift.role}
                         </div>
                         <div>
                           <p className="font-bold text-navy">
@@ -164,8 +173,8 @@ export default async function FacilityPortal({ searchParams }: { searchParams: {
                         </div>
                       </div>
                       <span className={`px-4 py-1.5 rounded-full text-xs font-bold uppercase tracking-wider ${
-                        shift.status === 'REQUESTED' ? 'bg-amber-100 text-amber-800 ring-1 ring-amber-200' :
-                        shift.status === 'CLOCKED_IN' ? 'bg-mint text-white ring-1 ring-mint' :
+                        shift.status === 'PENDING' ? 'bg-amber-100 text-amber-800 ring-1 ring-amber-200' :
+                        shift.status === 'MATCHED' ? 'bg-mint text-white ring-1 ring-mint' :
                         'bg-teal-100 text-teal-800 ring-1 ring-teal-200'
                       }`}>
                         {shift.status}

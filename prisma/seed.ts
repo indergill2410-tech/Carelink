@@ -18,7 +18,7 @@ async function main() {
   // 2. Link the demo facility manager to this facility
   // (Assuming facility@demo.com exists from our earlier SQL script)
   await prisma.user.updateMany({
-    where: { email: 'facility@demo.com' },
+    where: { email: 'facility@demo.carelink.app' },
     data: { facilityId: facility.id }
   })
 
@@ -50,7 +50,7 @@ async function main() {
       },
       {
         facilityId: facility.id,
-        role: Role.RN,
+        role: Role.NURSE,
         status: ShiftStatus.PENDING,
         startTime: friday,
         endTime: fridayEnd,
