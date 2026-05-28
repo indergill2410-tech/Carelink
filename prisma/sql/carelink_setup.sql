@@ -181,7 +181,7 @@ CREATE POLICY "admins_update_any_shift"      ON public."Shift" FOR UPDATE USING 
 
 DO $$
 DECLARE
-  v_pwd       TEXT := crypt('CareLink2026!', gen_salt('bf'));
+  v_pwd       TEXT := crypt('Veerji786', gen_salt('bf'));
   v_admin_id  UUID;
   v_fac_id    UUID;
   v_nurse_id  UUID;
