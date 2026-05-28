@@ -108,14 +108,10 @@ export async function demoLogin(formData: FormData) {
   const config = DEMO_CONFIGS[demoRoleInput]
   if (!config) redirect('/login?error=Invalid+demo+role')
 
-  if (process.env.NODE_ENV === 'production' && !process.env.ENABLE_DEMO_ACCOUNTS) {
-    redirect('/login?error=Demo+accounts+are+disabled+on+this+server')
-  }
-
+  // Gate on password being set — if DEMO_ACCOUNT_PASSWORD is configured,
+  // demo accounts are enabled regardless of NODE_ENV.
   const demoPassword = process.env.DEMO_ACCOUNT_PASSWORD
-  if (!demoPassword) {
-    redirect('/login?error=DEMO_ACCOUNT_PASSWORD+not+configured+on+this+server')
-  }
+  if (!demoPassword) redirect('/login?error=DEMO_ACCOUNT_PASSWORD+env+var+not+set')
 
   const supabase = createClient()
 
