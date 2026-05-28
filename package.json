@@ -3,6 +3,7 @@
   "version": "1.0.0",
   "private": true,
   "scripts": {
+    "seed": "tsx prisma/seed.ts",
     "dev": "next dev",
     "build": "prisma generate && next build",
     "start": "next start",
@@ -21,6 +22,7 @@
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "tailwind-merge": "^2.0.0",
+    "tsx": "^4.22.3",
     "zod": "^3.22.4"
   },
   "devDependencies": {
