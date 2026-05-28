@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { Suspense, useState } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { login, signup, demoLogin } from './actions'
 import { Button } from '@/components/ui/button'
@@ -8,11 +8,21 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Activity, ShieldCheck, Building2, Stethoscope, AlertCircle, Loader2 } from 'lucide-react'
 
+function ErrorBanner() {
+  const searchParams = useSearchParams()
+  const errorMessage = searchParams.get('error')
+  if (!errorMessage) return null
+  return (
+    <div className="flex items-center gap-2 p-3 mb-4 bg-red-50 border border-red-200 rounded-xl text-red-700 text-sm">
+      <AlertCircle className="w-4 h-4 shrink-0" />
+      <span>{decodeURIComponent(errorMessage)}</span>
+    </div>
+  )
+}
+
 export default function LoginPage() {
   const [isRegistering, setIsRegistering] = useState(false)
   const [loadingDemo, setLoadingDemo] = useState<string | null>(null)
-  const searchParams = useSearchParams()
-  const errorMessage = searchParams.get('error')
 
   const demoButtons = [
     {
@@ -62,12 +72,9 @@ export default function LoginPage() {
           </CardHeader>
 
           <CardContent>
-            {errorMessage && (
-              <div className="flex items-center gap-2 p-3 mb-4 bg-red-50 border border-red-200 rounded-xl text-red-700 text-sm">
-                <AlertCircle className="w-4 h-4 shrink-0" />
-                <span>{decodeURIComponent(errorMessage)}</span>
-              </div>
-            )}
+            <Suspense>
+              <ErrorBanner />
+            </Suspense>
 
             <form className="space-y-4">
               {isRegistering && (
