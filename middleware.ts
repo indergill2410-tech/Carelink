@@ -47,6 +47,7 @@ export async function middleware(request: NextRequest) {
   let role: string | undefined = user.app_metadata?.role ?? user.user_metadata?.role
 
   if (!role) {
+    console.warn("[Middleware] JWT role claim missing for user " + user.id + ". Falling back to database lookup. Ensure custom_access_token_hook is configured in Supabase.");
     const { data } = await supabase
       .from('User')
       .select('role')
