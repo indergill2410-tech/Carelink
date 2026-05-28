@@ -58,6 +58,23 @@ export default async function FacilityPortal({ searchParams }: { searchParams: {
   const { facility, liveShifts } = await getFacilityData()
   const error = searchParams.error
 
+  async function cancelShift(formData: FormData) {
+    'use server'
+    const shiftId = formData.get('shiftId') as string;
+    if (!shiftId) return;
+
+    // Security: verify shift belongs to this facility before cancelling
+    const shift = await prisma.shift.findUnique({ where: { id: shiftId } });
+    if (!shift || shift.facilityId !== facility.id) return;
+
+    await prisma.shift.update({
+      where: { id: shiftId },
+      data: { status: 'CANCELLED' },
+    });
+
+    revalidatePath('/facility');
+  }
+
   async function requestShift(formData: FormData) {
     'use server'
     const parsed = ShiftRequestSchema.safeParse({
@@ -172,13 +189,21 @@ export default async function FacilityPortal({ searchParams }: { searchParams: {
                           </p>
                         </div>
                       </div>
-                      <span className={`px-4 py-1.5 rounded-full text-xs font-bold uppercase tracking-wider ${
-                        shift.status === 'PENDING' ? 'bg-amber-100 text-amber-800 ring-1 ring-amber-200' :
-                        shift.status === 'MATCHED' ? 'bg-mint text-white ring-1 ring-mint' :
-                        'bg-teal-100 text-teal-800 ring-1 ring-teal-200'
-                      }`}>
-                        {shift.status}
-                      </span>
+                      <div className="flex items-center gap-3">
+                        <span className={`px-4 py-1.5 rounded-full text-xs font-bold uppercase tracking-wider ${
+                          shift.status === 'PENDING' ? 'bg-amber-100 text-amber-800 ring-1 ring-amber-200' :
+                          shift.status === 'MATCHED' ? 'bg-mint text-white ring-1 ring-mint' :
+                          'bg-teal-100 text-teal-800 ring-1 ring-teal-200'
+                        }`}>
+                          {shift.status}
+                        </span>
+                        {(shift.status === 'PENDING' || shift.status === 'MATCHED') && (
+                          <form action={cancelShift}>
+                            <input type="hidden" name="shiftId" value={shift.id} />
+                            <Button type="submit" variant="destructive" size="sm">Cancel</Button>
+                          </form>
+                        )}
+                      </div>
                     </div>
                   ))}
                 </div>

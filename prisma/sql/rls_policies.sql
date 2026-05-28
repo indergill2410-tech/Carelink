@@ -2,7 +2,6 @@
 ALTER TABLE public."User" ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public."Facility" ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public."Shift" ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public."Timesheet" ENABLE ROW LEVEL SECURITY;
 
 -- =====================
 -- USER TABLE POLICIES
@@ -81,7 +80,7 @@ CREATE POLICY "facility_admin_update_own" ON public."Facility"
 -- Workers can read open (REQUESTED) shifts or shifts assigned to them
 CREATE POLICY "workers_read_open_or_own_shifts" ON public."Shift"
   FOR SELECT USING (
-    status = 'REQUESTED' OR "workerId" = auth.uid()::text
+    status = 'PENDING' OR "workerId" = auth.uid()::text
   );
 
 -- Facility admins can read shifts for their facility
@@ -114,27 +113,5 @@ CREATE POLICY "facility_admin_insert_shifts" ON public."Shift"
 -- Workers can accept an unassigned shift (set themselves as workerId)
 CREATE POLICY "workers_accept_shift" ON public."Shift"
   FOR UPDATE USING (
-    "workerId" IS NULL AND status = 'REQUESTED'
-  );
-
--- =========================
--- TIMESHEET TABLE POLICIES
--- =========================
-
--- Workers can read their own timesheets
-CREATE POLICY "workers_read_own_timesheets" ON public."Timesheet"
-  FOR SELECT USING (
-    EXISTS (
-      SELECT 1 FROM public."Shift" s
-      WHERE s.id = "Timesheet"."shiftId" AND s."workerId" = auth.uid()::text
-    )
-  );
-
--- Admins can read all timesheets
-CREATE POLICY "admins_read_all_timesheets" ON public."Timesheet"
-  FOR SELECT USING (
-    EXISTS (
-      SELECT 1 FROM public."User" u
-      WHERE u.id = auth.uid()::text AND u.role = 'ADMIN'
-    )
+    "workerId" IS NULL AND status = 'PENDING'
   );

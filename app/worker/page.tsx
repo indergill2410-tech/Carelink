@@ -174,22 +174,22 @@ export default async function WorkerPortal({ searchParams }: { searchParams: { e
 
       {/* Bottom Nav */}
       <nav className="fixed bottom-0 w-full bg-white border-t flex justify-around p-3 pb-safe">
-        <button className="flex flex-col items-center gap-1 text-teal-600">
+        <a href="/worker" className="flex flex-col items-center gap-1 text-teal-600">
           <CalendarCheck className="w-6 h-6" />
           <span className="text-[10px] font-medium">Feed</span>
-        </button>
-        <button className="flex flex-col items-center gap-1 text-gray-400">
+        </a>
+        <a href="/worker/my-shifts" className="flex flex-col items-center gap-1 text-gray-400">
           <Clock className="w-6 h-6" />
           <span className="text-[10px] font-medium">My Shifts</span>
-        </button>
-        <button className="flex flex-col items-center gap-1 text-gray-400">
+        </a>
+        <a href="/worker/pay" className="flex flex-col items-center gap-1 text-gray-400">
           <Wallet className="w-6 h-6" />
           <span className="text-[10px] font-medium">Pay</span>
-        </button>
-        <button className="flex flex-col items-center gap-1 text-gray-400">
+        </a>
+        <a href="/worker/profile" className="flex flex-col items-center gap-1 text-gray-400">
           <UserCircle className="w-6 h-6" />
           <span className="text-[10px] font-medium">Profile</span>
-        </button>
+        </a>
       </nav>
 
       {/* Desktop overlay */}
