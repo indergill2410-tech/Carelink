@@ -6,6 +6,8 @@ import { Button } from '@/components/ui/button'
 import { Building2, Clock, CalendarPlus } from 'lucide-react'
 import { revalidatePath } from 'next/cache'
 
+export const dynamic = 'force-dynamic';
+
 const prisma = new PrismaClient()
 
 // We fetch the logged-in user, and find their associated Facility

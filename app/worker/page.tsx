@@ -6,6 +6,8 @@ import { Button } from '@/components/ui/button'
 import { Stethoscope, CalendarCheck, Wallet, UserCircle, MapPin, Clock } from 'lucide-react'
 import { revalidatePath } from 'next/cache'
 
+export const dynamic = 'force-dynamic';
+
 const prisma = new PrismaClient()
 
 async function getWorkerData() {
