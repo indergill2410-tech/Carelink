@@ -9,17 +9,19 @@ datasource db {
 }
 
 model User {
-  id               String    @id @default(uuid())
+  id               String           @id @default(uuid())
   name             String
-  email            String    @unique
-  role             Role      @default(NURSE)
-  status           Status    @default(PENDING)
+  email            String           @unique
+  role             Role             @default(NURSE)
+  status           Status           @default(PENDING)
   ahpraNumber      String?
-  complianceStatus String    @default("RED")
-  createdAt        DateTime  @default(now())
-  updatedAt        DateTime  @updatedAt
+  complianceStatus ComplianceStatus @default(RED)
+  facilityId       String?
+  createdAt        DateTime         @default(now())
+  updatedAt        DateTime         @updatedAt
 
-  shifts           Shift[]   @relation("WorkerShifts")
+  shifts           Shift[]          @relation("WorkerShifts")
+  facility         Facility?        @relation("FacilityAdmins", fields: [facilityId], references: [id])
 }
 
 model Facility {
@@ -27,10 +29,12 @@ model Facility {
   name        String
   address     String?
   defaultRate Decimal? @db.Decimal(10, 2)
+  timezone    String   @default("Australia/Melbourne")
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
   shifts      Shift[]
+  admins      User[]   @relation("FacilityAdmins")
 }
 
 model Shift {
@@ -74,6 +78,12 @@ enum Status {
   ACTIVE
   PENDING
   BLOCKED
+}
+
+enum ComplianceStatus {
+  GREEN
+  AMBER
+  RED
 }
 
 enum ShiftStatus {
