@@ -8,65 +8,6 @@ datasource db {
   directUrl = env("DIRECT_URL")
 }
 
-model User {
-  id               String           @id @default(uuid())
-  name             String
-  email            String           @unique
-  role             Role             @default(NURSE)
-  status           Status           @default(PENDING)
-  ahpraNumber      String?
-  complianceStatus ComplianceStatus @default(RED)
-  facilityId       String?
-  createdAt        DateTime         @default(now())
-  updatedAt        DateTime         @updatedAt
-
-  shifts           Shift[]          @relation("WorkerShifts")
-  facility         Facility?        @relation("FacilityAdmins", fields: [facilityId], references: [id])
-}
-
-model Facility {
-  id          String   @id @default(uuid())
-  name        String
-  address     String?
-  defaultRate Decimal? @db.Decimal(10, 2)
-  timezone    String   @default("Australia/Melbourne")
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-
-  shifts      Shift[]
-  admins      User[]   @relation("FacilityAdmins")
-}
-
-model Shift {
-  id           String      @id @default(uuid())
-  facilityId   String
-  roleRequired String
-  startTime    DateTime
-  endTime      DateTime
-  status       ShiftStatus @default(REQUESTED)
-  workerId     String?
-  billRate     Decimal?    @db.Decimal(10, 2)
-  payRate      Decimal?    @db.Decimal(10, 2)
-  createdAt    DateTime    @default(now())
-  updatedAt    DateTime    @updatedAt
-
-  facility     Facility    @relation(fields: [facilityId], references: [id])
-  worker       User?       @relation("WorkerShifts", fields: [workerId], references: [id])
-  timesheets   Timesheet[]
-}
-
-model Timesheet {
-  id        String          @id @default(uuid())
-  shiftId   String
-  clockIn   DateTime?
-  clockOut  DateTime?
-  status    TimesheetStatus @default(PENDING_APPROVAL)
-  createdAt DateTime        @default(now())
-  updatedAt DateTime        @updatedAt
-
-  shift     Shift           @relation(fields: [shiftId], references: [id])
-}
-
 enum Role {
   ADMIN
   NURSE
@@ -74,28 +15,54 @@ enum Role {
   PCA
 }
 
-enum Status {
-  ACTIVE
-  PENDING
-  BLOCKED
-}
-
-enum ComplianceStatus {
-  GREEN
-  AMBER
-  RED
-}
-
 enum ShiftStatus {
-  REQUESTED
-  FILLED
-  CLOCKED_IN
+  DRAFT
+  PENDING
+  MATCHED
   COMPLETED
   CANCELLED
 }
 
-enum TimesheetStatus {
-  PENDING_APPROVAL
-  APPROVED
-  INVOICED
+model User {
+  id               String    @id @default(uuid())
+  email            String    @unique
+  name             String?
+  role             Role      @default(PCA)
+  complianceStatus String?   @default("RED")
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  // Relations
+  facilityId       String?
+  facility         Facility? @relation(fields: [facilityId], references: [id])
+  assignedShifts   Shift[]   @relation("WorkerShifts")
+}
+
+model Facility {
+  id        String   @id @default(uuid())
+  name      String
+  address   String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  managers  User[]
+  shifts    Shift[]
+}
+
+model Shift {
+  id          String      @id @default(uuid())
+  facilityId  String
+  role        Role
+  status      ShiftStatus @default(PENDING)
+  startTime   DateTime
+  endTime     DateTime
+  hourlyRate  Float
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+
+  // Relations
+  facility    Facility    @relation(fields: [facilityId], references: [id])
+  workerId    String?
+  worker      User?       @relation("WorkerShifts", fields: [workerId], references: [id])
 }
