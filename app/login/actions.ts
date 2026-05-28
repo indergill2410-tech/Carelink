@@ -2,6 +2,7 @@
 
 import { redirect } from 'next/navigation'
 import { createClient } from '@/utils/supabase/server'
+import { createClient as createSupabaseAdminClient } from '@supabase/supabase-js'
 import { prisma } from '@/lib/prisma'
 import { LoginSchema, SignupSchema } from '@/lib/validations'
 
@@ -73,49 +74,111 @@ export async function signup(formData: FormData) {
   redirect('/login')
 }
 
+// Three pre-configured demo accounts — one per portal
+type DemoConfig = {
+  email: string
+  dbRole: 'ADMIN' | 'NURSE'
+  name: string
+  destination: string
+}
+
+const DEMO_CONFIGS: Record<string, DemoConfig> = {
+  ADMIN: {
+    email: 'admin@demo.carelink.app',
+    dbRole: 'ADMIN',
+    name: 'Demo Admin',
+    destination: '/dashboard',
+  },
+  FACILITY: {
+    email: 'facility@demo.carelink.app',
+    dbRole: 'ADMIN',
+    name: 'Demo Facility Manager',
+    destination: '/facility',
+  },
+  NURSE: {
+    email: 'nurse@demo.carelink.app',
+    dbRole: 'NURSE',
+    name: 'Demo Nurse',
+    destination: '/worker',
+  },
+}
+
 export async function demoLogin(formData: FormData) {
-  const role = formData.get('demo_role') as string
-  if (!['ADMIN', 'FACILITY', 'NURSE', 'EN', 'PCA'].includes(role)) {
-    redirect('/login?error=Invalid+demo+role')
-  }
+  const demoRoleInput = formData.get('demo_role') as string
+  const config = DEMO_CONFIGS[demoRoleInput]
+  if (!config) redirect('/login?error=Invalid+demo+role')
 
   const demoPassword = process.env.DEMO_ACCOUNT_PASSWORD
-  if (!demoPassword) redirect('/login?error=Demo+accounts+not+configured')
+  if (!demoPassword) redirect('/login?error=Demo+accounts+not+configured+%E2%80%94+set+DEMO_ACCOUNT_PASSWORD')
 
   if (process.env.NODE_ENV === 'production' && !process.env.ENABLE_DEMO_ACCOUNTS) {
-    redirect('/login?error=Demo+not+available')
+    redirect('/login?error=Demo+accounts+are+disabled+in+production')
   }
 
-  const email = `${role.toLowerCase()}@demo.com`
-  const name = `Demo ${role}`
   const supabase = createClient()
 
-  let { data: authData, error } = await supabase.auth.signInWithPassword({ email, password: demoPassword })
+  // Happy path: account already exists — just sign in
+  const { error: signInError } = await supabase.auth.signInWithPassword({
+    email: config.email,
+    password: demoPassword,
+  })
 
-  if (error) {
-    const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
-      email,
-      password: demoPassword,
-      options: { data: { name, requested_role: role } },
-    })
-    if (signUpError) redirect('/login?error=' + encodeURIComponent(signUpError.message))
+  if (!signInError) redirect(config.destination)
 
-    await new Promise(resolve => setTimeout(resolve, 1500))
+  // First-time setup: create a pre-confirmed account via the admin API.
+  // Using signUp() with the anon key creates an unconfirmed account that can't
+  // log in when email confirmation is enabled — the admin API bypasses that.
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY
 
-    try {
-      const mappedRole = (role === 'FACILITY' ? 'ADMIN' : role) as 'ADMIN' | 'NURSE' | 'EN' | 'PCA'
-      await prisma.user.update({
-        where: { id: signUpData.user!.id },
-        data: { role: mappedRole, name, complianceStatus: 'GREEN' },
-      })
-    } catch (e) {
-      console.error('Demo role update error', e)
-    }
+  if (!supabaseUrl || !serviceRoleKey) {
+    redirect('/login?error=Demo+setup+requires+SUPABASE_SERVICE_ROLE_KEY')
   }
 
-  if (role === 'ADMIN') redirect('/dashboard')
-  if (role === 'FACILITY') redirect('/facility')
-  redirect('/worker')
+  const adminClient = createSupabaseAdminClient(supabaseUrl, serviceRoleKey, {
+    auth: { autoRefreshToken: false, persistSession: false },
+  })
+
+  const { data: created, error: createError } = await adminClient.auth.admin.createUser({
+    email: config.email,
+    password: demoPassword,
+    email_confirm: true,
+    user_metadata: { name: config.name },
+  })
+
+  if (createError || !created.user) {
+    redirect('/login?error=' + encodeURIComponent(createError?.message ?? 'Could not create demo account'))
+  }
+
+  // Upsert the User record — safe whether the auth trigger has already
+  // fired (update path) or hasn't yet (create path).
+  await prisma.user.upsert({
+    where: { id: created.user.id },
+    create: {
+      id: created.user.id,
+      email: config.email,
+      name: config.name,
+      role: config.dbRole,
+      complianceStatus: 'GREEN',
+    },
+    update: {
+      role: config.dbRole,
+      name: config.name,
+      complianceStatus: 'GREEN',
+    },
+  })
+
+  // Sign in with the newly created, pre-confirmed account
+  const { error: finalSignInError } = await supabase.auth.signInWithPassword({
+    email: config.email,
+    password: demoPassword,
+  })
+
+  if (finalSignInError) {
+    redirect('/login?error=' + encodeURIComponent(finalSignInError.message))
+  }
+
+  redirect(config.destination)
 }
 
 export async function signOut() {
