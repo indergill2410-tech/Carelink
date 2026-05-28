@@ -1,12 +1,12 @@
 'use client'
 
-import { Suspense, useState, useEffect } from 'react'
+import { Suspense, useState } from 'react'
 import { useSearchParams } from 'next/navigation'
-import { login, signup, demoLogin } from './actions'
+import { login, signup } from './actions'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
-import { Activity, ShieldCheck, Building2, Stethoscope, AlertCircle, Loader2 } from 'lucide-react'
+import { Activity, ShieldCheck, Building2, Stethoscope, AlertCircle, ChevronRight } from 'lucide-react'
 
 const DEMO_BUTTONS = [
   {
@@ -15,7 +15,7 @@ const DEMO_BUTTONS = [
     description: 'Global dispatch, compliance monitoring, workforce overview.',
     icon: <ShieldCheck className="w-6 h-6" />,
     iconBg: 'bg-navy text-white',
-    hoverBorder: 'hover:border-teal',
+    hoverBorder: 'hover:border-teal hover:shadow-md',
   },
   {
     role: 'FACILITY',
@@ -23,7 +23,7 @@ const DEMO_BUTTONS = [
     description: 'Request staff, post shifts, view your live roster.',
     icon: <Building2 className="w-6 h-6" />,
     iconBg: 'bg-blue-100 text-blue-600',
-    hoverBorder: 'hover:border-blue-500',
+    hoverBorder: 'hover:border-blue-400 hover:shadow-md',
   },
   {
     role: 'NURSE',
@@ -31,23 +31,14 @@ const DEMO_BUTTONS = [
     description: 'Browse open shifts and accept bookings instantly.',
     icon: <Stethoscope className="w-6 h-6" />,
     iconBg: 'bg-teal-100 text-teal-600',
-    hoverBorder: 'hover:border-teal',
+    hoverBorder: 'hover:border-teal hover:shadow-md',
   },
 ]
 
-// Inner component — uses useSearchParams, so it must live inside <Suspense>
 function LoginContent() {
   const searchParams = useSearchParams()
   const errorMessage = searchParams.get('error')
-
   const [isRegistering, setIsRegistering] = useState(false)
-  const [loadingDemo, setLoadingDemo] = useState<string | null>(null)
-
-  // Reset spinner on any URL change — handles the case where the server action
-  // redirects back to /login?error=... (same route, component doesn't unmount)
-  useEffect(() => {
-    setLoadingDemo(null)
-  }, [searchParams])
 
   return (
     <div className="min-h-screen grid grid-cols-1 md:grid-cols-2 bg-background">
@@ -132,49 +123,34 @@ function LoginContent() {
         </Card>
       </div>
 
-      {/* Right: Demo accounts */}
+      {/* Right: Demo accounts — plain links, no spinner state needed */}
       <div className="flex flex-col items-center justify-center p-8 bg-gray-50">
         <div className="max-w-md w-full space-y-6">
           <div className="text-center mb-2">
             <h2 className="text-2xl font-bold text-navy">Try the Platform</h2>
             <p className="text-gray-500 mt-2 text-sm">
-              One click to enter any of the three portals as a pre-loaded demo account.
+              One tap to enter any portal as a pre-loaded demo account.
               No sign-up needed.
             </p>
           </div>
 
           <div className="space-y-3">
-            {DEMO_BUTTONS.map(({ role, label, description, icon, iconBg, hoverBorder }) => {
-              const isLoading = loadingDemo === role
-              const isDisabled = loadingDemo !== null
-
-              return (
-                <form key={role} action={demoLogin}>
-                  <button
-                    type="submit"
-                    name="demo_role"
-                    value={role}
-                    disabled={isDisabled}
-                    onClick={() => setLoadingDemo(role)}
-                    className={`w-full flex items-center p-4 bg-white border rounded-2xl transition-all text-left group
-                      ${isDisabled ? 'opacity-60 cursor-not-allowed' : `${hoverBorder} hover:shadow-md cursor-pointer`}`}
-                  >
-                    <div className={`p-3 ${iconBg} rounded-xl mr-4 shrink-0 ${!isDisabled ? 'group-hover:scale-105 transition-transform' : ''}`}>
-                      {isLoading
-                        ? <Loader2 className="w-6 h-6 animate-spin" />
-                        : icon}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <h3 className="font-bold text-navy text-sm">{label}</h3>
-                      <p className="text-xs text-gray-500 mt-0.5">{description}</p>
-                    </div>
-                    {isLoading && (
-                      <span className="text-xs text-gray-400 ml-2 shrink-0">Setting up…</span>
-                    )}
-                  </button>
-                </form>
-              )
-            })}
+            {DEMO_BUTTONS.map(({ role, label, description, icon, iconBg, hoverBorder }) => (
+              <a
+                key={role}
+                href={`/api/demo-login?role=${role}`}
+                className={`w-full flex items-center p-4 bg-white border rounded-2xl transition-all group cursor-pointer ${hoverBorder}`}
+              >
+                <div className={`p-3 ${iconBg} rounded-xl mr-4 shrink-0 group-hover:scale-105 transition-transform`}>
+                  {icon}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <h3 className="font-bold text-navy text-sm">{label}</h3>
+                  <p className="text-xs text-gray-500 mt-0.5">{description}</p>
+                </div>
+                <ChevronRight className="w-4 h-4 text-gray-300 group-hover:text-gray-500 transition-colors shrink-0 ml-2" />
+              </a>
+            ))}
           </div>
 
           <p className="text-xs text-center text-gray-400">
