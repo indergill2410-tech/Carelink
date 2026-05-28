@@ -1,6 +1,5 @@
 import { createServerClient, type CookieOptions } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
-import { prisma } from '@/lib/prisma'
 
 export async function middleware(request: NextRequest) {
   let response = NextResponse.next({
@@ -43,7 +42,18 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(url)
   }
 
-  const role = user.app_metadata?.role ?? user.user_metadata?.role
+  // Try JWT claim first (set by the custom_access_token_hook in Supabase).
+  // Fall back to a DB lookup via Supabase REST so this works before the hook is registered.
+  let role: string | undefined = user.app_metadata?.role ?? user.user_metadata?.role
+
+  if (!role) {
+    const { data } = await supabase
+      .from('User')
+      .select('role')
+      .eq('id', user.id)
+      .single()
+    role = data?.role ?? undefined
+  }
 
   if (isDashboard && role !== 'ADMIN') {
     const url = request.nextUrl.clone()

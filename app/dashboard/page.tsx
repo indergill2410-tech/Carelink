@@ -1,11 +1,10 @@
 import { Activity, Clock, FileWarning, Users } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { PrismaClient } from '@prisma/client';
+import { prisma } from '@/lib/prisma';
+import { signOut } from '@/app/login/actions';
 
 export const dynamic = 'force-dynamic';
-
-const prisma = new PrismaClient();
 
 // This runs on the server, making it fast and secure
 async function getDashboardData() {
@@ -50,6 +49,14 @@ export default async function Dashboard() {
           <a href="#" className="px-4 py-3 rounded-xl text-gray-400 hover:text-white hover:bg-white/5 transition">Workforce</a>
           <a href="#" className="px-4 py-3 rounded-xl text-gray-400 hover:text-white hover:bg-white/5 transition">Facilities</a>
         </nav>
+
+        <div className="mt-auto">
+          <form action={signOut}>
+            <button type="submit" className="w-full px-4 py-3 rounded-xl text-gray-400 hover:text-white hover:bg-white/5 transition text-left text-sm">
+              Sign Out
+            </button>
+          </form>
+        </div>
       </aside>
 
       {/* Main Content */}

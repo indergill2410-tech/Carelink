@@ -34,8 +34,9 @@ async function getWorkerData() {
   return { user: dbUser, availableShifts, myShifts }
 }
 
-export default async function WorkerPortal() {
+export default async function WorkerPortal({ searchParams }: { searchParams: { error?: string } }) {
   const { user, availableShifts, myShifts } = await getWorkerData()
+  const errorMessage = searchParams.error
 
   async function acceptShift(formData: FormData) {
     'use server'
@@ -106,6 +107,15 @@ export default async function WorkerPortal() {
 
       {/* Main Feed */}
       <main className="flex-1 px-4 py-6 overflow-y-auto pb-24">
+        {errorMessage && (
+          <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-xl text-red-700 text-sm">
+            {errorMessage === 'compliance_required'
+              ? 'You must be fully compliant before accepting shifts. Please upload your documents.'
+              : errorMessage === 'shift_already_taken'
+              ? 'This shift was just taken by another worker. Please choose a different shift.'
+              : decodeURIComponent(errorMessage)}
+          </div>
+        )}
         <h2 className="font-bold text-navy mb-4 text-lg">Available Shifts Near You</h2>
 
         {availableShifts.length === 0 ? (

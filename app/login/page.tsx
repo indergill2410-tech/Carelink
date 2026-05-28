@@ -1,14 +1,17 @@
 'use client'
 
 import { useState } from 'react'
+import { useSearchParams } from 'next/navigation'
 import { login, signup, demoLogin } from './actions'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
-import { Activity, ShieldCheck, Building2, Stethoscope } from 'lucide-react'
+import { Activity, ShieldCheck, Building2, Stethoscope, AlertCircle } from 'lucide-react'
 
 export default function LoginPage() {
   const [isRegistering, setIsRegistering] = useState(false)
+  const searchParams = useSearchParams()
+  const errorMessage = searchParams.get('error')
 
   return (
     <div className="min-h-screen grid grid-cols-1 md:grid-cols-2 bg-background">
@@ -30,6 +33,13 @@ export default function LoginPage() {
             </div>
           </CardHeader>
           <CardContent>
+            {errorMessage && (
+              <div className="flex items-center gap-2 p-3 mb-4 bg-red-50 border border-red-200 rounded-xl text-red-700 text-sm">
+                <AlertCircle className="w-4 h-4 shrink-0" />
+                <span>{decodeURIComponent(errorMessage)}</span>
+              </div>
+            )}
+
             <form className="space-y-4">
 
               {isRegistering && (
@@ -43,7 +53,6 @@ export default function LoginPage() {
                     <select name="role" className="w-full flex h-11 rounded-xl border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-teal">
                       <option value="NURSE">Healthcare Worker (RN/EN/PCA)</option>
                       <option value="FACILITY">Aged Care Facility Manager</option>
-                      <option value="ADMIN">Agency Administrator</option>
                     </select>
                   </div>
                 </>
