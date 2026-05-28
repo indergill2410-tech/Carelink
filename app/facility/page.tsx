@@ -1,6 +1,6 @@
 import { redirect } from 'next/navigation'
 import { createClient } from '@/utils/supabase/server'
-import { PrismaClient } from '@prisma/client'
+import { prisma } from '@/lib/prisma'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Building2, Clock, CalendarPlus } from 'lucide-react'
@@ -8,7 +8,6 @@ import { revalidatePath } from 'next/cache'
 
 export const dynamic = 'force-dynamic';
 
-const prisma = new PrismaClient()
 
 // We fetch the logged-in user, and find their associated Facility
 async function getFacilityData() {

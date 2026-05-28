@@ -1,6 +1,6 @@
 import { redirect } from 'next/navigation'
 import { createClient } from '@/utils/supabase/server'
-import { PrismaClient } from '@prisma/client'
+import { prisma } from '@/lib/prisma'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Stethoscope, CalendarCheck, Wallet, UserCircle, MapPin, Clock } from 'lucide-react'
@@ -8,7 +8,6 @@ import { revalidatePath } from 'next/cache'
 
 export const dynamic = 'force-dynamic';
 
-const prisma = new PrismaClient()
 
 async function getWorkerData() {
   const supabase = createClient()
