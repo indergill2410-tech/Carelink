@@ -71,13 +71,13 @@ export async function POST(req: NextRequest) {
       docType,
       url: urlData.publicUrl,
       status: 'PENDING',
-      expiresAt: expiresAt ? new Date(expiresAt) : null,
+      expiresAt: expiresAt && !isNaN(new Date(expiresAt).getTime()) ? new Date(expiresAt) : null,
     },
     update: {
       url: urlData.publicUrl,
       status: 'PENDING',
       reviewNote: null,
-      expiresAt: expiresAt ? new Date(expiresAt) : null,
+      expiresAt: expiresAt && !isNaN(new Date(expiresAt).getTime()) ? new Date(expiresAt) : null,
       updatedAt: new Date(),
     },
   })
