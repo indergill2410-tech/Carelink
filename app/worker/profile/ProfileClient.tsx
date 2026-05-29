@@ -2,23 +2,24 @@
 
 import { useState, useRef } from 'react'
 import { useRouter } from 'next/navigation'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import {
   AlertCircle, CheckCircle2, Upload, FileText,
-  Loader2, XCircle, Star,
+  Loader2, XCircle, Clock, Shield,
 } from 'lucide-react'
 
 type DocStatus = 'PENDING' | 'APPROVED' | 'REJECTED' | 'EXPIRED' | 'MISSING'
 
 const DOC_TYPES = [
-  { key: 'POLICE_CHECK', label: 'Police Check', required: true },
-  { key: 'WORKING_WITH_CHILDREN', label: 'Working With Children Check', required: true },
-  { key: 'FIRST_AID', label: 'First Aid Certificate', required: true },
-  { key: 'IMMUNISATION', label: 'Immunisation Record', required: true },
-  { key: 'NURSING_REGISTRATION', label: 'AHPRA Registration', required: false },
-  { key: 'ID_PROOF', label: 'Photo ID', required: true },
+  { key: 'POLICE_CHECK',          label: 'Police Check',                  required: true  },
+  { key: 'WORKING_WITH_CHILDREN', label: 'Working With Children Check',   required: true  },
+  { key: 'FIRST_AID',             label: 'First Aid Certificate',         required: true  },
+  { key: 'IMMUNISATION',          label: 'Immunisation Record',           required: true  },
+  { key: 'NURSING_REGISTRATION',  label: 'AHPRA Registration',            required: false },
+  { key: 'ID_PROOF',              label: 'Photo ID',                      required: true  },
 ]
+
+const REQUIRED_KEYS = DOC_TYPES.filter(d => d.required).map(d => d.key)
 
 export type ProfileData = {
   user: {
@@ -39,92 +40,84 @@ export type ProfileData = {
   }[]
 }
 
-function StatusIcon({ status }: { status: DocStatus }) {
-  if (status === 'APPROVED') return <CheckCircle2 className="w-4 h-4 text-green-500" />
-  if (status === 'REJECTED') return <XCircle className="w-4 h-4 text-red-500" />
-  if (status === 'EXPIRED') return <AlertCircle className="w-4 h-4 text-amber-500" />
-  if (status === 'PENDING') return <Loader2 className="w-4 h-4 text-blue-500" />
-  return <FileText className="w-4 h-4 text-gray-400" />
+const DOC_STATUS_CONFIG: Record<DocStatus, {
+  border: string; bg: string; icon: React.FC<{ className?: string }>; color: string; label: string
+}> = {
+  APPROVED: { border: 'border-emerald-200', bg: 'bg-emerald-50/50', icon: CheckCircle2, color: 'text-emerald-500', label: 'Approved'  },
+  REJECTED: { border: 'border-rose-200',    bg: 'bg-rose-50/50',    icon: XCircle,      color: 'text-rose-500',   label: 'Rejected'  },
+  EXPIRED:  { border: 'border-amber-200',   bg: 'bg-amber-50/50',   icon: AlertCircle,  color: 'text-amber-500',  label: 'Expired'   },
+  PENDING:  { border: 'border-blue-200',    bg: 'bg-blue-50/50',    icon: Clock,        color: 'text-blue-500',   label: 'In Review' },
+  MISSING:  { border: 'border-surface-3',   bg: 'bg-white',         icon: FileText,     color: 'text-ink/30',     label: 'Missing'   },
 }
 
-function StatusBadge({ status }: { status: DocStatus }) {
-  const styles: Record<DocStatus, string> = {
-    APPROVED: 'bg-green-100 text-green-700',
-    REJECTED: 'bg-red-100 text-red-700',
-    EXPIRED: 'bg-amber-100 text-amber-700',
-    PENDING: 'bg-blue-100 text-blue-700',
-    MISSING: 'bg-gray-100 text-gray-500',
-  }
-  return (
-    <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded uppercase ${styles[status]}`}>
-      {status}
-    </span>
-  )
-}
+const inputCls = 'h-11 w-full rounded-xl border border-surface-3 bg-surface-1 px-4 text-sm text-ink placeholder:text-ink/30 transition-all duration-150 focus:border-teal focus:bg-white focus:shadow-focus focus:outline-none'
+const labelCls = 'block text-[11px] font-semibold text-ink/50 uppercase tracking-wider mb-1.5'
 
 export default function ProfileClient({ initialData }: { initialData: ProfileData }) {
-  const router = useRouter()
-  const [savingProfile, setSavingProfile] = useState(false)
-  const [uploadingDoc, setUploadingDoc] = useState<string | null>(null)
-  const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
-  const fileRefs = useRef<Record<string, HTMLInputElement | null>>({})
+  const router        = useRouter()
+  const [saving, setSaving]         = useState(false)
+  const [uploading, setUploading]   = useState<string | null>(null)
+  const [message, setMessage]       = useState<{ type: 'success' | 'error'; text: string } | null>(null)
+  const fileRefs      = useRef<Record<string, HTMLInputElement | null>>({})
 
   const { user, documents } = initialData
   const docMap = Object.fromEntries(documents.map(d => [d.docType, d]))
+
+  const approvedRequired = REQUIRED_KEYS.filter(k => docMap[k]?.status === 'APPROVED').length
+  const progressPct = Math.round((approvedRequired / REQUIRED_KEYS.length) * 100)
   const isCompliant = user.complianceStatus === 'GREEN'
 
   async function handleProfileSave(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault()
-    setSavingProfile(true)
+    setSaving(true)
     setMessage(null)
-    const fd = new FormData(e.currentTarget)
     try {
-      const res = await fetch('/api/profile', { method: 'POST', body: fd })
+      const res  = await fetch('/api/profile', { method: 'POST', body: new FormData(e.currentTarget) })
       const json = await res.json() as { ok?: boolean; error?: string }
-      if (json.ok) {
-        setMessage({ type: 'success', text: 'Profile updated successfully.' })
-        router.refresh()
-      } else {
-        setMessage({ type: 'error', text: json.error ?? 'Failed to update.' })
-      }
+      setMessage(json.ok
+        ? { type: 'success', text: 'Profile updated.' }
+        : { type: 'error',   text: json.error ?? 'Failed to update.' }
+      )
+      if (json.ok) router.refresh()
     } catch {
       setMessage({ type: 'error', text: 'Network error.' })
     }
-    setSavingProfile(false)
+    setSaving(false)
   }
 
   async function handleDocUpload(docType: string) {
     const input = fileRefs.current[docType]
     if (!input?.files?.length) return
-    setUploadingDoc(docType)
+    setUploading(docType)
     setMessage(null)
     const fd = new FormData()
     fd.set('file', input.files[0])
     fd.set('docType', docType)
     try {
-      const res = await fetch('/api/upload-document', { method: 'POST', body: fd })
+      const res  = await fetch('/api/upload-document', { method: 'POST', body: fd })
       const json = await res.json() as { ok?: boolean; error?: string }
-      if (json.ok) {
-        const label = DOC_TYPES.find(d => d.key === docType)?.label ?? docType
-        setMessage({ type: 'success', text: `${label} uploaded. Awaiting review.` })
-        router.refresh()
-      } else {
-        setMessage({ type: 'error', text: json.error ?? 'Upload failed.' })
-      }
+      const label = DOC_TYPES.find(d => d.key === docType)?.label ?? docType
+      setMessage(json.ok
+        ? { type: 'success', text: `${label} uploaded. Awaiting review.` }
+        : { type: 'error',   text: json.error ?? 'Upload failed.' }
+      )
+      if (json.ok) router.refresh()
     } catch {
       setMessage({ type: 'error', text: 'Network error during upload.' })
     }
-    setUploadingDoc(null)
+    setUploading(null)
     if (input) input.value = ''
   }
 
   return (
-    <main className="flex-1 px-4 py-5 pb-24 space-y-5">
+    <main className="flex-1 px-4 py-5 pb-28 space-y-5">
+
+      {/* Toast */}
       {message && (
-        <div className={`p-3 rounded-xl text-sm flex items-center gap-2 ${
+        <div className={`flex items-center gap-2.5 p-3.5 rounded-xl text-sm animate-fade-in ${
           message.type === 'success'
-            ? 'bg-green-50 border border-green-200 text-green-700'
-            : 'bg-red-50 border border-red-200 text-red-700'
+            ? 'bg-emerald-50 border border-emerald-200 text-emerald-700'
+            : 'bg-rose-50 border border-rose-200 text-rose-700'
         }`}>
           {message.type === 'success'
             ? <CheckCircle2 className="w-4 h-4 shrink-0" />
@@ -133,50 +126,55 @@ export default function ProfileClient({ initialData }: { initialData: ProfileDat
         </div>
       )}
 
-      {/* Compliance Banner */}
-      <div className={`p-4 rounded-2xl flex items-start gap-3 ${isCompliant ? 'bg-green-50 border border-green-200' : 'bg-amber-50 border border-amber-200'}`}>
-        {isCompliant
-          ? <CheckCircle2 className="w-5 h-5 text-green-500 shrink-0 mt-0.5" />
-          : <AlertCircle className="w-5 h-5 text-amber-500 shrink-0 mt-0.5" />}
-        <div className="flex-1">
-          <p className={`font-bold text-sm ${isCompliant ? 'text-green-800' : 'text-amber-800'}`}>
-            {isCompliant ? 'Fully Compliant' : 'Documents Required'}
-          </p>
-          <p className={`text-xs mt-0.5 ${isCompliant ? 'text-green-700' : 'text-amber-700'}`}>
-            {isCompliant
-              ? 'You are cleared to accept shifts. Keep your documents up to date.'
-              : 'Upload all required documents below. Your agency will review within 24 hours.'}
-          </p>
-        </div>
-        {user.rating && (
-          <div className="text-right shrink-0">
-            <p className="text-xs text-gray-500">Rating</p>
-            <p className="font-bold text-navy text-sm flex items-center gap-0.5">
-              <Star className="w-3 h-3 fill-amber-400 text-amber-400" /> {user.rating.toFixed(1)}
-            </p>
+      {/* Compliance progress card */}
+      <div className={`bg-white rounded-2xl border shadow-card p-5 ${isCompliant ? 'border-emerald-200' : 'border-surface-2'}`}>
+        <div className="flex items-start justify-between gap-4 mb-4">
+          <div className="flex items-center gap-3">
+            <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${isCompliant ? 'bg-emerald-100' : 'bg-amber-100'}`}>
+              <Shield className={`w-5 h-5 ${isCompliant ? 'text-emerald-600' : 'text-amber-600'}`} />
+            </div>
+            <div>
+              <p className={`font-bold text-sm ${isCompliant ? 'text-emerald-800' : 'text-ink'}`}>
+                {isCompliant ? 'Fully Compliant' : 'Documents Required'}
+              </p>
+              <p className="text-xs text-ink/45 mt-0.5">
+                {approvedRequired}/{REQUIRED_KEYS.length} required documents approved
+              </p>
+            </div>
           </div>
+          <span className={`font-black font-mono text-lg ${isCompliant ? 'text-emerald-600' : 'text-amber-500'}`}>
+            {progressPct}%
+          </span>
+        </div>
+        {/* Progress bar */}
+        <div className="h-2 bg-surface-2 rounded-full overflow-hidden">
+          <div
+            className={`h-full rounded-full transition-all duration-500 ${isCompliant ? 'bg-emerald-500' : 'bg-amber-400'}`}
+            style={{ width: `${progressPct}%` }}
+          />
+        </div>
+        {!isCompliant && (
+          <p className="text-xs text-ink/40 mt-2.5">
+            Upload all required documents below. Your agency reviews within 24 hours.
+          </p>
         )}
       </div>
 
       {/* Personal Information */}
-      <Card className="border-0 shadow-sm">
-        <CardHeader className="pb-2">
-          <CardTitle className="text-navy text-base">Personal Information</CardTitle>
-        </CardHeader>
-        <CardContent>
+      <div className="bg-white rounded-2xl border border-surface-2 shadow-card overflow-hidden">
+        <div className="px-5 py-4 border-b border-surface-2">
+          <p className="font-bold text-ink text-sm">Personal Information</p>
+        </div>
+        <div className="p-5">
           <form onSubmit={handleProfileSave} className="space-y-4">
             <div>
-              <label className="text-xs text-gray-500 font-medium uppercase tracking-wide">Email</label>
-              <p className="mt-1 text-sm text-gray-700 bg-gray-50 rounded-lg px-3 py-2">{user.email}</p>
-            </div>
-            <div>
-              <label className="text-xs text-gray-500 font-medium uppercase tracking-wide">Role</label>
-              <div className="mt-1">
-                <span className="bg-navy/10 text-navy text-sm font-bold px-3 py-1 rounded-full">{user.role}</span>
+              <label className={labelCls}>Email</label>
+              <div className="h-11 rounded-xl border border-surface-2 bg-surface-1 px-4 flex items-center text-sm text-ink/50 cursor-default">
+                {user.email}
               </div>
             </div>
             <div>
-              <label className="text-xs font-semibold text-gray-600 uppercase tracking-wide block mb-1">Full Name</label>
+              <label className={labelCls}>Full Name</label>
               <input
                 name="name"
                 type="text"
@@ -184,117 +182,125 @@ export default function ProfileClient({ initialData }: { initialData: ProfileDat
                 minLength={2}
                 maxLength={100}
                 required
-                className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal"
+                className={inputCls}
                 placeholder="Your full name"
               />
             </div>
             <div>
-              <label className="text-xs font-semibold text-gray-600 uppercase tracking-wide block mb-1">Phone</label>
+              <label className={labelCls}>Phone</label>
               <input
                 name="phone"
                 type="tel"
                 defaultValue={user.phone ?? ''}
                 maxLength={20}
-                className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal"
+                className={inputCls}
                 placeholder="+61 4XX XXX XXX"
               />
             </div>
             <div>
-              <label className="text-xs font-semibold text-gray-600 uppercase tracking-wide block mb-1">Skills (comma-separated)</label>
+              <label className={labelCls}>Skills <span className="text-ink/30 normal-case tracking-normal font-normal">(comma-separated)</span></label>
               <input
                 name="skills"
                 type="text"
                 defaultValue={user.skills.join(', ')}
-                className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal"
+                className={inputCls}
                 placeholder="Wound care, Medication administration"
               />
             </div>
-            <Button type="submit" className="w-full" disabled={savingProfile}>
-              {savingProfile && <Loader2 className="w-4 h-4 animate-spin mr-2" />}
+            <Button type="submit" className="w-full h-11 font-bold" disabled={saving}>
+              {saving && <Loader2 className="w-4 h-4 animate-spin mr-2" />}
               Save Changes
             </Button>
           </form>
-        </CardContent>
-      </Card>
+        </div>
+      </div>
 
       {/* Compliance Documents */}
-      <Card className="border-0 shadow-sm">
-        <CardHeader className="pb-2">
-          <CardTitle className="text-navy text-base flex items-center gap-2">
-            <FileText className="w-4 h-4" /> Compliance Documents
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-3">
+      <div className="bg-white rounded-2xl border border-surface-2 shadow-card overflow-hidden">
+        <div className="px-5 py-4 border-b border-surface-2 flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <FileText className="w-4 h-4 text-ink/40" />
+            <p className="font-bold text-ink text-sm">Compliance Documents</p>
+          </div>
+          <span className="text-[11px] font-semibold text-ink/40 bg-surface-2 px-2 py-0.5 rounded-full">
+            {approvedRequired}/{REQUIRED_KEYS.length} done
+          </span>
+        </div>
+
+        <div className="divide-y divide-surface-1">
           {DOC_TYPES.map(doc => {
-            const existing = docMap[doc.key]
+            const existing   = docMap[doc.key]
             const status: DocStatus = existing?.status ?? 'MISSING'
-            const isUploading = uploadingDoc === doc.key
+            const cfg        = DOC_STATUS_CONFIG[status]
+            const StatusIcon = cfg.icon
+            const isUploading = uploading === doc.key
 
             return (
-              <div
-                key={doc.key}
-                className={`p-3 border rounded-xl ${
-                  status === 'APPROVED' ? 'border-green-200 bg-green-50/50' :
-                  status === 'PENDING' ? 'border-blue-200 bg-blue-50/50' :
-                  status === 'REJECTED' ? 'border-red-200 bg-red-50/50' :
-                  status === 'EXPIRED' ? 'border-amber-200 bg-amber-50/50' :
-                  'border-gray-200'
-                }`}
-              >
-                <div className="flex items-center justify-between mb-1.5">
-                  <div className="flex items-center gap-2">
-                    <StatusIcon status={status} />
-                    <div>
-                      <p className="text-sm font-semibold text-navy leading-tight">
+              <div key={doc.key} className={`p-4 ${cfg.bg}`}>
+                <div className="flex items-start gap-3">
+                  <StatusIcon className={`w-4 h-4 mt-0.5 shrink-0 ${cfg.color}`} />
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <p className="font-semibold text-ink text-sm leading-tight">
                         {doc.label}
-                        {doc.required && <span className="text-red-500 ml-1 text-xs">required</span>}
                       </p>
-                      {existing?.reviewNote && (
-                        <p className="text-xs text-red-600 mt-0.5">{existing.reviewNote}</p>
-                      )}
-                      {existing?.expiresAt && (
-                        <p className="text-xs text-gray-500">
-                          Expires {new Date(existing.expiresAt).toLocaleDateString('en-AU')}
-                        </p>
+                      {doc.required && status === 'MISSING' && (
+                        <span className="text-[9px] font-bold text-rose-500 bg-rose-50 border border-rose-200 px-1.5 py-0.5 rounded-full uppercase">
+                          Required
+                        </span>
                       )}
                     </div>
-                  </div>
-                  <StatusBadge status={status} />
-                </div>
+                    {existing?.reviewNote && (
+                      <p className="text-xs text-rose-600 mt-0.5">{existing.reviewNote}</p>
+                    )}
+                    {existing?.expiresAt && (
+                      <p className="text-xs text-ink/40 mt-0.5">
+                        Expires {new Date(existing.expiresAt).toLocaleDateString('en-AU')}
+                      </p>
+                    )}
 
-                {status !== 'APPROVED' && (
-                  <>
-                    <input
-                      type="file"
-                      accept=".pdf,.jpg,.jpeg,.png,.webp"
-                      ref={el => { fileRefs.current[doc.key] = el }}
-                      onChange={() => handleDocUpload(doc.key)}
-                      className="hidden"
-                      id={`file-${doc.key}`}
-                      disabled={isUploading}
-                    />
-                    <label
-                      htmlFor={`file-${doc.key}`}
-                      className={`mt-2 flex items-center justify-center gap-2 py-2 px-3 border-2 border-dashed rounded-lg text-sm font-medium transition-colors ${
-                        isUploading
-                          ? 'opacity-50 cursor-not-allowed border-gray-200 text-gray-400'
-                          : 'border-teal text-teal hover:bg-teal-50 cursor-pointer'
-                      }`}
-                    >
-                      {isUploading
-                        ? <><Loader2 className="w-4 h-4 animate-spin" /> Uploading…</>
-                        : <><Upload className="w-4 h-4" /> {status === 'MISSING' ? 'Upload Document' : 'Replace'}</>}
-                    </label>
-                  </>
-                )}
+                    {status !== 'APPROVED' && (
+                      <div className="mt-2.5">
+                        <input
+                          type="file"
+                          accept=".pdf,.jpg,.jpeg,.png,.webp"
+                          ref={el => { fileRefs.current[doc.key] = el }}
+                          onChange={() => handleDocUpload(doc.key)}
+                          className="hidden"
+                          id={`file-${doc.key}`}
+                          disabled={isUploading}
+                        />
+                        <label
+                          htmlFor={`file-${doc.key}`}
+                          className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold border-2 border-dashed transition-all cursor-pointer ${
+                            isUploading
+                              ? 'opacity-50 cursor-not-allowed border-surface-3 text-ink/30'
+                              : 'border-teal/40 text-teal hover:bg-teal/5 hover:border-teal'
+                          }`}
+                        >
+                          {isUploading
+                            ? <><Loader2 className="w-3.5 h-3.5 animate-spin" /> Uploading…</>
+                            : <><Upload className="w-3.5 h-3.5" /> {status === 'MISSING' ? 'Upload' : 'Replace'}</>}
+                        </label>
+                      </div>
+                    )}
+                  </div>
+
+                  <span className={`text-[9px] font-bold px-2 py-1 rounded-lg uppercase border shrink-0 ${cfg.border} ${cfg.bg} ${cfg.color.replace('text-', 'text-').replace('500', '700').replace('400', '600')}`}>
+                    {cfg.label}
+                  </span>
+                </div>
               </div>
             )
           })}
-          <p className="text-xs text-gray-400 text-center">
+        </div>
+
+        <div className="px-5 py-3.5 border-t border-surface-1">
+          <p className="text-[11px] text-ink/30 text-center">
             PDF, JPG, or PNG · Max 10MB · Reviewed within 24 hours
           </p>
-        </CardContent>
-      </Card>
+        </div>
+      </div>
     </main>
   )
 }
