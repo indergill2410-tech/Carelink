@@ -55,18 +55,28 @@ export async function signup(formData: FormData) {
   if (error) redirect('/login?error=' + encodeURIComponent(error.message))
 
   if (authData.user) {
-    await new Promise(resolve => setTimeout(resolve, 1000))
+    // Wait briefly for the auth trigger to insert the row before we upsert
+    await new Promise(resolve => setTimeout(resolve, 1500))
     let destination = '/worker'
     try {
       if (role === 'FACILITY') {
-        await prisma.user.update({ where: { id: authData.user.id }, data: { role: 'ADMIN', name } })
+        await prisma.user.upsert({
+          where: { id: authData.user.id },
+          update: { role: 'ADMIN', name },
+          create: { id: authData.user.id, email, role: 'ADMIN', name },
+        })
         destination = '/facility'
       } else {
         const dbRole = role as 'NURSE' | 'EN' | 'PCA'
-        await prisma.user.update({ where: { id: authData.user.id }, data: { role: dbRole, name } })
+        await prisma.user.upsert({
+          where: { id: authData.user.id },
+          update: { role: dbRole, name },
+          create: { id: authData.user.id, email, role: dbRole, name },
+        })
       }
-    } catch {
-      // DB update failed — auth succeeded, so let them in anyway
+    } catch (err) {
+      console.error('[signup] DB upsert failed:', err)
+      redirect('/login?error=' + encodeURIComponent('Account created but profile setup failed. Please sign in.'))
     }
     redirect(destination)
   }

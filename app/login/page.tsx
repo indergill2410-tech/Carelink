@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Activity, ShieldCheck, Building2, Stethoscope, AlertCircle, Loader2 } from 'lucide-react'
+import Link from 'next/link'
 
 const DEMO_BUTTONS = [
   {
@@ -98,7 +99,12 @@ function LoginContent() {
               </div>
 
               <div className="space-y-2">
-                <label className="text-sm font-medium text-navy">Password</label>
+                <div className="flex items-center justify-between">
+                  <label className="text-sm font-medium text-navy">Password</label>
+                  {!isRegistering && (
+                    <Link href="/forgot-password" className="text-xs text-teal hover:underline">Forgot password?</Link>
+                  )}
+                </div>
                 <Input name="password" type="password" placeholder="••••••••" required />
               </div>
 

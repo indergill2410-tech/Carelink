@@ -49,7 +49,7 @@ export default async function ProfilePage({ searchParams }: { searchParams: { er
   const isCompliant = status === 'GREEN'
 
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col md:hidden">
+    <div className="min-h-screen bg-gray-50 flex flex-col max-w-2xl mx-auto">
       {/* Mobile Header */}
       <header className="bg-navy text-white px-6 py-5 rounded-b-3xl shadow-md">
         <div className="flex justify-between items-center">
@@ -189,15 +189,6 @@ export default async function ProfilePage({ searchParams }: { searchParams: { er
         </a>
       </nav>
 
-      {/* Desktop overlay */}
-      <div className="hidden md:flex fixed inset-0 bg-navy/90 z-50 items-center justify-center p-8 text-center text-white">
-        <div className="max-w-md space-y-4">
-          <Stethoscope className="w-12 h-12 mx-auto text-teal-400" />
-          <h2 className="text-2xl font-bold">Mobile View Only</h2>
-          <p className="text-gray-300">The Worker App is designed for mobile. Open this on a phone or shrink your browser window.</p>
-          <a href="/dashboard" className="inline-block mt-4 text-teal-400 underline">Return to Admin Dashboard</a>
-        </div>
-      </div>
     </div>
   )
 }
