@@ -57,7 +57,7 @@ async function getFacilityData() {
 
   const shifts = await prisma.shift.findMany({
     where: { facilityId: facility.id },
-    include: { worker: true },
+    include: { worker: { select: { id: true, name: true, email: true } } },
     orderBy: { startTime: 'desc' },
     take: 50,
   })
@@ -116,7 +116,8 @@ export default async function FacilityPortal({
     const notes  = (formData.get('notes') as string) || null
     const urgent = formData.get('urgent') === 'on'
 
-    if (!role || !date || !/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+    const VALID_ROLES = ['NURSE', 'EN', 'PCA']
+    if (!role || !VALID_ROLES.includes(role) || !date || !/^\d{4}-\d{2}-\d{2}$/.test(date)) {
       redirect('/facility?error=Invalid+shift+details')
     }
 

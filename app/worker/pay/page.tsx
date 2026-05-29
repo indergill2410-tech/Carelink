@@ -16,7 +16,7 @@ export default async function PayPage() {
 
   const completedShifts = await prisma.shift.findMany({
     where: { workerId: user.id, status: 'COMPLETED' },
-    include: { facility: true },
+    include: { facility: { select: { id: true, name: true } } },
     orderBy: { startTime: 'desc' },
   })
 

@@ -80,9 +80,12 @@ async function toggleCompliance(formData: FormData) {
 
   const workerId = formData.get('workerId') as string
   if (!workerId) return
-  const w = await prisma.user.findUnique({ where: { id: workerId } })
-  if (!w) return
-  await prisma.user.update({ where: { id: workerId }, data: { complianceStatus: w.complianceStatus === 'GREEN' ? 'RED' : 'GREEN' } })
+  // Atomic: flip in a single round-trip using a raw conditional expression
+  await prisma.$executeRaw`
+    UPDATE "User"
+    SET "complianceStatus" = CASE WHEN "complianceStatus" = 'GREEN' THEN 'RED' ELSE 'GREEN' END
+    WHERE id = ${workerId}
+  `
   revalidatePath('/dashboard')
 }
 
@@ -92,9 +95,10 @@ async function toggleWorkerActive(formData: FormData) {
 
   const workerId = formData.get('workerId') as string
   if (!workerId) return
-  const w = await prisma.user.findUnique({ where: { id: workerId } })
-  if (!w) return
-  await prisma.user.update({ where: { id: workerId }, data: { isActive: !w.isActive } })
+  // Atomic: flip boolean in a single round-trip
+  await prisma.$executeRaw`
+    UPDATE "User" SET "isActive" = NOT "isActive" WHERE id = ${workerId}
+  `
   revalidatePath('/dashboard')
 }
 
@@ -149,7 +153,7 @@ async function assignWorker(formData: FormData) {
   if (!shiftId || !workerId) return
 
   const [shift, worker] = await Promise.all([
-    prisma.shift.findUnique({ where: { id: shiftId }, include: { facility: true } }),
+    prisma.shift.findUnique({ where: { id: shiftId }, include: { facility: { select: { id: true, name: true } } } }),
     prisma.user.findUnique({ where: { id: workerId } }),
   ])
   if (!shift || shift.status !== 'PENDING' || !worker) return
@@ -178,7 +182,10 @@ async function assignWorker(formData: FormData) {
 async function getDashboardData() {
   const [shifts, workers, facilitiesList, pendingDocs] = await Promise.all([
     prisma.shift.findMany({
-      include: { facility: true, worker: true },
+      include: {
+        facility: { select: { id: true, name: true, address: true } },
+        worker:   { select: { id: true, name: true, email: true, role: true } },
+      },
       orderBy: { startTime: 'desc' },
       take: 100,
     }),
@@ -195,7 +202,7 @@ async function getDashboardData() {
     prisma.facility.findMany({ orderBy: { name: 'asc' } }),
     prisma.complianceDocument.findMany({
       where: { status: 'PENDING' },
-      include: { user: true },
+      include: { user: { select: { id: true, name: true, email: true, role: true } } },
       orderBy: { createdAt: 'asc' },
     }),
   ])

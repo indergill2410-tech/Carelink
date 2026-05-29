@@ -20,6 +20,13 @@ const ALLOWED_MIME_TYPES = new Set([
   'image/webp',
 ])
 
+const MIME_TO_EXT: Record<string, string> = {
+  'application/pdf': 'pdf',
+  'image/jpeg': 'jpg',
+  'image/png': 'png',
+  'image/webp': 'webp',
+}
+
 export async function POST(req: NextRequest) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
@@ -46,7 +53,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'File too large (max 10MB)' }, { status: 400 })
   }
 
-  const ext = file.name.split('.').pop()?.toLowerCase() ?? 'bin'
+  const ext = MIME_TO_EXT[file.type] ?? 'bin'
   const path = `${user.id}/${docType}_${randomUUID()}.${ext}`
 
   const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!

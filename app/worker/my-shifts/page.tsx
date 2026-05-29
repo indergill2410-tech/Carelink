@@ -39,7 +39,10 @@ export default async function MyShiftsPage({
 
   const shifts = await prisma.shift.findMany({
     where: { workerId: user.id },
-    include: { facility: true, ratings: { where: { raterId: user.id } } },
+    include: {
+      facility: { select: { id: true, name: true, address: true } },
+      ratings: { where: { raterId: user.id } },
+    },
     orderBy: { startTime: 'desc' },
   })
 
@@ -79,10 +82,15 @@ export default async function MyShiftsPage({
     const supabase = await createClient()
     const { data: { user: authUser } } = await supabase.auth.getUser()
     if (!authUser) redirect('/login')
-    await prisma.shift.updateMany({
-      where: { id: shiftId, workerId: authUser.id, status: 'CLOCKED_IN' },
-      data: { status: 'COMPLETED', clockOutAt: new Date() },
-    })
+    try {
+      await prisma.shift.updateMany({
+        where: { id: shiftId, workerId: authUser.id, status: 'CLOCKED_IN' },
+        data: { status: 'COMPLETED', clockOutAt: new Date() },
+      })
+    } catch (err) {
+      console.error('[clockOut] Prisma error:', err)
+      return
+    }
     revalidatePath('/worker/my-shifts')
     revalidatePath('/facility')
     revalidatePath('/dashboard')
@@ -95,10 +103,15 @@ export default async function MyShiftsPage({
     const supabase = await createClient()
     const { data: { user: authUser } } = await supabase.auth.getUser()
     if (!authUser) redirect('/login')
-    await prisma.shift.updateMany({
-      where: { id: shiftId, workerId: authUser.id, status: 'MATCHED' },
-      data: { status: 'CANCELLED' },
-    })
+    try {
+      await prisma.shift.updateMany({
+        where: { id: shiftId, workerId: authUser.id, status: 'MATCHED' },
+        data: { status: 'CANCELLED' },
+      })
+    } catch (err) {
+      console.error('[cancelShift] Prisma error:', err)
+      return
+    }
     revalidatePath('/worker/my-shifts')
   }
 
