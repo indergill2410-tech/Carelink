@@ -61,21 +61,25 @@ async function ensureAccount(
   demoPassword: string,
   supabaseUrl: string,
   anonKey: string,
-  serviceRoleKey: string,
+  serviceRoleKey: string, // empty string = no admin API access
 ): Promise<string | null> {
-  const adminClient = createAdminClient(supabaseUrl, serviceRoleKey, {
+  // sb_publishable_ keys enforce allowed-hosts against the Origin header.
+  // Inject NEXT_PUBLIC_SITE_URL so server-side calls pass the check.
+  const siteOrigin = process.env.NEXT_PUBLIC_SITE_URL ?? 'http://localhost:3000'
+  const clientOpts = {
     auth: { autoRefreshToken: false, persistSession: false },
-  })
+    global: { headers: { origin: siteOrigin } },
+  }
 
-  // Try signing in with a temporary in-memory anon client (no cookies, no persistSession)
-  const anonClient = createAnonClient(supabaseUrl, anonKey, {
-    auth: { autoRefreshToken: false, persistSession: false },
-  })
+  const anonClient = createAnonClient(supabaseUrl, anonKey, clientOpts)
 
   const { data: signInData, error: signInError } = await anonClient.auth.signInWithPassword({
     email: config.email,
     password: demoPassword,
   })
+
+  console.log('[demo] signIn attempt', config.email,
+    signInError ? `FAILED status=${signInError.status} msg=${signInError.message}` : 'OK')
 
   if (!signInError && signInData?.user) {
     // Sign-in succeeded — sign out and sync the public.User role/name
@@ -117,6 +121,61 @@ async function ensureAccount(
       .catch(() => null)
     return dbUser?.id ?? null
   }
+
+  // No service role key — try signUp as a fallback.
+  // This works when the Supabase project has "Confirm email" disabled (common for
+  // demo/internal apps). The signUp may fail with "User already registered" if the
+  // account exists but is broken; we still try signIn after to cover that case.
+  if (!serviceRoleKey) {
+    await anonClient.auth.signUp({
+      email: config.email,
+      password: demoPassword,
+      options: { data: { name: config.name } },
+    }).catch(() => null) // ignore errors — signIn below is the real test
+
+    const { data: autoData, error: autoErr } = await anonClient.auth.signInWithPassword({
+      email: config.email,
+      password: demoPassword,
+    })
+
+    if (!autoErr && autoData?.user) {
+      // signOut is a no-op here: persistSession=false means the session is
+      // in-memory only and calling signOut would add a needless network round-trip.
+      const userId = autoData.user.id
+      try {
+        // Guard: if a stale DB row exists for this email but with a different ID
+        // (e.g. from a prior manual insert), delete it first to avoid a P2002
+        // unique constraint violation on the upsert.
+        const stale = await prisma.user.findUnique({
+          where: { email: config.email },
+          select: { id: true },
+        }).catch(() => null)
+        if (stale && stale.id !== userId) {
+          await prisma.shift.updateMany({ where: { workerId: stale.id }, data: { workerId: null } }).catch(() => null)
+          await prisma.user.delete({ where: { id: stale.id } }).catch(() => null)
+        }
+        await prisma.user.upsert({
+          where: { id: userId },
+          create: { id: userId, email: config.email, name: config.name, role: config.dbRole, complianceStatus: config.complianceStatus },
+          update: { role: config.dbRole, name: config.name, complianceStatus: config.complianceStatus },
+        })
+      } catch (err) {
+        console.error('[demo] Failed to upsert public.User (signUp path) for', config.email, err)
+      }
+      return userId
+    }
+
+    console.error(
+      '[demo] Cannot provision', config.email,
+      '— set SUPABASE_SERVICE_ROLE_KEY, or disable "Confirm email" in your Supabase project',
+      'Authentication → Email settings.',
+      autoErr?.message,
+    )
+    return null
+  }
+
+  // Service role key is present — use admin API to delete + recreate the broken account.
+  const adminClient = createAdminClient(supabaseUrl, serviceRoleKey, clientOpts)
 
   // Sign-in failed with a credential/account error — account was likely created via
   // direct SQL without auth.identities. Find existing public.User row.
@@ -166,9 +225,11 @@ async function ensureAccount(
   })
 
   if (createError || !created?.user) {
-    console.error('[demo] Failed to create auth user for', config.email, createError?.message)
+    console.error('[demo] Failed to create auth user for', config.email,
+      `status=${createError?.status} msg=${createError?.message}`)
     return null
   }
+  console.log('[demo] Created auth user', config.email, '->', created.user.id)
 
   const userId = created.user.id
 
@@ -391,8 +452,9 @@ export async function provisionDemoAccounts(force = false): Promise<void> {
   const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
   const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY
 
-  if (!demoPassword || !supabaseUrl || !anonKey || !serviceRoleKey) {
-    // Return early — this is a no-op in environments without demo config
+  // serviceRoleKey is optional — provisioning still works via signUp fallback
+  // when Supabase project has email confirmation disabled.
+  if (!demoPassword || !supabaseUrl || !anonKey) {
     return
   }
 
@@ -412,7 +474,7 @@ export async function provisionDemoAccounts(force = false): Promise<void> {
 
     for (const [roleKey, config] of accountEntries) {
       try {
-        const userId = await ensureAccount(config, demoPassword, supabaseUrl, anonKey, serviceRoleKey)
+        const userId = await ensureAccount(config, demoPassword, supabaseUrl, anonKey, serviceRoleKey ?? '')
         results[roleKey] = userId
         if (userId) {
           console.log('[demo] Provisioned account:', config.email, '->', userId)

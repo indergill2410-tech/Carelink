@@ -8,6 +8,14 @@ export function createClient() {
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
     {
+      // sb_publishable_ keys enforce an allowed-hosts check against the Origin header.
+      // Server-side Node.js requests don't send Origin by default, so we inject it
+      // explicitly so Supabase accepts calls from the deployed server.
+      global: {
+        headers: {
+          origin: process.env.NEXT_PUBLIC_SITE_URL ?? 'http://localhost:3000',
+        },
+      },
       cookies: {
         get(name: string) {
           return cookieStore.get(name)?.value

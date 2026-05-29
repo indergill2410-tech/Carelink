@@ -64,5 +64,14 @@ export async function POST(req: NextRequest) {
   })
   if (!retryError) return NextResponse.redirect(new URL(config.destination, req.url))
 
+  // Give a specific message when the service role key is missing so operators
+  // know exactly what to configure, rather than seeing "Invalid login credentials".
+  if (!process.env.SUPABASE_SERVICE_ROLE_KEY) {
+    return errorRedirect(
+      req,
+      'Demo accounts not yet provisioned. Set SUPABASE_SERVICE_ROLE_KEY on your deployment platform, or disable "Confirm email" in Supabase → Authentication → Email settings.',
+    )
+  }
+
   return errorRedirect(req, retryError.message)
 }
