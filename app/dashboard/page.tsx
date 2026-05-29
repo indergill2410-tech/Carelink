@@ -8,6 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { StatusBadge, ComplianceBadge } from '@/components/StatusBadge'
 import { prisma } from '@/lib/prisma'
+import { createClient } from '@/utils/supabase/server'
 import { signOut } from '@/app/login/actions'
 import { createNotification } from '@/lib/notifications'
 import { revalidatePath } from 'next/cache'
@@ -16,10 +17,24 @@ import { Role } from '@prisma/client'
 
 export const dynamic = 'force-dynamic'
 
-// ─── Server Actions ──────────────────────────────────────────────────────────
+// ─── Auth guard ───────────────────────────────────────────────────────────────
+// All mutating server actions call this first — returns the authed admin user
+// or null if the caller is unauthenticated / not an ADMIN.
+async function requireAdmin() {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return null
+  const dbUser = await prisma.user.findUnique({ where: { id: user.id } })
+  if (!dbUser || dbUser.role !== 'ADMIN') return null
+  return dbUser
+}
+
+// ─── Server Actions ───────────────────────────────────────────────────────────
 
 async function broadcastShift(formData: FormData) {
   'use server'
+  if (!await requireAdmin()) return
+
   const facilityId  = formData.get('facilityId') as string
   const role        = formData.get('role') as string
   const startTime   = formData.get('startTime') as string
@@ -48,8 +63,20 @@ async function broadcastShift(formData: FormData) {
   redirect('/dashboard')
 }
 
+async function cancelShift(formData: FormData) {
+  'use server'
+  if (!await requireAdmin()) return
+
+  const shiftId = formData.get('shiftId') as string
+  if (!shiftId) return
+  await prisma.shift.update({ where: { id: shiftId }, data: { status: 'CANCELLED' } })
+  revalidatePath('/dashboard')
+}
+
 async function toggleCompliance(formData: FormData) {
   'use server'
+  if (!await requireAdmin()) return
+
   const workerId = formData.get('workerId') as string
   if (!workerId) return
   const w = await prisma.user.findUnique({ where: { id: workerId } })
@@ -58,16 +85,10 @@ async function toggleCompliance(formData: FormData) {
   revalidatePath('/dashboard')
 }
 
-async function cancelShift(formData: FormData) {
-  'use server'
-  const shiftId = formData.get('shiftId') as string
-  if (!shiftId) return
-  await prisma.shift.update({ where: { id: shiftId }, data: { status: 'CANCELLED' } })
-  revalidatePath('/dashboard')
-}
-
 async function toggleWorkerActive(formData: FormData) {
   'use server'
+  if (!await requireAdmin()) return
+
   const workerId = formData.get('workerId') as string
   if (!workerId) return
   const w = await prisma.user.findUnique({ where: { id: workerId } })
@@ -78,6 +99,8 @@ async function toggleWorkerActive(formData: FormData) {
 
 async function reviewDocument(formData: FormData) {
   'use server'
+  if (!await requireAdmin()) return
+
   const docId      = formData.get('docId') as string
   const action     = formData.get('action') as 'APPROVED' | 'REJECTED'
   const reviewNote = (formData.get('reviewNote') as string) || null
@@ -120,6 +143,8 @@ async function reviewDocument(formData: FormData) {
 
 async function assignWorker(formData: FormData) {
   'use server'
+  if (!await requireAdmin()) return
+
   const shiftId  = formData.get('shiftId') as string
   const workerId = formData.get('workerId') as string
   if (!shiftId || !workerId) return
