@@ -77,6 +77,7 @@ export default async function WorkerPortal({ searchParams }: { searchParams: { e
       include: { facility: true },
     })
     if (!shift || shift.status !== 'PENDING' || shift.workerId) redirect('/worker?error=shift_already_taken')
+    if (dbUser.role !== shift.role) redirect('/worker?error=role_mismatch')
 
     const result = await prisma.shift.updateMany({
       where: { id: parsed.data.shiftId, workerId: null, status: 'PENDING' },
