@@ -197,6 +197,7 @@ async function ensureAccount(
       password: demoPassword,
       email_confirm: true,
       user_metadata: { name: config.name },
+      app_metadata: { role: config.dbRole },
     })
 
     if (!updateError) {
@@ -234,6 +235,7 @@ async function ensureAccount(
     password: demoPassword,
     email_confirm: true,
     user_metadata: { name: config.name },
+    app_metadata: { role: config.dbRole },
   })
 
   if (createError || !created?.user) {
