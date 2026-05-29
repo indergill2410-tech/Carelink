@@ -3,11 +3,13 @@
 import { Suspense, useState, useCallback } from 'react'
 import { useSearchParams, useRouter } from 'next/navigation'
 import { login, signup } from './actions'
+import { createClient } from '@/utils/supabase/client'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import {
   Activity, ShieldCheck, Building2, Stethoscope,
-  AlertCircle, ArrowRight, Eye, EyeOff,
+  AlertCircle, ArrowRight, Eye, EyeOff, Phone, Mail,
+  CheckCircle2,
 } from 'lucide-react'
 import Link from 'next/link'
 
@@ -62,18 +64,14 @@ function DemoCard({
       ].join(' ')}
       style={!disabled ? { '--hover-glow': glow } as React.CSSProperties : {}}
     >
-      {/* gradient background */}
       <div className={`absolute inset-0 bg-gradient-to-br ${gradient} opacity-90`} />
-      {/* noise overlay */}
       <div className="absolute inset-0 bg-black/10" />
-      {/* hover glow */}
       {!disabled && (
         <div
           className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300"
           style={{ boxShadow: `inset 0 0 40px ${glow}` }}
         />
       )}
-
       <div className="relative flex items-center gap-4 px-5 py-4">
         <div className="w-10 h-10 rounded-xl bg-white/15 flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform duration-200">
           {loading
@@ -90,6 +88,153 @@ function DemoCard({
   )
 }
 
+// ─── Phone OTP flow ────────────────────────────────────────────────────────
+
+function PhoneAuthForm() {
+  const router = useRouter()
+  const [phone, setPhone] = useState('')
+  const [otp, setOtp] = useState('')
+  const [step, setStep] = useState<'phone' | 'otp'>('phone')
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  const inputCls = "h-12 rounded-xl border border-surface-3 bg-surface-1 px-4 text-sm text-ink placeholder:text-ink/30 transition-all duration-150 focus:border-teal focus:bg-white focus:shadow-focus focus:outline-none w-full"
+
+  async function handleSendOtp(e: React.FormEvent) {
+    e.preventDefault()
+    setLoading(true)
+    setError(null)
+
+    // Normalize: ensure leading + for E.164
+    const normalized = phone.trim().replace(/\s+/g, '')
+    const e164 = normalized.startsWith('+') ? normalized : `+${normalized}`
+
+    const supabase = createClient()
+    const { error: otpError } = await supabase.auth.signInWithOtp({ phone: e164 })
+    setLoading(false)
+
+    if (otpError) {
+      setError(otpError.message)
+    } else {
+      setPhone(e164)
+      setStep('otp')
+    }
+  }
+
+  async function handleVerifyOtp(e: React.FormEvent) {
+    e.preventDefault()
+    setLoading(true)
+    setError(null)
+
+    const supabase = createClient()
+    const { data, error: verifyError } = await supabase.auth.verifyOtp({
+      phone,
+      token: otp.trim(),
+      type: 'sms',
+    })
+    setLoading(false)
+
+    if (verifyError) {
+      setError(verifyError.message)
+      return
+    }
+
+    if (data?.user) {
+      // Determine destination from role stored in DB
+      try {
+        const res = await fetch('/api/profile')
+        const json = await res.json() as { user?: { role?: string } }
+        const role = json.user?.role
+        if (role === 'ADMIN') router.push('/dashboard')
+        else if (role === 'NURSE' || role === 'EN' || role === 'PCA') router.push('/worker')
+        else router.push('/facility')
+      } catch {
+        router.push('/worker')
+      }
+    }
+  }
+
+  if (step === 'otp') {
+    return (
+      <form onSubmit={handleVerifyOtp} className="space-y-4 animate-fade-in-up">
+        <div className="p-4 bg-teal/5 border border-teal/20 rounded-xl text-sm text-ink/70">
+          <p className="font-semibold text-ink text-sm mb-0.5">Code sent</p>
+          <p>We sent a 6-digit code to <span className="font-mono font-bold text-ink">{phone}</span></p>
+        </div>
+
+        {error && (
+          <div className="flex items-center gap-2.5 p-3.5 bg-rose-50 border border-rose-200 rounded-xl text-rose-700 text-sm">
+            <AlertCircle className="w-4 h-4 shrink-0" />
+            <span>{error}</span>
+          </div>
+        )}
+
+        <div className="space-y-1.5">
+          <label className="text-xs font-semibold text-ink/60 uppercase tracking-wider">Verification Code</label>
+          <input
+            type="text"
+            inputMode="numeric"
+            pattern="[0-9]{6}"
+            maxLength={6}
+            placeholder="000000"
+            value={otp}
+            onChange={e => setOtp(e.target.value.replace(/\D/g, '').slice(0, 6))}
+            required
+            autoFocus
+            className={`${inputCls} text-center text-2xl font-mono tracking-[0.4em]`}
+          />
+        </div>
+
+        <div className="pt-1 space-y-3">
+          <Button type="submit" className="w-full h-12 text-base font-bold" disabled={loading || otp.length < 6}>
+            {loading
+              ? <svg className="w-5 h-5 animate-spin" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg>
+              : <><CheckCircle2 className="w-4 h-4" /> Verify Code</>}
+          </Button>
+          <Button type="button" variant="ghost" className="w-full" onClick={() => { setStep('phone'); setOtp(''); setError(null) }}>
+            ← Change number
+          </Button>
+        </div>
+      </form>
+    )
+  }
+
+  return (
+    <form onSubmit={handleSendOtp} className="space-y-4">
+      {error && (
+        <div className="flex items-center gap-2.5 p-3.5 bg-rose-50 border border-rose-200 rounded-xl text-rose-700 text-sm">
+          <AlertCircle className="w-4 h-4 shrink-0" />
+          <span>{error}</span>
+        </div>
+      )}
+
+      <div className="space-y-1.5">
+        <label className="text-xs font-semibold text-ink/60 uppercase tracking-wider">Mobile Number</label>
+        <div className="relative">
+          <Phone className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-ink/30 pointer-events-none" />
+          <input
+            type="tel"
+            placeholder="+61 4XX XXX XXX"
+            value={phone}
+            onChange={e => setPhone(e.target.value)}
+            required
+            className={`${inputCls} pl-11`}
+          />
+        </div>
+        <p className="text-[11px] text-ink/40 mt-1">Include country code, e.g. +61 for Australia</p>
+      </div>
+
+      <div className="pt-2">
+        <Button type="submit" className="w-full h-12 text-base font-bold" disabled={loading}>
+          {loading
+            ? <svg className="w-5 h-5 animate-spin" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg>
+            : <><Phone className="w-4 h-4" /> Send Code</>}
+        </Button>
+      </div>
+    </form>
+  )
+}
+
 // ─── Main login form ───────────────────────────────────────────────────────
 
 function LoginContent() {
@@ -97,6 +242,7 @@ function LoginContent() {
   const router = useRouter()
   const errorMessage = searchParams.get('error')
 
+  const [authMode, setAuthMode] = useState<'email' | 'phone'>('email')
   const [isRegistering, setIsRegistering] = useState(false)
   const [showPassword, setShowPassword] = useState(false)
   const [loadingDemo, setLoadingDemo] = useState<string | null>(null)
@@ -128,12 +274,12 @@ function LoginContent() {
     setLoadingDemo(null)
   }, [router])
 
-  const inputBase = "h-12 rounded-xl border-surface-3 bg-surface-1 px-4 text-sm text-ink placeholder:text-ink/30 transition-all duration-150 focus:border-teal focus:bg-white focus:shadow-focus focus:outline-none w-full"
+  const inputBase = "h-12 rounded-xl border border-surface-3 bg-surface-1 px-4 text-sm text-ink placeholder:text-ink/30 transition-all duration-150 focus:border-teal focus:bg-white focus:shadow-focus focus:outline-none w-full"
 
   return (
     <div className="min-h-screen grid grid-cols-1 md:grid-cols-2">
 
-      {/* ── Left: Sign In Form ─────────────────────────────────────────── */}
+      {/* ── Left: Auth Form ────────────────────────────────────────────── */}
       <div className="flex flex-col items-center justify-center px-8 py-12 bg-white">
         <div className="w-full max-w-[380px] space-y-8 animate-fade-in-up">
 
@@ -153,7 +299,7 @@ function LoginContent() {
             </p>
           </div>
 
-          {/* Error */}
+          {/* URL error */}
           {errorMessage && (
             <div className="flex items-center gap-2.5 p-3.5 bg-rose-50 border border-rose-200 rounded-xl text-rose-700 text-sm animate-fade-in">
               <AlertCircle className="w-4 h-4 shrink-0" />
@@ -161,95 +307,144 @@ function LoginContent() {
             </div>
           )}
 
-          {/* Form */}
-          <form className="space-y-4">
-            {isRegistering && (
-              <div className="space-y-4 animate-fade-in-up">
-                <div className="space-y-1.5">
-                  <label className="text-xs font-semibold text-ink/60 uppercase tracking-wider">Full Name</label>
-                  <Input name="name" type="text" placeholder="Jane Smith" required={isRegistering} className="h-12" />
-                </div>
-                <div className="space-y-1.5">
-                  <label className="text-xs font-semibold text-ink/60 uppercase tracking-wider">I am a…</label>
-                  <select name="role" className={inputBase}>
-                    <option value="NURSE">Healthcare Worker (RN / EN / PCA)</option>
-                    <option value="FACILITY">Aged Care Facility Manager</option>
-                  </select>
-                </div>
-              </div>
-            )}
-
-            <div className="space-y-1.5">
-              <label className="text-xs font-semibold text-ink/60 uppercase tracking-wider">Email address</label>
-              <Input name="email" type="email" placeholder="you@example.com" required className="h-12" />
-            </div>
-
-            <div className="space-y-1.5">
-              <div className="flex items-center justify-between">
-                <label className="text-xs font-semibold text-ink/60 uppercase tracking-wider">Password</label>
-                {!isRegistering && (
-                  <Link href="/forgot-password" className="text-xs text-teal hover:underline font-medium">Forgot?</Link>
-                )}
-              </div>
-              <div className="relative">
-                <Input
-                  name="password"
-                  type={showPassword ? 'text' : 'password'}
-                  placeholder="••••••••"
-                  required
-                  className="h-12 pr-12"
-                />
+          {/* Auth mode tabs — only shown when not registering */}
+          {!isRegistering && (
+            <div className="flex bg-surface-1 rounded-xl p-1 gap-1">
+              {([
+                { id: 'email' as const, label: 'Email', icon: Mail },
+                { id: 'phone' as const, label: 'Phone', icon: Phone },
+              ]).map(({ id, label, icon: Icon }) => (
                 <button
+                  key={id}
                   type="button"
-                  onClick={() => setShowPassword(v => !v)}
-                  className="absolute right-4 top-1/2 -translate-y-1/2 text-ink/30 hover:text-ink/60 transition-colors"
+                  onClick={() => setAuthMode(id)}
+                  className={[
+                    'flex-1 flex items-center justify-center gap-2 py-2.5 rounded-lg text-sm font-semibold transition-all duration-150',
+                    authMode === id
+                      ? 'bg-white text-ink shadow-sm'
+                      : 'text-ink/40 hover:text-ink/60',
+                  ].join(' ')}
                 >
-                  {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  <Icon className="w-4 h-4" />
+                  {label}
                 </button>
-              </div>
+              ))}
             </div>
+          )}
 
-            <div className="pt-2 space-y-3">
-              {isRegistering ? (
-                <>
-                  <Button formAction={signup} className="w-full h-12 text-base font-bold">
-                    Create Account <ArrowRight className="w-4 h-4" />
-                  </Button>
-                  <Button type="button" variant="ghost" className="w-full" onClick={() => setIsRegistering(false)}>
-                    ← Back to Sign In
-                  </Button>
-                </>
-              ) : (
-                <>
-                  <Button formAction={login} className="w-full h-12 text-base font-bold">
-                    Sign In <ArrowRight className="w-4 h-4" />
-                  </Button>
-                  <div className="relative my-1">
-                    <div className="absolute inset-0 flex items-center">
-                      <span className="w-full border-t border-surface-3" />
-                    </div>
-                    <div className="relative flex justify-center">
-                      <span className="bg-white px-3 text-[11px] font-medium text-ink/35 uppercase tracking-widest">or</span>
+          {/* Phone OTP form */}
+          {!isRegistering && authMode === 'phone' && (
+            <PhoneAuthForm />
+          )}
+
+          {/* Email form */}
+          {(isRegistering || authMode === 'email') && (
+            <form className="space-y-4">
+              {isRegistering && (
+                <div className="space-y-4 animate-fade-in-up">
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-semibold text-ink/60 uppercase tracking-wider">Full Name</label>
+                    <Input name="name" type="text" placeholder="Jane Smith" required={isRegistering} className="h-12" />
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-semibold text-ink/60 uppercase tracking-wider">I am a…</label>
+                    <select name="role" className={inputBase}>
+                      <option value="NURSE">Healthcare Worker (RN / EN / PCA)</option>
+                      <option value="FACILITY">Aged Care Facility Manager</option>
+                    </select>
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-semibold text-ink/60 uppercase tracking-wider">
+                      Phone <span className="text-ink/30 normal-case tracking-normal font-normal">(optional — for SMS alerts)</span>
+                    </label>
+                    <div className="relative">
+                      <Phone className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-ink/30 pointer-events-none" />
+                      <input
+                        name="phone"
+                        type="tel"
+                        placeholder="+61 4XX XXX XXX"
+                        className={`${inputBase} pl-11`}
+                      />
                     </div>
                   </div>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    className="w-full h-12 font-semibold"
-                    onClick={() => setIsRegistering(true)}
-                  >
-                    Create new account
-                  </Button>
-                </>
+                </div>
               )}
-            </div>
-          </form>
+
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold text-ink/60 uppercase tracking-wider">Email address</label>
+                <div className="relative">
+                  <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-ink/30 pointer-events-none" />
+                  <Input name="email" type="email" placeholder="you@example.com" required className="h-12 pl-11" />
+                </div>
+              </div>
+
+              <div className="space-y-1.5">
+                <div className="flex items-center justify-between">
+                  <label className="text-xs font-semibold text-ink/60 uppercase tracking-wider">Password</label>
+                  {!isRegistering && (
+                    <Link href="/forgot-password" className="text-xs text-teal hover:underline font-medium">Forgot?</Link>
+                  )}
+                </div>
+                <div className="relative">
+                  <Input
+                    name="password"
+                    type={showPassword ? 'text' : 'password'}
+                    placeholder="••••••••"
+                    required
+                    className="h-12 pr-12"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(v => !v)}
+                    aria-label={showPassword ? 'Hide password' : 'Show password'}
+                    className="absolute right-4 top-1/2 -translate-y-1/2 text-ink/30 hover:text-ink/60 transition-colors"
+                  >
+                    {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  </button>
+                </div>
+              </div>
+
+              <div className="pt-2 space-y-3">
+                {isRegistering ? (
+                  <>
+                    <Button formAction={signup} className="w-full h-12 text-base font-bold">
+                      Create Account <ArrowRight className="w-4 h-4" />
+                    </Button>
+                    <Button type="button" variant="ghost" className="w-full" onClick={() => setIsRegistering(false)}>
+                      ← Back to Sign In
+                    </Button>
+                  </>
+                ) : (
+                  <>
+                    <Button formAction={login} className="w-full h-12 text-base font-bold">
+                      Sign In <ArrowRight className="w-4 h-4" />
+                    </Button>
+                    <div className="relative my-1">
+                      <div className="absolute inset-0 flex items-center">
+                        <span className="w-full border-t border-surface-3" />
+                      </div>
+                      <div className="relative flex justify-center">
+                        <span className="bg-white px-3 text-[11px] font-medium text-ink/35 uppercase tracking-widest">or</span>
+                      </div>
+                    </div>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="w-full h-12 font-semibold"
+                      onClick={() => setIsRegistering(true)}
+                    >
+                      Create new account
+                    </Button>
+                  </>
+                )}
+              </div>
+            </form>
+          )}
         </div>
       </div>
 
       {/* ── Right: Dark demo panel ──────────────────────────────────────── */}
       <div className="bg-mesh relative flex flex-col items-center justify-center px-8 py-12 overflow-hidden">
-        {/* Subtle grid overlay */}
         <div
           className="absolute inset-0 opacity-[0.04]"
           style={{
@@ -259,7 +454,6 @@ function LoginContent() {
         />
 
         <div className="relative w-full max-w-[360px] space-y-6 animate-fade-in-up" style={{ animationDelay: '80ms' }}>
-          {/* Heading */}
           <div>
             <p className="text-label text-teal/80 mb-2">Live Demo</p>
             <h2 className="text-2xl font-black text-white tracking-tight leading-tight">
@@ -270,7 +464,6 @@ function LoginContent() {
             </p>
           </div>
 
-          {/* Demo error */}
           {demoError && (
             <div className="flex items-center gap-2.5 p-3.5 rounded-xl bg-rose-500/15 border border-rose-500/25 text-rose-300 text-sm animate-fade-in">
               <AlertCircle className="w-4 h-4 shrink-0" />
@@ -278,7 +471,6 @@ function LoginContent() {
             </div>
           )}
 
-          {/* Role cards */}
           <div className="space-y-3 stagger-children">
             {DEMO_ROLES.map(demo => (
               <DemoCard
@@ -291,7 +483,6 @@ function LoginContent() {
             ))}
           </div>
 
-          {/* Footer note */}
           <p className="text-white/25 text-xs text-center leading-relaxed">
             Demo accounts are pre-provisioned with live shared data.
             Changes you make are visible to all demo users.

@@ -45,11 +45,13 @@ export async function signup(formData: FormData) {
   }
 
   const { email, password, name, role } = parsed.data
+  const phone = (formData.get('phone') as string)?.trim() || undefined
 
   const supabase = await createClient()
   const { data: authData, error } = await supabase.auth.signUp({
     email,
     password,
+    phone: phone || undefined,
     options: { data: { name, requested_role: role } },
   })
   if (error) redirect('/login?error=' + encodeURIComponent(error.message))
@@ -62,16 +64,16 @@ export async function signup(formData: FormData) {
       if (role === 'FACILITY') {
         await prisma.user.upsert({
           where: { id: authData.user.id },
-          update: { role: 'ADMIN', name },
-          create: { id: authData.user.id, email, role: 'ADMIN', name },
+          update: { role: 'ADMIN', name, ...(phone ? { phone } : {}) },
+          create: { id: authData.user.id, email, role: 'ADMIN', name, ...(phone ? { phone } : {}) },
         })
         destination = '/facility'
       } else {
         const dbRole = role as 'NURSE' | 'EN' | 'PCA'
         await prisma.user.upsert({
           where: { id: authData.user.id },
-          update: { role: dbRole, name },
-          create: { id: authData.user.id, email, role: dbRole, name },
+          update: { role: dbRole, name, ...(phone ? { phone } : {}) },
+          create: { id: authData.user.id, email, role: dbRole, name, ...(phone ? { phone } : {}) },
         })
       }
     } catch (err) {

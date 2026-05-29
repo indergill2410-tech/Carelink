@@ -52,7 +52,8 @@ async function broadcastShift(formData: FormData) {
   const start = parseMelbourne(startTime)
   const end   = parseMelbourne(endTime)
 
-  if (!facilityId || !role || isNaN(start.getTime()) || isNaN(end.getTime()) || start >= end || isNaN(hourlyRate)) {
+  const VALID_ROLES: string[] = ['NURSE', 'EN', 'PCA']
+  if (!facilityId || !VALID_ROLES.includes(role) || isNaN(start.getTime()) || isNaN(end.getTime()) || start >= end || isNaN(hourlyRate) || hourlyRate <= 0) {
     redirect('/dashboard?broadcast=1&error=Invalid+shift+details')
   }
 
@@ -106,9 +107,7 @@ async function reviewDocument(formData: FormData) {
   const reviewNote = (formData.get('reviewNote') as string) || null
   if (!docId || !['APPROVED','REJECTED'].includes(action)) return
 
-  await prisma.complianceDocument.update({ where: { id: docId }, data: { status: action, reviewNote } })
-
-  const doc = await prisma.complianceDocument.findUnique({ where: { id: docId } })
+  const doc = await prisma.complianceDocument.update({ where: { id: docId }, data: { status: action, reviewNote } })
   if (doc) {
     const required = ['POLICE_CHECK','WORKING_WITH_CHILDREN','FIRST_AID','IMMUNISATION','ID_PROOF']
     const approved = await prisma.complianceDocument.findMany({
@@ -143,6 +142,8 @@ async function reviewDocument(formData: FormData) {
 
 async function assignWorker(formData: FormData) {
   'use server'
+  if (!await requireAdmin()) return
+
   const shiftId  = formData.get('shiftId') as string
   const workerId = formData.get('workerId') as string
   if (!shiftId || !workerId) return
@@ -184,6 +185,12 @@ async function getDashboardData() {
     prisma.user.findMany({
       where: { role: { in: ['NURSE','EN','PCA'] } },
       orderBy: { name: 'asc' },
+      select: {
+        id: true, name: true, role: true,
+        complianceStatus: true, isActive: true,
+        rating: true, facilityId: true, email: true,
+        phone: true, skills: true, createdAt: true,
+      },
     }),
     prisma.facility.findMany({ orderBy: { name: 'asc' } }),
     prisma.complianceDocument.findMany({

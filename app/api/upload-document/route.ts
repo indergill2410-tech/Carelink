@@ -13,6 +13,13 @@ const ALLOWED_DOC_TYPES = [
   'NURSING_REGISTRATION',
 ]
 
+const ALLOWED_MIME_TYPES = new Set([
+  'application/pdf',
+  'image/jpeg',
+  'image/png',
+  'image/webp',
+])
+
 export async function POST(req: NextRequest) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
@@ -29,6 +36,10 @@ export async function POST(req: NextRequest) {
 
   if (!ALLOWED_DOC_TYPES.includes(docType)) {
     return NextResponse.json({ error: 'Invalid document type' }, { status: 400 })
+  }
+
+  if (!ALLOWED_MIME_TYPES.has(file.type)) {
+    return NextResponse.json({ error: 'Invalid file type. Upload PDF, JPG, PNG, or WebP.' }, { status: 400 })
   }
 
   if (file.size > 10 * 1024 * 1024) {
