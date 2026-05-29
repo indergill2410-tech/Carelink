@@ -252,12 +252,12 @@
   .status-dot {
     @apply w-2 h-2 rounded-full inline-block shrink-0;
   }
-  .status-dot.pending   { @apply bg-amber-400 animate-pulse; }
+  .status-dot.pending   { background-color: #fbbf24; animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite; }
   .status-dot.matched   { @apply bg-teal; }
   .status-dot.clocked   { @apply bg-blue-500; animation: pulse-ring-blue 1.8s ease-out infinite; }
   .status-dot.completed { @apply bg-emerald-500; }
   .status-dot.cancelled { @apply bg-slate-400; }
-  .status-dot.urgent    { @apply bg-rose-500 animate-pulse; }
+  .status-dot.urgent    { background-color: #f43f5e; animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite; }
 }
 
 /* ─── Safe area for mobile ────────────────────────────────────────────────── */
@@ -318,4 +318,9 @@
 
 @keyframes shimmer {
   100% { transform: translateX(100%); }
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
 }

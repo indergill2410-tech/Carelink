@@ -55,9 +55,18 @@ export default async function MyShiftsPage({
     const supabase = await createClient()
     const { data: { user: authUser } } = await supabase.auth.getUser()
     if (!authUser) redirect('/login')
-    await prisma.shift.updateMany({
-      where: { id: shiftId, workerId: authUser.id, status: 'MATCHED' },
-      data: { status: 'CLOCKED_IN', clockInAt: new Date() },
+
+    const shift = await prisma.shift.findUnique({ where: { id: shiftId } })
+    if (!shift || shift.workerId !== authUser.id || shift.status !== 'MATCHED') return
+
+    // Enforce: can only clock in within 30 minutes of shift start (or after)
+    const now = new Date()
+    const earliestClockIn = new Date(shift.startTime.getTime() - 30 * 60 * 1000)
+    if (now < earliestClockIn) return
+
+    await prisma.shift.update({
+      where: { id: shiftId },
+      data: { status: 'CLOCKED_IN', clockInAt: now },
     })
     revalidatePath('/worker/my-shifts')
     revalidatePath('/facility')

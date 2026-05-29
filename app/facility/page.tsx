@@ -87,6 +87,12 @@ export default async function FacilityPortal({
 
   async function cancelShift(formData: FormData) {
     'use server'
+    const supabase = await createClient()
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return
+    const dbUser = await prisma.user.findUnique({ where: { id: user.id } })
+    if (!dbUser || dbUser.role !== 'ADMIN') return
+
     const shiftId = formData.get('shiftId') as string
     if (!shiftId) return
     const shift = await prisma.shift.findUnique({ where: { id: shiftId } })
@@ -97,6 +103,11 @@ export default async function FacilityPortal({
 
   async function requestShift(formData: FormData) {
     'use server'
+    const supabase = await createClient()
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return
+    const dbUser = await prisma.user.findUnique({ where: { id: user.id } })
+    if (!dbUser || dbUser.role !== 'ADMIN' || dbUser.facilityId !== facility.id) return
     const role = formData.get('role') as string
     const date = formData.get('date') as string
     const startT = (formData.get('startTime') as string) || '07:00'
