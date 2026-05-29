@@ -47,18 +47,29 @@ export async function proxy(request: NextRequest) {
     return NextResponse.redirect(url)
   }
 
-  // Try JWT claim first (set by the custom_access_token_hook in Supabase).
-  // Fall back to a DB lookup via Supabase REST so this works before the hook is registered.
+  // Try app_metadata first (set by admin API during provisioning or by the
+  // custom_access_token_hook). Fall back to a DB lookup.
   let role: string | undefined = user.app_metadata?.role ?? user.user_metadata?.role
 
   if (!role) {
-    console.warn("[Middleware] JWT role claim missing for user " + user.id + ". Falling back to database lookup. Ensure custom_access_token_hook is configured in Supabase.");
-    const { data } = await supabase
+    // Use service role key to bypass RLS for the role lookup — anon client may
+    // not have auth context set up correctly in Edge middleware.
+    const lookupKey = process.env.SUPABASE_SERVICE_ROLE_KEY ?? process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+    const lookupClient = createServerClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      lookupKey,
+      {
+        global: { headers: { origin: process.env.NEXT_PUBLIC_SITE_URL ?? request.nextUrl.origin } },
+        cookies: { get: () => undefined, set: () => {}, remove: () => {} },
+      }
+    )
+    const { data } = await lookupClient
       .from('User')
       .select('role')
       .eq('id', user.id)
       .single()
     role = data?.role ?? undefined
+    if (!role) console.warn('[Middleware] Role not found in DB for user', user.id)
   }
 
   if (isDashboard && role !== 'ADMIN') {
