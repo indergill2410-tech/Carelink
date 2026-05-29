@@ -139,9 +139,21 @@ async function ensureAccount(
     })
 
     if (!autoErr && autoData?.user) {
-      await anonClient.auth.signOut()
+      // signOut is a no-op here: persistSession=false means the session is
+      // in-memory only and calling signOut would add a needless network round-trip.
       const userId = autoData.user.id
       try {
+        // Guard: if a stale DB row exists for this email but with a different ID
+        // (e.g. from a prior manual insert), delete it first to avoid a P2002
+        // unique constraint violation on the upsert.
+        const stale = await prisma.user.findUnique({
+          where: { email: config.email },
+          select: { id: true },
+        }).catch(() => null)
+        if (stale && stale.id !== userId) {
+          await prisma.shift.updateMany({ where: { workerId: stale.id }, data: { workerId: null } }).catch(() => null)
+          await prisma.user.delete({ where: { id: stale.id } }).catch(() => null)
+        }
         await prisma.user.upsert({
           where: { id: userId },
           create: { id: userId, email: config.email, name: config.name, role: config.dbRole, complianceStatus: config.complianceStatus },

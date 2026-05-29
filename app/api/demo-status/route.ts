@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 
+export const dynamic = 'force-dynamic'
+
 const DEMO_EMAILS = [
   'admin@demo.carelink.app',
   'facility@demo.carelink.app',
