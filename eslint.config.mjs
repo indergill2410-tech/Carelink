@@ -1,7 +1,11 @@
-import nextVitals from 'eslint-config-next/core-web-vitals'
+import { FlatCompat } from '@eslint/eslintrc'
+
+const compat = new FlatCompat({
+  baseDirectory: import.meta.dirname,
+})
 
 const eslintConfig = [
-  ...nextVitals,
+  ...compat.extends('next/core-web-vitals'),
   {
     ignores: [
       '.next/**',
