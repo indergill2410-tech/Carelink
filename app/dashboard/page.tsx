@@ -19,7 +19,19 @@ async function broadcastShift(formData: FormData) {
   const endTime = formData.get('endTime') as string;
   const hourlyRate = parseFloat(formData.get('hourlyRate') as string);
 
-  if (!facilityId || !role || !startTime || !endTime || isNaN(hourlyRate)) {
+  // datetime-local values have no timezone — treat them as Melbourne (AEST/AEDT)
+  const parseMelbourneTime = (dateTimeStr: string) => {
+    const date = new Date(dateTimeStr.includes('Z') ? dateTimeStr : `${dateTimeStr}Z`);
+    if (isNaN(date.getTime())) return new Date(dateTimeStr);
+    const tzString = date.toLocaleString('en-US', { timeZone: 'Australia/Melbourne' });
+    const diff = date.getTime() - new Date(tzString).getTime();
+    return new Date(date.getTime() + diff);
+  };
+
+  const start = parseMelbourneTime(startTime);
+  const end = parseMelbourneTime(endTime);
+
+  if (!facilityId || !role || isNaN(start.getTime()) || isNaN(end.getTime()) || start >= end || isNaN(hourlyRate)) {
     redirect('/dashboard?broadcast=1&error=Invalid+shift+details');
   }
 
@@ -28,8 +40,8 @@ async function broadcastShift(formData: FormData) {
       facilityId,
       role: role as Role,
       status: 'PENDING',
-      startTime: new Date(startTime),
-      endTime: new Date(endTime),
+      startTime: start,
+      endTime: end,
       hourlyRate,
     },
   });
