@@ -52,17 +52,20 @@ export async function proxy(request: NextRequest) {
   let role: string | undefined = user.app_metadata?.role ?? user.user_metadata?.role
 
   if (!role) {
-    // Use service role key to bypass RLS for the role lookup — anon client may
-    // not have auth context set up correctly in Edge middleware.
-    const lookupKey = process.env.SUPABASE_SERVICE_ROLE_KEY ?? process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-    const lookupClient = createServerClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      lookupKey,
-      {
-        global: { headers: { origin: process.env.NEXT_PUBLIC_SITE_URL ?? request.nextUrl.origin } },
-        cookies: { get: () => undefined, set: () => {}, remove: () => {} },
-      }
-    )
+    // When the service role key is available use it to bypass RLS.
+    // Otherwise reuse the existing supabase client which has the correct
+    // auth context from the user's session cookies.
+    let lookupClient = supabase
+    if (process.env.SUPABASE_SERVICE_ROLE_KEY) {
+      lookupClient = createServerClient(
+        process.env.NEXT_PUBLIC_SUPABASE_URL!,
+        process.env.SUPABASE_SERVICE_ROLE_KEY,
+        {
+          global: { headers: { origin: process.env.NEXT_PUBLIC_SITE_URL ?? request.nextUrl.origin } },
+          cookies: { get: () => undefined, set: () => {}, remove: () => {} },
+        }
+      )
+    }
     const { data } = await lookupClient
       .from('User')
       .select('role')
