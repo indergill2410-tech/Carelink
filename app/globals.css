@@ -280,3 +280,42 @@
     @apply absolute -top-1 left-1/2 -translate-x-1/2 w-4 h-0.5 bg-teal rounded-full;
   }
 }
+
+@layer utilities {
+  .premium-card {
+    box-shadow: var(--shadow-card);
+    transition: transform 200ms var(--ease-spring), box-shadow 200ms var(--ease-spring), border-color 200ms ease;
+  }
+
+  .premium-card:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-hover);
+  }
+
+  .glass-panel {
+    background: rgba(255, 255, 255, 0.72);
+    backdrop-filter: blur(22px);
+    border: 1px solid rgba(255, 255, 255, 0.55);
+  }
+
+  .mesh-hero {
+    background:
+      radial-gradient(circle at 16% 18%, rgba(0, 201, 167, 0.32), transparent 24rem),
+      radial-gradient(circle at 88% 12%, rgba(59, 130, 246, 0.28), transparent 22rem),
+      radial-gradient(circle at 76% 78%, rgba(244, 63, 94, 0.16), transparent 20rem),
+      #07111f;
+  }
+
+  .number-tabular {
+    font-variant-numeric: tabular-nums;
+  }
+}
+
+@keyframes badge-pulse {
+  0%, 100% { opacity: 0.55; transform: scale(1); }
+  50% { opacity: 1; transform: scale(1.18); }
+}
+
+@keyframes shimmer {
+  100% { transform: translateX(100%); }
+}

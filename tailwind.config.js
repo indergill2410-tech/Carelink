@@ -134,6 +134,23 @@ module.exports = {
         spring: 'cubic-bezier(0.16, 1, 0.3, 1)',
       },
     },
+    boxShadow: {
+      card: 'var(--shadow-card)',
+      hover: 'var(--shadow-hover)',
+      modal: 'var(--shadow-modal)',
+      electric: 'var(--glow-electric)',
+    },
+    transitionTimingFunction: {
+      spring: 'var(--ease-spring)',
+    },
+    keyframes: {
+      shimmer: {
+        '100%': { transform: 'translateX(100%)' },
+      },
+    },
+    animation: {
+      shimmer: 'shimmer 1.5s linear infinite',
+    },
   },
   plugins: [],
 }
