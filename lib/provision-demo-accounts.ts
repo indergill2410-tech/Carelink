@@ -472,7 +472,25 @@ export async function provisionOneDemoAccount(roleKey: string): Promise<string |
   if (!config) return null
 
   try {
-    return await ensureAccount(config, demoPassword, supabaseUrl, anonKey, serviceRoleKey ?? '')
+    const userId = await ensureAccount(config, demoPassword, supabaseUrl, anonKey, serviceRoleKey ?? '')
+    if (userId) {
+      const requiredRoles = ['FACILITY', 'NURSE', 'EN', 'PCA']
+      const emails = requiredRoles.map(r => DEMO_CONFIGS[r].email)
+      const users = await prisma.user.findMany({
+        where: { email: { in: emails } },
+        select: { id: true, email: true },
+      })
+      if (users.length === requiredRoles.length) {
+        const facilityId = users.find(u => u.email === DEMO_CONFIGS['FACILITY'].email)?.id
+        const nurseId    = users.find(u => u.email === DEMO_CONFIGS['NURSE'].email)?.id
+        const enId       = users.find(u => u.email === DEMO_CONFIGS['EN'].email)?.id
+        const pcaId      = users.find(u => u.email === DEMO_CONFIGS['PCA'].email)?.id
+        if (facilityId && nurseId && enId && pcaId) {
+          await seedDemoData(facilityId, nurseId, enId, pcaId)
+        }
+      }
+    }
+    return userId
   } catch (err) {
     console.error('[demo] provisionOneDemoAccount failed for', roleKey, err)
     return null
