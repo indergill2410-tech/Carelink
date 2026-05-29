@@ -10,7 +10,7 @@ import { LogoutButton } from '@/components/LogoutButton'
 export const dynamic = 'force-dynamic'
 
 export default async function ProfilePage({ searchParams }: { searchParams: { error?: string; success?: string } }) {
-  const supabase = createClient()
+  const supabase = await createClient()
   const { data: { user }, error } = await supabase.auth.getUser()
   if (error || !user) redirect('/login')
 
@@ -25,7 +25,7 @@ export default async function ProfilePage({ searchParams }: { searchParams: { er
       redirect('/worker/profile?error=Name+must+be+between+2+and+100+characters')
     }
 
-    const supabase = createClient()
+    const supabase = await createClient()
     const { data: { user: authUser } } = await supabase.auth.getUser()
     if (!authUser) redirect('/login')
 
