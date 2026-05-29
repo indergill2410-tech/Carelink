@@ -458,6 +458,27 @@ async function seedDemoData(facilityManagerId: string, nurseId: string, enId: st
   }
 }
 
+// Provision a single demo account by role key (e.g. 'ADMIN', 'NURSE').
+// Used by the demo-login route to avoid provisioning all 5 accounts on every fallback.
+export async function provisionOneDemoAccount(roleKey: string): Promise<string | null> {
+  const demoPassword = process.env.DEMO_ACCOUNT_PASSWORD
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+  const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY
+
+  if (!demoPassword || !supabaseUrl || !anonKey) return null
+
+  const config = DEMO_CONFIGS[roleKey]
+  if (!config) return null
+
+  try {
+    return await ensureAccount(config, demoPassword, supabaseUrl, anonKey, serviceRoleKey ?? '')
+  } catch (err) {
+    console.error('[demo] provisionOneDemoAccount failed for', roleKey, err)
+    return null
+  }
+}
+
 export async function provisionDemoAccounts(force = false): Promise<void> {
   const demoPassword = process.env.DEMO_ACCOUNT_PASSWORD
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
