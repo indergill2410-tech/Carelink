@@ -12,7 +12,7 @@ export async function login(formData: FormData) {
   })
   if (!parsed.success) redirect('/login?error=Invalid+email+or+password')
 
-  const supabase = createClient()
+  const supabase = await createClient()
   const { data: authData, error } = await supabase.auth.signInWithPassword(parsed.data)
   if (error) redirect('/login?error=' + encodeURIComponent(error.message))
 
@@ -46,7 +46,7 @@ export async function signup(formData: FormData) {
 
   const { email, password, name, role } = parsed.data
 
-  const supabase = createClient()
+  const supabase = await createClient()
   const { data: authData, error } = await supabase.auth.signUp({
     email,
     password,
@@ -84,7 +84,7 @@ export async function signup(formData: FormData) {
 }
 
 export async function signOut() {
-  const supabase = createClient()
+  const supabase = await createClient()
   await supabase.auth.signOut()
   redirect('/login')
 }

@@ -18,7 +18,20 @@ jobs:
           node-version: '20'
           cache: 'npm'
       - run: npm ci
+      - name: Check migration secrets
+        id: migration_secrets
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          DIRECT_URL: ${{ secrets.DIRECT_URL }}
+        run: |
+          if [ -n "$DATABASE_URL" ] && [ -n "$DIRECT_URL" ]; then
+            echo "configured=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "configured=false" >> "$GITHUB_OUTPUT"
+            echo "::warning::Skipping Prisma migrations because DATABASE_URL or DIRECT_URL is not configured."
+          fi
       - run: npx prisma migrate deploy
+        if: steps.migration_secrets.outputs.configured == 'true'
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
           DIRECT_URL: ${{ secrets.DIRECT_URL }}
