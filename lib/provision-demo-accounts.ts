@@ -174,11 +174,11 @@ async function ensureAccount(
     return null
   }
 
-  // Service role key is present — use admin API to delete + recreate the broken account.
+  // Service role key is present — use admin API.
   const adminClient = createAdminClient(supabaseUrl, serviceRoleKey, clientOpts)
 
-  // Sign-in failed with a credential/account error — account was likely created via
-  // direct SQL without auth.identities. Find existing public.User row.
+  // Sign-in failed — find the existing auth user ID.
+  // Prefer the public.User record (IDs match auth.users).
   let existingId: string | null = null
   try {
     const dbUser = await prisma.user.findUnique({
@@ -187,33 +187,38 @@ async function ensureAccount(
     })
     existingId = dbUser?.id ?? null
   } catch {
-    // proceed to create
+    // proceed
   }
 
+  // Fast path: if the account exists, just reset the password (no delete+recreate).
+  // This is much faster than the full delete+recreate cycle.
   if (existingId) {
-    // Nullify any Shift.workerId FKs pointing to this user
-    try {
-      await prisma.shift.updateMany({
-        where: { workerId: existingId },
-        data: { workerId: null },
-      })
-    } catch {
-      // best-effort
+    const { error: updateError } = await adminClient.auth.admin.updateUserById(existingId, {
+      password: demoPassword,
+      email_confirm: true,
+    })
+
+    if (!updateError) {
+      console.log('[demo] Reset password for', config.email, 'via updateUserById')
+      // Sync public.User role/name in case it drifted
+      try {
+        await prisma.user.upsert({
+          where: { id: existingId },
+          create: { id: existingId, email: config.email, name: config.name, role: config.dbRole, complianceStatus: config.complianceStatus },
+          update: { role: config.dbRole, name: config.name, complianceStatus: config.complianceStatus },
+        })
+      } catch { /* best-effort */ }
+      return existingId
     }
 
-    // Delete public.User row
-    try {
-      await prisma.user.delete({ where: { id: existingId } })
-    } catch (err) {
-      console.error('[demo] Failed to delete public.User for', config.email, err)
-    }
+    console.warn('[demo] updateUserById failed for', config.email, updateError.message, '— falling back to delete+recreate')
 
-    // Delete auth user via admin API
+    // Update failed — do full delete+recreate
     try {
-      await adminClient.auth.admin.deleteUser(existingId)
-    } catch {
-      // best-effort
-    }
+      await prisma.shift.updateMany({ where: { workerId: existingId }, data: { workerId: null } })
+    } catch { /* best-effort */ }
+    try { await prisma.user.delete({ where: { id: existingId } }) } catch { /* best-effort */ }
+    try { await adminClient.auth.admin.deleteUser(existingId) } catch { /* best-effort */ }
   }
 
   // Recreate via admin API (properly sets up auth.identities)
