@@ -56,10 +56,11 @@ export async function proxy(request: NextRequest) {
     // Otherwise reuse the existing supabase client which has the correct
     // auth context from the user's session cookies.
     let lookupClient = supabase
-    if (process.env.SUPABASE_SERVICE_ROLE_KEY) {
+    const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY
+    if (serviceRoleKey) {
       lookupClient = createServerClient(
         process.env.NEXT_PUBLIC_SUPABASE_URL!,
-        process.env.SUPABASE_SERVICE_ROLE_KEY,
+        serviceRoleKey,
         {
           global: { headers: { origin: process.env.NEXT_PUBLIC_SITE_URL ?? request.nextUrl.origin } },
           cookies: { get: () => undefined, set: () => {}, remove: () => {} },
