@@ -196,6 +196,7 @@ async function ensureAccount(
     const { error: updateError } = await adminClient.auth.admin.updateUserById(existingId, {
       password: demoPassword,
       email_confirm: true,
+      user_metadata: { name: config.name },
     })
 
     if (!updateError) {
