@@ -51,13 +51,15 @@ function DemoButton({
   isDisabled: boolean
   onClick: (role: string) => void
 }) {
+  const showDisabledStyle = isDisabled && !isLoading
   return (
     <button
       type="button"
       disabled={isDisabled}
       onClick={() => onClick(role)}
       className={`w-full flex items-center p-4 bg-white border rounded-2xl transition-all text-left group
-        ${isDisabled ? 'opacity-60 cursor-not-allowed' : `${hoverBorder} cursor-pointer`}`}
+        ${showDisabledStyle ? 'opacity-60 cursor-not-allowed' : ''}
+        ${!isDisabled ? `${hoverBorder} cursor-pointer` : ''}`}
     >
       <div className={`p-3 ${iconBg} rounded-xl mr-4 shrink-0 ${!isDisabled ? 'group-hover:scale-105 transition-transform' : ''}`}>
         {isLoading ? <Loader2 className="w-6 h-6 animate-spin" /> : icon}
