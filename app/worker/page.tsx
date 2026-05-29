@@ -178,7 +178,7 @@ export default async function WorkerPortal({ searchParams }: { searchParams: { e
       </main>
 
       {/* Bottom Nav */}
-      <nav className="fixed bottom-3 left-1/2 z-40 flex w-[min(92vw,40rem)] -translate-x-1/2 justify-around rounded-3xl border border-white/70 bg-white/85 p-2 shadow-hover backdrop-blur-xl">
+      <nav className="fixed bottom-[calc(0.75rem+env(safe-area-inset-bottom))] left-1/2 z-40 flex w-[min(92vw,40rem)] -translate-x-1/2 justify-around rounded-3xl border border-white/70 bg-white/85 p-2 shadow-hover backdrop-blur-xl">
         <a href="/worker" className="flex flex-col items-center gap-1 rounded-2xl bg-electric/10 px-4 py-2 text-electric-dim">
           <CalendarCheck className="w-6 h-6" />
           <span className="text-[10px] font-medium">Feed</span>
