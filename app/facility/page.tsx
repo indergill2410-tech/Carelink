@@ -187,7 +187,7 @@ export default async function FacilityPortal({ searchParams }: { searchParams: {
               ) : (
                 <div className="space-y-3">
                   {liveShifts.map(shift => (
-                    <div key={shift.id} className="flex items-center justify-between gap-4 p-4 border border-slate-200/70 rounded-2xl bg-white/80 hover:shadow-card transition-all">
+                    <div key={shift.id} className="flex items-center justify-between gap-4 p-4 border border-slate-200/70 rounded-2xl bg-white/80">
                       <div className="flex gap-4 items-center">
                         <div className={`w-12 h-12 rounded-2xl flex items-center justify-center font-bold text-sm ${shift.status === 'PENDING' ? 'bg-amber-100 text-amber-800' : 'bg-electric/10 text-electric-dim'}`}>
                           {shift.role}
