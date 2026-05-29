@@ -19,8 +19,16 @@ enum ShiftStatus {
   DRAFT
   PENDING
   MATCHED
+  CLOCKED_IN
   COMPLETED
   CANCELLED
+}
+
+enum DocumentStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  EXPIRED
 }
 
 model User {
@@ -29,23 +37,32 @@ model User {
   name             String?
   role             Role      @default(PCA)
   complianceStatus String?   @default("RED")
+  phone            String?
+  skills           String[]  @default([])
+  availability     Json?
+  rating           Float?
+  isActive         Boolean   @default(true)
   createdAt        DateTime  @default(now())
   updatedAt        DateTime  @updatedAt
 
-  // Relations
   facilityId       String?
-  facility         Facility? @relation(fields: [facilityId], references: [id])
-  assignedShifts   Shift[]   @relation("WorkerShifts")
+  facility         Facility?            @relation(fields: [facilityId], references: [id])
+  assignedShifts   Shift[]              @relation("WorkerShifts")
+  documents        ComplianceDocument[]
+  notifications    Notification[]
+  givenRatings     ShiftRating[]        @relation("RaterRelation")
+  receivedRatings  ShiftRating[]        @relation("RateeRelation")
 }
 
 model Facility {
   id        String   @id @default(uuid())
   name      String
   address   String
+  phone     String?
+  email     String?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  // Relations
   managers  User[]
   shifts    Shift[]
 }
@@ -58,11 +75,54 @@ model Shift {
   startTime   DateTime
   endTime     DateTime
   hourlyRate  Float
+  notes       String?
+  urgent      Boolean     @default(false)
+  clockInAt   DateTime?
+  clockOutAt  DateTime?
   createdAt   DateTime    @default(now())
   updatedAt   DateTime    @updatedAt
 
-  // Relations
-  facility    Facility    @relation(fields: [facilityId], references: [id])
+  facility    Facility      @relation(fields: [facilityId], references: [id])
   workerId    String?
-  worker      User?       @relation("WorkerShifts", fields: [workerId], references: [id])
+  worker      User?         @relation("WorkerShifts", fields: [workerId], references: [id])
+  ratings     ShiftRating[]
+}
+
+model ComplianceDocument {
+  id          String         @id @default(uuid())
+  userId      String
+  user        User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  docType     String
+  url         String
+  status      DocumentStatus @default(PENDING)
+  expiresAt   DateTime?
+  reviewNote  String?
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+}
+
+model Notification {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  title     String
+  body      String
+  read      Boolean  @default(false)
+  link      String?
+  createdAt DateTime @default(now())
+}
+
+model ShiftRating {
+  id        String   @id @default(uuid())
+  shiftId   String
+  shift     Shift    @relation(fields: [shiftId], references: [id], onDelete: Cascade)
+  raterId   String
+  rater     User     @relation("RaterRelation", fields: [raterId], references: [id], onDelete: Cascade)
+  rateeId   String
+  ratee     User     @relation("RateeRelation", fields: [rateeId], references: [id], onDelete: Cascade)
+  rating    Int
+  comment   String?
+  createdAt DateTime @default(now())
+
+  @@unique([shiftId, raterId])
 }

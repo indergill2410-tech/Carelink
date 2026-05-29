@@ -1,8 +1,8 @@
 import { redirect } from 'next/navigation'
 import { createClient } from '@/utils/supabase/server'
 import { prisma } from '@/lib/prisma'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { CalendarCheck, Clock, Wallet, UserCircle, Stethoscope } from 'lucide-react'
+import { Card, CardContent } from '@/components/ui/card'
+import { CalendarCheck, Clock, Wallet, UserCircle, TrendingUp } from 'lucide-react'
 import { LogoutButton } from '@/components/LogoutButton'
 
 export const dynamic = 'force-dynamic'
@@ -22,20 +22,31 @@ export default async function PayPage() {
   })
 
   const shiftsWithEarnings = completedShifts.map(shift => {
-    const hours = (new Date(shift.endTime).getTime() - new Date(shift.startTime).getTime()) / 3_600_000
+    const hours = (shift.endTime.getTime() - shift.startTime.getTime()) / 3_600_000
     const earnings = shift.hourlyRate * hours
-    return { ...shift, hours, earnings }
+    const monthKey = shift.startTime.toLocaleDateString('en-AU', { month: 'short', year: 'numeric', timeZone: 'Australia/Melbourne' })
+    return { ...shift, hours, earnings, monthKey }
   })
 
-  const totalEarnings = shiftsWithEarnings.reduce((sum, s) => sum + s.earnings, 0)
-  const shiftsCount = completedShifts.length
-  const avgRate = shiftsCount > 0
-    ? completedShifts.reduce((sum, s) => sum + s.hourlyRate, 0) / shiftsCount
+  const totalEarnings = shiftsWithEarnings.reduce((s, x) => s + x.earnings, 0)
+  const totalHours = shiftsWithEarnings.reduce((s, x) => s + x.hours, 0)
+  const avgRate = completedShifts.length > 0
+    ? completedShifts.reduce((s, x) => s + x.hourlyRate, 0) / completedShifts.length
     : 0
+
+  // Group by month for chart
+  const byMonth: Record<string, { earnings: number; hours: number; count: number }> = {}
+  for (const s of shiftsWithEarnings) {
+    if (!byMonth[s.monthKey]) byMonth[s.monthKey] = { earnings: 0, hours: 0, count: 0 }
+    byMonth[s.monthKey].earnings += s.earnings
+    byMonth[s.monthKey].hours += s.hours
+    byMonth[s.monthKey].count += 1
+  }
+  const monthlyData = Object.entries(byMonth).slice(0, 6).reverse()
+  const maxMonthlyEarnings = Math.max(...monthlyData.map(([, v]) => v.earnings), 1)
 
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col max-w-2xl mx-auto">
-      {/* Mobile Header */}
       <header className="bg-navy text-white px-6 py-5 rounded-b-3xl shadow-md">
         <div className="flex justify-between items-center">
           <div>
@@ -46,9 +57,8 @@ export default async function PayPage() {
         </div>
       </header>
 
-      {/* Main Content */}
-      <main className="flex-1 px-4 py-6 overflow-y-auto pb-24 space-y-6">
-        {shiftsCount === 0 ? (
+      <main className="flex-1 px-4 py-5 pb-24 space-y-5">
+        {completedShifts.length === 0 ? (
           <div className="text-center py-16 bg-white rounded-2xl border border-dashed border-gray-200">
             <Wallet className="w-12 h-12 mx-auto text-gray-300 mb-3" />
             <p className="text-gray-500 text-sm px-6">
@@ -67,8 +77,8 @@ export default async function PayPage() {
               </Card>
               <Card className="border-0 shadow-sm">
                 <CardContent className="p-3 text-center">
-                  <p className="text-[10px] text-gray-500 uppercase tracking-wide">Shifts</p>
-                  <p className="font-bold text-navy text-lg mt-1">{shiftsCount}</p>
+                  <p className="text-[10px] text-gray-500 uppercase tracking-wide">Hours</p>
+                  <p className="font-bold text-navy text-lg mt-1">{totalHours.toFixed(0)}h</p>
                 </CardContent>
               </Card>
               <Card className="border-0 shadow-sm">
@@ -78,6 +88,30 @@ export default async function PayPage() {
                 </CardContent>
               </Card>
             </div>
+
+            {/* Monthly Earnings Chart */}
+            {monthlyData.length > 1 && (
+              <Card className="border-0 shadow-sm">
+                <CardContent className="p-4">
+                  <div className="flex items-center gap-2 mb-4">
+                    <TrendingUp className="w-4 h-4 text-teal" />
+                    <p className="font-bold text-navy text-sm">Monthly Earnings</p>
+                  </div>
+                  <div className="flex items-end gap-2 h-32">
+                    {monthlyData.map(([month, data]) => {
+                      const pct = (data.earnings / maxMonthlyEarnings) * 100
+                      return (
+                        <div key={month} className="flex-1 flex flex-col items-center gap-1">
+                          <p className="text-[9px] text-teal font-bold">${(data.earnings / 1000).toFixed(1)}k</p>
+                          <div className="w-full rounded-t-md bg-teal transition-all" style={{ height: `${Math.max(pct, 4)}%` }} />
+                          <p className="text-[9px] text-gray-400 text-center leading-tight">{month.split(' ')[0]}</p>
+                        </div>
+                      )
+                    })}
+                  </div>
+                </CardContent>
+              </Card>
+            )}
 
             {/* Shift List */}
             <section>
@@ -90,12 +124,20 @@ export default async function PayPage() {
                         <div>
                           <p className="font-bold text-navy text-sm">{shift.facility.name}</p>
                           <p className="text-xs text-gray-500 mt-0.5">
-                            {new Date(shift.startTime).toLocaleDateString('en-AU', {
+                            {shift.startTime.toLocaleDateString('en-AU', {
                               weekday: 'short', month: 'short', day: 'numeric',
                               timeZone: 'Australia/Melbourne',
                             })}
                           </p>
-                          <p className="text-xs text-gray-500">{shift.role} • {shift.hours.toFixed(1)}h @ ${shift.hourlyRate.toFixed(0)}/hr</p>
+                          <p className="text-xs text-gray-500">{shift.role} · {shift.hours.toFixed(1)}h @ ${shift.hourlyRate.toFixed(0)}/hr</p>
+                          {shift.clockInAt && shift.clockOutAt && (
+                            <p className="text-xs text-blue-600 mt-0.5">
+                              {shift.clockInAt.toLocaleTimeString('en-AU', { hour: '2-digit', minute: '2-digit', timeZone: 'Australia/Melbourne' })}
+                              {' – '}
+                              {shift.clockOutAt.toLocaleTimeString('en-AU', { hour: '2-digit', minute: '2-digit', timeZone: 'Australia/Melbourne' })}
+                              {' (clocked)'}
+                            </p>
+                          )}
                         </div>
                         <div className="text-right">
                           <p className="font-bold text-green-600 text-sm">${shift.earnings.toFixed(2)}</p>
@@ -111,8 +153,7 @@ export default async function PayPage() {
         )}
       </main>
 
-      {/* Bottom Nav */}
-      <nav className="fixed bottom-0 w-full bg-white border-t flex justify-around p-3 pb-safe">
+      <nav className="fixed bottom-0 w-full max-w-2xl bg-white border-t flex justify-around p-3 pb-safe">
         <a href="/worker" className="flex flex-col items-center gap-1 text-gray-400">
           <CalendarCheck className="w-6 h-6" />
           <span className="text-[10px] font-medium">Feed</span>
@@ -130,7 +171,6 @@ export default async function PayPage() {
           <span className="text-[10px] font-medium">Profile</span>
         </a>
       </nav>
-
     </div>
   )
 }
