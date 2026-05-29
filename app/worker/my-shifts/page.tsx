@@ -4,6 +4,8 @@ import { createClient } from '@/utils/supabase/server'
 import { prisma } from '@/lib/prisma'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
+import { EmptyState } from '@/components/ui/empty-state'
+import { StatusBadge } from '@/components/ui/status-badge'
 import { CalendarCheck, Clock, Wallet, UserCircle, Stethoscope } from 'lucide-react'
 import { LogoutButton } from '@/components/LogoutButton'
 
@@ -87,19 +89,6 @@ export default async function MyShiftsPage() {
     return `${date} • ${start} – ${end}`
   }
 
-  function StatusBadge({ status }: { status: string }) {
-    const styles: Record<string, string> = {
-      MATCHED: 'bg-amber-100 text-amber-700',
-      COMPLETED: 'bg-green-100 text-green-700',
-      CANCELLED: 'bg-gray-100 text-gray-500',
-    }
-    return (
-      <span className={`text-xs font-bold px-2 py-1 rounded-md ${styles[status] ?? 'bg-gray-100 text-gray-500'}`}>
-        {status}
-      </span>
-    )
-  }
-
   function ShiftCard({
     shift,
     showMarkComplete,
@@ -110,11 +99,11 @@ export default async function MyShiftsPage() {
     showCancel?: boolean
   }) {
     return (
-      <Card className="border-0 shadow-sm overflow-hidden">
+      <Card className="overflow-hidden">
         <div className={`h-2 w-full ${shift.status === 'MATCHED' ? 'bg-amber-400' : shift.status === 'COMPLETED' ? 'bg-green-400' : 'bg-gray-300'}`} />
         <CardContent className="p-4">
           <div className="flex justify-between items-start mb-2">
-            <h3 className="font-bold text-navy">{shift.facility.name}</h3>
+            <h3 className="font-bold text-ink">{shift.facility.name}</h3>
             <StatusBadge status={shift.status} />
           </div>
           <div className="space-y-1 text-sm text-gray-600">
@@ -153,12 +142,12 @@ export default async function MyShiftsPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col max-w-2xl mx-auto">
+    <div className="min-h-screen bg-background flex flex-col max-w-2xl mx-auto shadow-card">
       {/* Mobile Header */}
-      <header className="bg-navy text-white px-6 py-5 rounded-b-3xl shadow-md">
+      <header className="mesh-hero text-white px-6 py-6 rounded-b-[2rem] shadow-modal">
         <div className="flex justify-between items-center">
           <div>
-            <p className="text-sm text-teal-200 font-medium">My Shifts</p>
+            <p className="text-sm text-electric font-medium">My Shifts</p>
             <h1 className="font-bold text-xl">{dbUser.name ?? 'Worker'}</h1>
           </div>
           <LogoutButton />
@@ -169,11 +158,13 @@ export default async function MyShiftsPage() {
       <main className="flex-1 px-4 py-6 overflow-y-auto pb-24 space-y-6">
         {/* Upcoming */}
         <section>
-          <h2 className="font-bold text-navy mb-3 text-lg">Upcoming Shifts</h2>
+          <h2 className="font-bold text-ink mb-3 text-lg">Upcoming Shifts</h2>
           {upcomingShifts.length === 0 && overdueShifts.length === 0 ? (
-            <div className="text-center py-10 bg-white rounded-2xl border border-dashed border-gray-200">
-              <p className="text-gray-500">No upcoming shifts. Browse the Feed to accept one.</p>
-            </div>
+            <EmptyState
+              icon={<CalendarCheck className="h-6 w-6" />}
+              title="No upcoming shifts"
+              description="Browse the feed to accept your next booking."
+            />
           ) : (
             <div className="space-y-4">
               {overdueShifts.map(shift => (
@@ -188,11 +179,13 @@ export default async function MyShiftsPage() {
 
         {/* Past */}
         <section>
-          <h2 className="font-bold text-navy mb-3 text-lg">Past Shifts</h2>
+          <h2 className="font-bold text-ink mb-3 text-lg">Past Shifts</h2>
           {pastShifts.length === 0 ? (
-            <div className="text-center py-10 bg-white rounded-2xl border border-dashed border-gray-200">
-              <p className="text-gray-500">No past shifts yet.</p>
-            </div>
+            <EmptyState
+              icon={<Clock className="h-6 w-6" />}
+              title="No past shifts yet"
+              description="Completed and cancelled shifts will be listed here."
+            />
           ) : (
             <div className="space-y-4">
               {pastShifts.map(shift => (
@@ -204,20 +197,20 @@ export default async function MyShiftsPage() {
       </main>
 
       {/* Bottom Nav */}
-      <nav className="fixed bottom-0 w-full bg-white border-t flex justify-around p-3 pb-safe">
-        <a href="/worker" className="flex flex-col items-center gap-1 text-gray-400">
+      <nav className="fixed bottom-[calc(0.75rem+env(safe-area-inset-bottom))] left-1/2 z-40 flex w-[min(92vw,40rem)] -translate-x-1/2 justify-around rounded-3xl border border-white/70 bg-white/85 p-2 shadow-hover backdrop-blur-xl">
+        <a href="/worker" className="flex flex-col items-center gap-1 rounded-2xl px-4 py-2 text-gray-400">
           <CalendarCheck className="w-6 h-6" />
           <span className="text-[10px] font-medium">Feed</span>
         </a>
-        <a href="/worker/my-shifts" className="flex flex-col items-center gap-1 text-teal-600">
+        <a href="/worker/my-shifts" className="flex flex-col items-center gap-1 rounded-2xl bg-electric/10 px-4 py-2 text-electric-dim">
           <Clock className="w-6 h-6" />
           <span className="text-[10px] font-medium">My Shifts</span>
         </a>
-        <a href="/worker/pay" className="flex flex-col items-center gap-1 text-gray-400">
+        <a href="/worker/pay" className="flex flex-col items-center gap-1 rounded-2xl px-4 py-2 text-gray-400">
           <Wallet className="w-6 h-6" />
           <span className="text-[10px] font-medium">Pay</span>
         </a>
-        <a href="/worker/profile" className="flex flex-col items-center gap-1 text-gray-400">
+        <a href="/worker/profile" className="flex flex-col items-center gap-1 rounded-2xl px-4 py-2 text-gray-400">
           <UserCircle className="w-6 h-6" />
           <span className="text-[10px] font-medium">Profile</span>
         </a>

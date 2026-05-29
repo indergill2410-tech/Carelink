@@ -3,6 +3,9 @@ import { createClient } from '@/utils/supabase/server'
 import { prisma } from '@/lib/prisma'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
+import { EmptyState } from '@/components/ui/empty-state'
+import { StatsCard } from '@/components/ui/stats-card'
+import { StatusBadge } from '@/components/ui/status-badge'
 import { Building2, Clock, CalendarPlus } from 'lucide-react'
 import { revalidatePath } from 'next/cache'
 import { signOut } from '@/app/login/actions'
@@ -108,31 +111,38 @@ export default async function FacilityPortal({ searchParams }: { searchParams: {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col">
-      <header className="bg-white border-b px-8 py-4 flex justify-between items-center">
+    <div className="min-h-screen bg-background flex flex-col">
+      <header className="bg-ink text-white px-6 sm:px-8 py-5 flex justify-between items-center shadow-modal">
         <div className="flex items-center gap-3">
-          <div className="p-2 bg-blue-50 rounded-lg">
-            <Building2 className="text-blue-600 w-6 h-6" />
+          <div className="p-2 bg-white/10 rounded-2xl ring-1 ring-white/10">
+            <Building2 className="text-electric w-6 h-6" />
           </div>
           <div>
-            <h1 className="font-bold text-lg text-navy">{facility.name}</h1>
-            <p className="text-sm text-gray-500">Client Portal</p>
+            <h1 className="font-bold text-lg text-white">{facility.name}</h1>
+            <p className="text-sm text-slate-400">Client Portal</p>
           </div>
         </div>
         <form action={signOut}>
-          <Button type="submit" variant="outline">Sign Out</Button>
+          <Button type="submit" variant="outline" className="border-white/15 bg-white/5 text-white hover:bg-white/10">Sign Out</Button>
         </form>
       </header>
 
-      <main className="flex-1 p-8 max-w-6xl mx-auto w-full grid grid-cols-1 md:grid-cols-3 gap-8">
+      <main className="flex-1 p-4 sm:p-8 max-w-6xl mx-auto w-full space-y-8">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <StatsCard label="Open Requests" value={liveShifts.filter(s => s.status === 'PENDING').length} hint="Awaiting worker match" tone="warning" />
+          <StatsCard label="Confirmed" value={liveShifts.filter(s => s.status === 'MATCHED').length} hint="Workers assigned" tone="blue" />
+          <StatsCard label="Completed" value={liveShifts.filter(s => s.status === 'COMPLETED').length} hint="Finished shifts" tone="success" />
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
         <div className="md:col-span-1 space-y-6">
           {error && (
             <div className="p-3 bg-red-50 border border-red-200 rounded-xl text-red-700 text-sm">
               {decodeURIComponent(error)}
             </div>
           )}
-          <Card className="shadow-lg border-0 ring-1 ring-gray-100">
-            <CardHeader className="bg-navy text-white rounded-t-xl">
+          <Card className="overflow-hidden">
+            <CardHeader className="bg-gradient-to-br from-ink to-slate-800 text-white">
               <CardTitle className="flex items-center gap-2">
                 <CalendarPlus className="w-5 h-5" /> Request Staff
               </CardTitle>
@@ -140,20 +150,20 @@ export default async function FacilityPortal({ searchParams }: { searchParams: {
             <CardContent className="pt-6">
               <form action={requestShift} className="space-y-4">
                 <div className="space-y-2">
-                  <label className="text-sm font-medium text-navy">Role Needed</label>
-                  <select name="role" className="w-full flex h-11 rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal" required>
+                  <label className="text-sm font-medium text-ink">Role Needed</label>
+                  <select name="role" className="w-full flex h-12 rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-electric/25" required>
                     <option value="NURSE">Registered Nurse (RN)</option>
                     <option value="EN">Enrolled Nurse (EN)</option>
                     <option value="PCA">Personal Care Assistant (PCA)</option>
                   </select>
                 </div>
                 <div className="space-y-2">
-                  <label className="text-sm font-medium text-navy">Date</label>
-                  <input type="date" name="date" className="w-full flex h-11 rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal" required />
+                  <label className="text-sm font-medium text-ink">Date</label>
+                  <input type="date" name="date" className="w-full flex h-12 rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-electric/25" required />
                 </div>
                 <div className="pt-2">
                   <Button type="submit" className="w-full h-12 text-lg shadow-md">Broadcast Request</Button>
-                  <p className="text-xs text-center text-gray-500 mt-3">Local agency staff will be notified instantly.</p>
+                  <p className="text-xs text-center text-slate-500 mt-3">Local agency staff will be notified instantly.</p>
                 </div>
               </form>
             </CardContent>
@@ -163,25 +173,27 @@ export default async function FacilityPortal({ searchParams }: { searchParams: {
         <div className="md:col-span-2 space-y-6">
           <Card>
             <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Clock className="w-5 h-5 text-gray-500" /> Active &amp; Upcoming Shifts
+              <CardTitle className="flex items-center gap-2 text-ink">
+                <Clock className="w-5 h-5 text-electric-dim" /> Active &amp; Upcoming Shifts
               </CardTitle>
             </CardHeader>
             <CardContent>
               {liveShifts.length === 0 ? (
-                <div className="text-center py-12 bg-gray-50 rounded-xl border border-dashed">
-                  <p className="text-gray-500">No active shift requests.</p>
-                </div>
+                <EmptyState
+                  icon={<Clock className="h-6 w-6" />}
+                  title="No active shift requests"
+                  description="Create a request and it will appear here with live status."
+                />
               ) : (
                 <div className="space-y-3">
                   {liveShifts.map(shift => (
-                    <div key={shift.id} className="flex items-center justify-between p-4 border rounded-xl bg-white hover:border-teal transition-colors">
+                    <div key={shift.id} className="flex items-center justify-between gap-4 p-4 border border-slate-200/70 rounded-2xl bg-white/80">
                       <div className="flex gap-4 items-center">
-                        <div className={`w-12 h-12 rounded-xl flex items-center justify-center font-bold text-sm ${shift.status === 'PENDING' ? 'bg-amber-100 text-amber-800' : 'bg-teal-100 text-teal-800'}`}>
+                        <div className={`w-12 h-12 rounded-2xl flex items-center justify-center font-bold text-sm ${shift.status === 'PENDING' ? 'bg-amber-100 text-amber-800' : 'bg-electric/10 text-electric-dim'}`}>
                           {shift.role}
                         </div>
                         <div>
-                          <p className="font-bold text-navy">
+                          <p className="font-bold text-ink">
                             {new Date(shift.startTime).toLocaleDateString('en-AU', { weekday: 'short', month: 'short', day: 'numeric', timeZone: 'Australia/Melbourne' })}
                           </p>
                           <p className="text-sm text-gray-500">
@@ -190,13 +202,7 @@ export default async function FacilityPortal({ searchParams }: { searchParams: {
                         </div>
                       </div>
                       <div className="flex items-center gap-3">
-                        <span className={`px-4 py-1.5 rounded-full text-xs font-bold uppercase tracking-wider ${
-                          shift.status === 'PENDING' ? 'bg-amber-100 text-amber-800 ring-1 ring-amber-200' :
-                          shift.status === 'MATCHED' ? 'bg-mint text-white ring-1 ring-mint' :
-                          'bg-teal-100 text-teal-800 ring-1 ring-teal-200'
-                        }`}>
-                          {shift.status}
-                        </span>
+                        <StatusBadge status={shift.status} />
                         {(shift.status === 'PENDING' || shift.status === 'MATCHED') && (
                           <form action={cancelShift}>
                             <input type="hidden" name="shiftId" value={shift.id} />
@@ -210,6 +216,7 @@ export default async function FacilityPortal({ searchParams }: { searchParams: {
               )}
             </CardContent>
           </Card>
+        </div>
         </div>
       </main>
     </div>

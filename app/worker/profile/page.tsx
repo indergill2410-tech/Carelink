@@ -4,6 +4,7 @@ import { createClient } from '@/utils/supabase/server'
 import { prisma } from '@/lib/prisma'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
+import { StatusBadge } from '@/components/ui/status-badge'
 import { CalendarCheck, Clock, Wallet, UserCircle, Stethoscope, AlertCircle, CheckCircle2 } from 'lucide-react'
 import { LogoutButton } from '@/components/LogoutButton'
 
@@ -38,23 +39,16 @@ export default async function ProfilePage({ searchParams }: { searchParams: { er
     redirect('/worker/profile?success=Name+updated+successfully')
   }
 
-  const complianceColor: Record<string, string> = {
-    GREEN: 'bg-green-100 text-green-700',
-    AMBER: 'bg-amber-100 text-amber-700',
-    RED: 'bg-red-100 text-red-700',
-  }
-
   const status = dbUser.complianceStatus ?? 'RED'
-  const complianceBadgeClass = complianceColor[status] ?? complianceColor.RED
   const isCompliant = status === 'GREEN'
 
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col max-w-2xl mx-auto">
+    <div className="min-h-screen bg-background flex flex-col max-w-2xl mx-auto shadow-card">
       {/* Mobile Header */}
-      <header className="bg-navy text-white px-6 py-5 rounded-b-3xl shadow-md">
+      <header className="mesh-hero text-white px-6 py-6 rounded-b-[2rem] shadow-modal">
         <div className="flex justify-between items-center">
           <div>
-            <p className="text-sm text-teal-200 font-medium">Profile</p>
+            <p className="text-sm text-electric font-medium">Profile</p>
             <h1 className="font-bold text-xl">{dbUser.name ?? 'Worker'}</h1>
           </div>
           <LogoutButton />
@@ -76,9 +70,9 @@ export default async function ProfilePage({ searchParams }: { searchParams: { er
         )}
 
         {/* Profile Info Card */}
-        <Card className="border-0 shadow-sm">
+        <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-navy text-base">Personal Information</CardTitle>
+            <CardTitle className="text-ink text-base">Personal Information</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
             {/* Email (read-only) */}
@@ -91,7 +85,7 @@ export default async function ProfilePage({ searchParams }: { searchParams: { er
             <div>
               <label className="text-xs text-gray-500 font-medium uppercase tracking-wide">Role</label>
               <div className="mt-1">
-                <span className="bg-navy/10 text-navy text-sm font-bold px-3 py-1 rounded-full">
+                <span className="bg-ink/10 text-ink text-sm font-bold px-3 py-1 rounded-full">
                   {dbUser.role}
                 </span>
               </div>
@@ -101,18 +95,16 @@ export default async function ProfilePage({ searchParams }: { searchParams: { er
             <div>
               <label className="text-xs text-gray-500 font-medium uppercase tracking-wide">Compliance Status</label>
               <div className="mt-1">
-                <span className={`text-sm font-bold px-3 py-1 rounded-full ${complianceBadgeClass}`}>
-                  {status}
-                </span>
+                <StatusBadge status={status} />
               </div>
             </div>
           </CardContent>
         </Card>
 
         {/* Edit Name Form */}
-        <Card className="border-0 shadow-sm">
+        <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-navy text-base">Update Name</CardTitle>
+            <CardTitle className="text-ink text-base">Update Name</CardTitle>
           </CardHeader>
           <CardContent>
             <form action={updateName} className="space-y-3">
@@ -128,7 +120,7 @@ export default async function ProfilePage({ searchParams }: { searchParams: { er
                   minLength={2}
                   maxLength={100}
                   required
-                  className="mt-1 w-full rounded-lg border border-gray-200 px-3 py-2 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-teal-400"
+                  className="mt-1 w-full rounded-xl border border-gray-200 bg-white px-3 py-3 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-electric/25"
                   placeholder="Your full name"
                 />
               </div>
@@ -141,7 +133,7 @@ export default async function ProfilePage({ searchParams }: { searchParams: { er
 
         {/* Compliance Notice */}
         {!isCompliant && (
-          <Card className="border-0 shadow-sm border-l-4 border-l-amber-400">
+          <Card className="border-l-4 border-l-amber-400">
             <CardContent className="p-4 flex gap-3">
               <AlertCircle className="w-5 h-5 text-amber-500 flex-shrink-0 mt-0.5" />
               <div>
@@ -155,7 +147,7 @@ export default async function ProfilePage({ searchParams }: { searchParams: { er
         )}
 
         {isCompliant && (
-          <Card className="border-0 shadow-sm border-l-4 border-l-green-400">
+          <Card className="border-l-4 border-l-green-400">
             <CardContent className="p-4 flex gap-3">
               <CheckCircle2 className="w-5 h-5 text-green-500 flex-shrink-0 mt-0.5" />
               <div>
@@ -170,20 +162,20 @@ export default async function ProfilePage({ searchParams }: { searchParams: { er
       </main>
 
       {/* Bottom Nav */}
-      <nav className="fixed bottom-0 w-full bg-white border-t flex justify-around p-3 pb-safe">
-        <a href="/worker" className="flex flex-col items-center gap-1 text-gray-400">
+      <nav className="fixed bottom-[calc(0.75rem+env(safe-area-inset-bottom))] left-1/2 z-40 flex w-[min(92vw,40rem)] -translate-x-1/2 justify-around rounded-3xl border border-white/70 bg-white/85 p-2 shadow-hover backdrop-blur-xl">
+        <a href="/worker" className="flex flex-col items-center gap-1 rounded-2xl px-4 py-2 text-gray-400">
           <CalendarCheck className="w-6 h-6" />
           <span className="text-[10px] font-medium">Feed</span>
         </a>
-        <a href="/worker/my-shifts" className="flex flex-col items-center gap-1 text-gray-400">
+        <a href="/worker/my-shifts" className="flex flex-col items-center gap-1 rounded-2xl px-4 py-2 text-gray-400">
           <Clock className="w-6 h-6" />
           <span className="text-[10px] font-medium">My Shifts</span>
         </a>
-        <a href="/worker/pay" className="flex flex-col items-center gap-1 text-gray-400">
+        <a href="/worker/pay" className="flex flex-col items-center gap-1 rounded-2xl px-4 py-2 text-gray-400">
           <Wallet className="w-6 h-6" />
           <span className="text-[10px] font-medium">Pay</span>
         </a>
-        <a href="/worker/profile" className="flex flex-col items-center gap-1 text-teal-600">
+        <a href="/worker/profile" className="flex flex-col items-center gap-1 rounded-2xl bg-electric/10 px-4 py-2 text-electric-dim">
           <UserCircle className="w-6 h-6" />
           <span className="text-[10px] font-medium">Profile</span>
         </a>
