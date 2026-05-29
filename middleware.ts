@@ -12,7 +12,7 @@ export async function middleware(request: NextRequest) {
     {
       global: {
         headers: {
-          origin: process.env.NEXT_PUBLIC_SITE_URL ?? 'http://localhost:3000',
+          origin: process.env.NEXT_PUBLIC_SITE_URL ?? request.nextUrl.origin,
         },
       },
       cookies: {
