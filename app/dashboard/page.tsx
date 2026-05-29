@@ -143,8 +143,6 @@ async function reviewDocument(formData: FormData) {
 
 async function assignWorker(formData: FormData) {
   'use server'
-  if (!await requireAdmin()) return
-
   const shiftId  = formData.get('shiftId') as string
   const workerId = formData.get('workerId') as string
   if (!shiftId || !workerId) return
@@ -154,7 +152,7 @@ async function assignWorker(formData: FormData) {
     prisma.user.findUnique({ where: { id: workerId } }),
   ])
   if (!shift || shift.status !== 'PENDING' || !worker) return
-
+  if (!worker.isActive || worker.complianceStatus !== 'GREEN' || worker.role !== shift.role) return
   await prisma.shift.update({
     where: { id: shiftId },
     data: { workerId, status: 'MATCHED' },
