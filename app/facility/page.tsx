@@ -1,18 +1,37 @@
 import { redirect } from 'next/navigation'
 import { createClient } from '@/utils/supabase/server'
 import { prisma } from '@/lib/prisma'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { EmptyState } from '@/components/ui/empty-state'
-import { StatsCard } from '@/components/ui/stats-card'
-import { StatusBadge } from '@/components/ui/status-badge'
-import { Building2, Clock, CalendarPlus } from 'lucide-react'
+import { StatusBadge } from '@/components/StatusBadge'
+import {
+  Building2, Clock, CalendarPlus, AlertTriangle, CheckCircle2,
+  Users, TrendingUp, Activity, Zap, DollarSign,
+} from 'lucide-react'
 import { revalidatePath } from 'next/cache'
 import { signOut } from '@/app/login/actions'
-import { ShiftRequestSchema } from '@/lib/validations'
 import { Role } from '@prisma/client'
 
-export const dynamic = 'force-dynamic';
+export const dynamic = 'force-dynamic'
+
+const ROLE_RATES: Record<string, number> = {
+  NURSE: 55.00,
+  EN: 45.00,
+  PCA: 32.50,
+}
+
+const ROLE_META: Record<string, { label: string; color: string }> = {
+  NURSE: { label: 'RN', color: 'bg-sky-100 text-sky-700 border-sky-200' },
+  EN:    { label: 'EN', color: 'bg-violet-100 text-violet-700 border-violet-200' },
+  PCA:   { label: 'PCA', color: 'bg-teal/10 text-teal border-teal/20' },
+}
+
+const STATUS_BAR: Record<string, string> = {
+  PENDING:    'bg-amber-400',
+  MATCHED:    'bg-teal',
+  CLOCKED_IN: 'bg-blue-500',
+  COMPLETED:  'bg-emerald-500',
+  CANCELLED:  'bg-slate-300',
+}
 
 async function getFacilityData() {
   const supabase = await createClient()
@@ -23,201 +42,489 @@ async function getFacilityData() {
   if (!dbUser || dbUser.role !== 'ADMIN') redirect('/login')
 
   let facility = null
-
   if (dbUser.facilityId) {
     facility = await prisma.facility.findUnique({ where: { id: dbUser.facilityId } })
   }
-
   if (!facility) {
-    facility = await prisma.$transaction(async (tx) => {
-      const newFacility = await tx.facility.create({
+    facility = await prisma.$transaction(async tx => {
+      const f = await tx.facility.create({
         data: { name: `${dbUser.name ?? 'My'} Facility`, address: 'Address to be configured' },
       })
-      await tx.user.update({
-        where: { id: dbUser.id },
-        data: { facilityId: newFacility.id },
-      })
-      return newFacility
+      await tx.user.update({ where: { id: dbUser.id }, data: { facilityId: f.id } })
+      return f
     })
   }
 
-  const liveShifts = await prisma.shift.findMany({
+  const shifts = await prisma.shift.findMany({
     where: { facilityId: facility.id },
     include: { worker: true },
     orderBy: { startTime: 'desc' },
-    take: 10,
+    take: 50,
   })
 
-  return { facility, liveShifts }
+  return { facility, shifts }
 }
 
-const ROLE_RATES: Record<string, number> = {
-  NURSE: 55.00,
-  EN: 45.00,
-  PCA: 32.50,
-}
+const inputCls = 'h-11 w-full rounded-xl border border-surface-3 bg-surface-1 px-4 text-sm text-ink placeholder:text-ink/30 transition-all duration-150 focus:border-teal focus:bg-white focus:shadow-focus focus:outline-none'
+const labelCls = 'block text-[11px] font-semibold text-ink/50 uppercase tracking-wider mb-1.5'
 
-export default async function FacilityPortal({ searchParams }: { searchParams: { error?: string } }) {
-  const { facility, liveShifts } = await getFacilityData()
+export default async function FacilityPortal({
+  searchParams,
+}: {
+  searchParams: { error?: string; tab?: string }
+}) {
+  const { facility, shifts } = await getFacilityData()
   const error = searchParams.error
+  const activeTab = searchParams.tab ?? 'shifts'
+
+  const pending   = shifts.filter(s => s.status === 'PENDING')
+  const matched   = shifts.filter(s => s.status === 'MATCHED' || s.status === 'CLOCKED_IN')
+  const completed = shifts.filter(s => s.status === 'COMPLETED')
+  const totalSpend = completed.reduce((sum, s) => {
+    const hrs = (s.endTime.getTime() - s.startTime.getTime()) / 3_600_000
+    return sum + s.hourlyRate * hrs
+  }, 0)
 
   async function cancelShift(formData: FormData) {
     'use server'
-    const shiftId = formData.get('shiftId') as string;
-    if (!shiftId) return;
+    const supabase = await createClient()
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return
+    const dbUser = await prisma.user.findUnique({ where: { id: user.id } })
+    if (!dbUser || dbUser.role !== 'ADMIN') return
 
-    // Security: verify shift belongs to this facility before cancelling
-    const shift = await prisma.shift.findUnique({ where: { id: shiftId } });
-    if (!shift || shift.facilityId !== facility.id) return;
-
-    await prisma.shift.update({
-      where: { id: shiftId },
-      data: { status: 'CANCELLED' },
-    });
-
-    revalidatePath('/facility');
+    const shiftId = formData.get('shiftId') as string
+    if (!shiftId) return
+    const shift = await prisma.shift.findUnique({ where: { id: shiftId } })
+    if (!shift || shift.facilityId !== facility.id) return
+    await prisma.shift.update({ where: { id: shiftId }, data: { status: 'CANCELLED' } })
+    revalidatePath('/facility')
   }
 
   async function requestShift(formData: FormData) {
     'use server'
-    const parsed = ShiftRequestSchema.safeParse({
-      role: formData.get('role'),
-      date: formData.get('date'),
-    })
-    if (!parsed.success) redirect('/facility?error=Invalid+shift+details')
+    const supabase = await createClient()
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return
+    const dbUser = await prisma.user.findUnique({ where: { id: user.id } })
+    if (!dbUser || dbUser.role !== 'ADMIN' || dbUser.facilityId !== facility.id) return
+    const role = formData.get('role') as string
+    const date = formData.get('date') as string
+    const startT = (formData.get('startTime') as string) || '07:00'
+    const endT   = (formData.get('endTime') as string) || '15:00'
+    const rateRaw = formData.get('hourlyRate') as string
+    const notes  = (formData.get('notes') as string) || null
+    const urgent = formData.get('urgent') === 'on'
 
-    const { role, date } = parsed.data
-    const startTime = new Date(`${date}T07:00:00.000+10:00`)
-    const endTime = new Date(`${date}T15:00:00.000+10:00`)
-    const hourlyRate = ROLE_RATES[role] ?? 45.00
-
-    try {
-      await prisma.shift.create({
-        data: {
-          facilityId: facility.id,
-          role: role as Role,
-          startTime,
-          endTime,
-          hourlyRate,
-          status: 'PENDING',
-        },
-      })
-    } catch {
-      redirect('/facility?error=Failed+to+create+shift')
+    if (!role || !date || !/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+      redirect('/facility?error=Invalid+shift+details')
     }
+
+    const startTime = new Date(`${date}T${startT}:00+10:00`)
+    const endTime   = new Date(`${date}T${endT}:00+10:00`)
+
+    if (isNaN(startTime.getTime()) || isNaN(endTime.getTime()) || startTime >= endTime) {
+      redirect('/facility?error=Invalid+time+range')
+    }
+
+    const hourlyRate = parseFloat(rateRaw) || ROLE_RATES[role] || 45.00
+
+    await prisma.shift.create({
+      data: {
+        facilityId: facility.id,
+        role: role as Role,
+        startTime,
+        endTime,
+        hourlyRate,
+        notes: notes || null,
+        urgent,
+        status: 'PENDING',
+      },
+    })
 
     revalidatePath('/facility')
     revalidatePath('/dashboard')
+    redirect('/facility')
   }
 
+  const KPI_ITEMS = [
+    { label: 'Awaiting Staff', value: pending.length.toString(),       color: 'text-amber-500' },
+    { label: 'Confirmed',      value: matched.length.toString(),       color: 'text-teal' },
+    { label: 'Completed',      value: completed.length.toString(),     color: 'text-emerald-500' },
+    { label: 'Total Spend',    value: `$${totalSpend.toFixed(0)}`,     color: 'text-ink' },
+  ]
+
+  const TABS = [
+    { id: 'shifts',  label: 'Shift Requests', icon: Clock },
+    { id: 'roster',  label: 'Live Roster',    icon: Users },
+    { id: 'history', label: 'History',        icon: TrendingUp },
+  ]
+
   return (
-    <div className="min-h-screen bg-background flex flex-col">
-      <header className="bg-ink text-white px-6 sm:px-8 py-5 flex justify-between items-center shadow-modal">
-        <div className="flex items-center gap-3">
-          <div className="p-2 bg-white/10 rounded-2xl ring-1 ring-white/10">
-            <Building2 className="text-electric w-6 h-6" />
+    <div className="min-h-screen bg-surface-1 flex flex-col">
+
+      {/* ── Sticky Header ──────────────────────────────────────────────── */}
+      <header className="sticky top-0 z-30 bg-white/80 backdrop-blur-xl border-b border-surface-2">
+        <div className="max-w-6xl mx-auto px-6 py-3.5 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-sky-500 to-blue-700 flex items-center justify-center shadow-btn">
+              <Building2 className="w-5 h-5 text-white" />
+            </div>
+            <div>
+              <p className="font-bold text-ink text-sm leading-tight">{facility.name}</p>
+              <p className="text-ink/40 text-[11px] leading-tight">{facility.address}</p>
+            </div>
           </div>
-          <div>
-            <h1 className="font-bold text-lg text-white">{facility.name}</h1>
-            <p className="text-sm text-slate-400">Client Portal</p>
+          <div className="flex items-center gap-3">
+            {/* KPIs inline in header for desktop */}
+            <div className="hidden md:flex items-center gap-5 mr-4">
+              {KPI_ITEMS.map(k => (
+                <div key={k.label} className="text-center">
+                  <p className={`text-lg font-black font-mono leading-none ${k.color}`}>{k.value}</p>
+                  <p className="text-[10px] text-ink/40 leading-none mt-0.5">{k.label}</p>
+                </div>
+              ))}
+            </div>
+            <form action={signOut}>
+              <Button type="submit" variant="outline" size="sm" className="text-xs h-8">Sign Out</Button>
+            </form>
           </div>
         </div>
-        <form action={signOut}>
-          <Button type="submit" variant="outline" className="border-white/15 bg-white/5 text-white hover:bg-white/10">Sign Out</Button>
-        </form>
+
+        {/* Mobile KPI strip */}
+        <div className="md:hidden grid grid-cols-4 border-t border-surface-2">
+          {KPI_ITEMS.map(k => (
+            <div key={k.label} className="py-2.5 text-center border-r border-surface-2 last:border-r-0">
+              <p className={`text-base font-black font-mono leading-none ${k.color}`}>{k.value}</p>
+              <p className="text-[9px] text-ink/40 mt-0.5 leading-none px-1">{k.label}</p>
+            </div>
+          ))}
+        </div>
+
+        {/* Tab nav */}
+        <div className="max-w-6xl mx-auto px-6 flex gap-1 border-t border-surface-2">
+          {TABS.map(tab => (
+            <a
+              key={tab.id}
+              href={`/facility?tab=${tab.id}`}
+              className={[
+                'flex items-center gap-1.5 px-3 py-3 text-xs font-semibold transition-colors relative',
+                activeTab === tab.id
+                  ? 'text-teal'
+                  : 'text-ink/40 hover:text-ink/70',
+              ].join(' ')}
+            >
+              <tab.icon className="w-3.5 h-3.5" />
+              {tab.label}
+              {activeTab === tab.id && (
+                <span className="absolute bottom-0 left-3 right-3 h-0.5 bg-teal rounded-full" />
+              )}
+            </a>
+          ))}
+        </div>
       </header>
 
-      <main className="flex-1 p-4 sm:p-8 max-w-6xl mx-auto w-full space-y-8">
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-          <StatsCard label="Open Requests" value={liveShifts.filter(s => s.status === 'PENDING').length} hint="Awaiting worker match" tone="warning" />
-          <StatsCard label="Confirmed" value={liveShifts.filter(s => s.status === 'MATCHED').length} hint="Workers assigned" tone="blue" />
-          <StatsCard label="Completed" value={liveShifts.filter(s => s.status === 'COMPLETED').length} hint="Finished shifts" tone="success" />
-        </div>
+      <main className="flex-1 p-5 max-w-6xl mx-auto w-full">
+        {error && (
+          <div className="mb-5 flex items-center gap-2.5 p-3.5 bg-rose-50 border border-rose-200 rounded-xl text-rose-700 text-sm animate-fade-in">
+            <AlertTriangle className="w-4 h-4 shrink-0" />
+            {decodeURIComponent(error)}
+          </div>
+        )}
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-        <div className="md:col-span-1 space-y-6">
-          {error && (
-            <div className="p-3 bg-red-50 border border-red-200 rounded-xl text-red-700 text-sm">
-              {decodeURIComponent(error)}
+        {/* ── Shifts Tab ─────────────────────────────────────────────── */}
+        {activeTab === 'shifts' && (
+          <div className="grid grid-cols-1 lg:grid-cols-[320px_1fr] gap-6 items-start">
+
+            {/* Form Card */}
+            <div className="lg:sticky lg:top-[calc(var(--header-h,140px)+1.25rem)] rounded-2xl overflow-hidden shadow-card">
+              {/* Gradient header */}
+              <div className="bg-gradient-to-br from-sky-500 to-blue-700 px-5 py-4">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-8 h-8 rounded-lg bg-white/20 flex items-center justify-center">
+                    <CalendarPlus className="w-4 h-4 text-white" />
+                  </div>
+                  <div>
+                    <p className="font-bold text-white text-sm">New Shift Request</p>
+                    <p className="text-white/60 text-xs">Broadcast to available workers</p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="bg-white p-5 space-y-4">
+                <form action={requestShift} className="space-y-4">
+                  <div>
+                    <label className={labelCls}>Role Needed</label>
+                    <select name="role" className={inputCls} required>
+                      <option value="NURSE">Registered Nurse (RN) — ${ROLE_RATES.NURSE}/hr</option>
+                      <option value="EN">Enrolled Nurse (EN) — ${ROLE_RATES.EN}/hr</option>
+                      <option value="PCA">Personal Care Assistant — ${ROLE_RATES.PCA}/hr</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className={labelCls}>Date</label>
+                    <input type="date" name="date" className={inputCls} required />
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className={labelCls}>Start</label>
+                      <input type="time" name="startTime" defaultValue="07:00" className={inputCls} required />
+                    </div>
+                    <div>
+                      <label className={labelCls}>End</label>
+                      <input type="time" name="endTime" defaultValue="15:00" className={inputCls} required />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className={labelCls}>Hourly Rate ($)</label>
+                    <input
+                      type="number"
+                      name="hourlyRate"
+                      step="0.50"
+                      min="20"
+                      max="200"
+                      placeholder="Leave blank for default"
+                      className={inputCls}
+                    />
+                  </div>
+
+                  <div>
+                    <label className={labelCls}>Notes (optional)</label>
+                    <textarea
+                      name="notes"
+                      rows={2}
+                      maxLength={500}
+                      placeholder="Special requirements…"
+                      className="w-full rounded-xl border border-surface-3 bg-surface-1 px-4 py-2.5 text-sm text-ink placeholder:text-ink/30 transition-all duration-150 focus:border-teal focus:bg-white focus:shadow-focus focus:outline-none resize-none"
+                    />
+                  </div>
+
+                  <label className="flex items-center gap-2.5 cursor-pointer select-none group">
+                    <input type="checkbox" name="urgent" className="w-4 h-4 rounded accent-rose-500" />
+                    <span className="text-sm font-semibold text-rose-600 flex items-center gap-1.5">
+                      <Zap className="w-3.5 h-3.5" /> Mark as Urgent
+                    </span>
+                  </label>
+
+                  <Button type="submit" className="w-full h-11 font-bold">
+                    Broadcast Request <Activity className="w-4 h-4 ml-1" />
+                  </Button>
+                </form>
+              </div>
             </div>
-          )}
-          <Card className="overflow-hidden">
-            <CardHeader className="bg-gradient-to-br from-ink to-slate-800 text-white">
-              <CardTitle className="flex items-center gap-2">
-                <CalendarPlus className="w-5 h-5" /> Request Staff
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="pt-6">
-              <form action={requestShift} className="space-y-4">
-                <div className="space-y-2">
-                  <label className="text-sm font-medium text-ink">Role Needed</label>
-                  <select name="role" className="w-full flex h-12 rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-electric/25" required>
-                    <option value="NURSE">Registered Nurse (RN)</option>
-                    <option value="EN">Enrolled Nurse (EN)</option>
-                    <option value="PCA">Personal Care Assistant (PCA)</option>
-                  </select>
-                </div>
-                <div className="space-y-2">
-                  <label className="text-sm font-medium text-ink">Date</label>
-                  <input type="date" name="date" className="w-full flex h-12 rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-electric/25" required />
-                </div>
-                <div className="pt-2">
-                  <Button type="submit" className="w-full h-12 text-lg shadow-md">Broadcast Request</Button>
-                  <p className="text-xs text-center text-slate-500 mt-3">Local agency staff will be notified instantly.</p>
-                </div>
-              </form>
-            </CardContent>
-          </Card>
-        </div>
 
-        <div className="md:col-span-2 space-y-6">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-ink">
-                <Clock className="w-5 h-5 text-electric-dim" /> Active &amp; Upcoming Shifts
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              {liveShifts.length === 0 ? (
-                <EmptyState
-                  icon={<Clock className="h-6 w-6" />}
-                  title="No active shift requests"
-                  description="Create a request and it will appear here with live status."
-                />
+            {/* Active Shifts */}
+            <div className="space-y-3">
+              <div className="flex items-center justify-between mb-1">
+                <h2 className="font-bold text-ink text-base">Active Requests</h2>
+                <span className="text-[11px] font-semibold text-ink/40 bg-surface-2 px-2 py-0.5 rounded-full">
+                  {[...pending, ...matched].length} shifts
+                </span>
+              </div>
+
+              {[...pending, ...matched].length === 0 ? (
+                <div className="text-center py-16 bg-white rounded-2xl border border-dashed border-surface-3">
+                  <div className="w-12 h-12 rounded-2xl bg-surface-2 flex items-center justify-center mx-auto mb-3">
+                    <CalendarPlus className="w-6 h-6 text-ink/30" />
+                  </div>
+                  <p className="font-semibold text-ink/50 text-sm">No active shift requests</p>
+                  <p className="text-ink/30 text-xs mt-1">Use the form to broadcast a new one</p>
+                </div>
               ) : (
-                <div className="space-y-3">
-                  {liveShifts.map(shift => (
-                    <div key={shift.id} className="flex items-center justify-between gap-4 p-4 border border-slate-200/70 rounded-2xl bg-white/80">
-                      <div className="flex gap-4 items-center">
-                        <div className={`w-12 h-12 rounded-2xl flex items-center justify-center font-bold text-sm ${shift.status === 'PENDING' ? 'bg-amber-100 text-amber-800' : 'bg-electric/10 text-electric-dim'}`}>
-                          {shift.role}
+                [...pending, ...matched].map(shift => {
+                  const meta = ROLE_META[shift.role] ?? ROLE_META.PCA
+                  const hrs = (shift.endTime.getTime() - shift.startTime.getTime()) / 3_600_000
+                  return (
+                    <div
+                      key={shift.id}
+                      className="group flex items-center gap-0 bg-white rounded-2xl border border-surface-2 shadow-card hover:shadow-card-hover hover:-translate-y-px transition-all duration-[220ms] ease-spring overflow-hidden"
+                    >
+                      {/* Status strip */}
+                      <div className={`w-1 self-stretch shrink-0 ${STATUS_BAR[shift.status] ?? 'bg-slate-300'}`} />
+
+                      <div className="flex items-center gap-4 px-4 py-3.5 flex-1 min-w-0">
+                        {/* Role badge */}
+                        <div className={`w-11 h-11 rounded-xl flex items-center justify-center font-black text-xs border shrink-0 ${meta.color}`}>
+                          {meta.label}
                         </div>
-                        <div>
-                          <p className="font-bold text-ink">
-                            {new Date(shift.startTime).toLocaleDateString('en-AU', { weekday: 'short', month: 'short', day: 'numeric', timeZone: 'Australia/Melbourne' })}
+
+                        {/* Info */}
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <p className="font-bold text-ink text-sm">
+                              {shift.startTime.toLocaleDateString('en-AU', {
+                                weekday: 'short', month: 'short', day: 'numeric',
+                                timeZone: 'Australia/Melbourne',
+                              })}
+                            </p>
+                            {shift.urgent && (
+                              <span className="flex items-center gap-0.5 bg-rose-50 border border-rose-200 text-rose-600 text-[10px] font-bold px-1.5 py-0.5 rounded-full">
+                                <Zap className="w-2.5 h-2.5" /> URGENT
+                              </span>
+                            )}
+                          </div>
+                          <p className="text-xs text-ink/50 mt-0.5">
+                            {shift.startTime.toLocaleTimeString('en-AU', {
+                              hour: '2-digit', minute: '2-digit', timeZone: 'Australia/Melbourne',
+                            })}
+                            {' – '}
+                            {shift.endTime.toLocaleTimeString('en-AU', {
+                              hour: '2-digit', minute: '2-digit', timeZone: 'Australia/Melbourne',
+                            })}
+                            {' · '}
+                            <span className="font-mono">{hrs.toFixed(1)}h</span>
+                            {' · '}
+                            <span className="font-mono">${shift.hourlyRate.toFixed(0)}/hr</span>
                           </p>
-                          <p className="text-sm text-gray-500">
-                            7:00 AM - 3:00 PM · {shift.worker ? shift.worker.name : 'Awaiting worker'}
-                          </p>
+                          {shift.worker ? (
+                            <p className="text-xs text-teal font-medium mt-0.5 flex items-center gap-1">
+                              <CheckCircle2 className="w-3 h-3" />
+                              {shift.worker.name ?? shift.worker.email}
+                            </p>
+                          ) : (
+                            <p className="text-xs text-ink/35 mt-0.5">Awaiting worker</p>
+                          )}
+                          {shift.notes && (
+                            <p className="text-xs text-ink/35 mt-0.5 italic truncate">{shift.notes}</p>
+                          )}
                         </div>
-                      </div>
-                      <div className="flex items-center gap-3">
-                        <StatusBadge status={shift.status} />
-                        {(shift.status === 'PENDING' || shift.status === 'MATCHED') && (
-                          <form action={cancelShift}>
-                            <input type="hidden" name="shiftId" value={shift.id} />
-                            <Button type="submit" variant="destructive" size="sm">Cancel</Button>
-                          </form>
-                        )}
+
+                        {/* Status + Actions */}
+                        <div className="flex items-center gap-2 shrink-0">
+                          <StatusBadge status={shift.status} />
+                          {(shift.status === 'PENDING' || shift.status === 'MATCHED') && (
+                            <form action={cancelShift} className="opacity-0 group-hover:opacity-100 transition-opacity">
+                              <input type="hidden" name="shiftId" value={shift.id} />
+                              <Button type="submit" variant="outline" size="sm" className="text-xs h-7 text-rose-600 border-rose-200 hover:bg-rose-50">
+                                Cancel
+                              </Button>
+                            </form>
+                          )}
+                        </div>
                       </div>
                     </div>
-                  ))}
+                  )
+                })
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* ── Roster Tab ─────────────────────────────────────────────── */}
+        {activeTab === 'roster' && (
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <h2 className="font-bold text-ink text-base">Live Roster — Confirmed Staff</h2>
+              <span className="text-[11px] font-semibold text-ink/40 bg-surface-2 px-2 py-0.5 rounded-full">
+                {matched.length} on roster
+              </span>
+            </div>
+
+            {matched.length === 0 ? (
+              <div className="text-center py-16 bg-white rounded-2xl border border-dashed border-surface-3">
+                <div className="w-12 h-12 rounded-2xl bg-surface-2 flex items-center justify-center mx-auto mb-3">
+                  <Users className="w-6 h-6 text-ink/30" />
+                </div>
+                <p className="font-semibold text-ink/50 text-sm">No confirmed staff</p>
+                <p className="text-ink/30 text-xs mt-1">Shift requests will appear here when matched</p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                {matched.map(shift => {
+                  const meta = ROLE_META[shift.role] ?? ROLE_META.PCA
+                  const initials = (shift.worker?.name ?? '?').split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase()
+                  return (
+                    <div key={shift.id} className="flex items-center gap-4 p-4 bg-white rounded-2xl border border-surface-2 shadow-card">
+                      {/* Avatar */}
+                      <div className={`w-11 h-11 rounded-xl flex items-center justify-center font-bold text-sm border ${meta.color} shrink-0`}>
+                        {initials}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="font-bold text-ink text-sm">{shift.worker?.name ?? 'Worker'}</p>
+                        <p className="text-xs text-ink/50 mt-0.5">
+                          {shift.role} · {shift.startTime.toLocaleDateString('en-AU', {
+                            weekday: 'short', month: 'short', day: 'numeric',
+                            timeZone: 'Australia/Melbourne',
+                          })}{' '}
+                          {shift.startTime.toLocaleTimeString('en-AU', {
+                            hour: '2-digit', minute: '2-digit', timeZone: 'Australia/Melbourne',
+                          })}–{shift.endTime.toLocaleTimeString('en-AU', {
+                            hour: '2-digit', minute: '2-digit', timeZone: 'Australia/Melbourne',
+                          })}
+                        </p>
+                        {shift.clockInAt && (
+                          <p className="text-xs text-blue-600 font-medium mt-0.5">
+                            Clocked in {shift.clockInAt.toLocaleTimeString('en-AU', {
+                              hour: '2-digit', minute: '2-digit', timeZone: 'Australia/Melbourne',
+                            })}
+                          </p>
+                        )}
+                      </div>
+                      <StatusBadge status={shift.status} showDot />
+                    </div>
+                  )
+                })}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* ── History Tab ────────────────────────────────────────────── */}
+        {activeTab === 'history' && (
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <h2 className="font-bold text-ink text-base">Shift History</h2>
+              {completed.length > 0 && (
+                <div className="text-right">
+                  <p className="text-xs text-ink/40">Total spend</p>
+                  <p className="font-black font-mono text-ink text-base">${totalSpend.toFixed(2)}</p>
                 </div>
               )}
-            </CardContent>
-          </Card>
-        </div>
-        </div>
+            </div>
+
+            {completed.length === 0 ? (
+              <div className="text-center py-16 bg-white rounded-2xl border border-dashed border-surface-3">
+                <p className="font-semibold text-ink/50 text-sm">No completed shifts yet</p>
+              </div>
+            ) : (
+              <div className="bg-white rounded-2xl border border-surface-2 shadow-card overflow-hidden divide-y divide-surface-2">
+                {completed.map(shift => {
+                  const hrs = (shift.endTime.getTime() - shift.startTime.getTime()) / 3_600_000
+                  const cost = shift.hourlyRate * hrs
+                  const meta = ROLE_META[shift.role] ?? ROLE_META.PCA
+                  return (
+                    <div key={shift.id} className="flex items-center gap-4 px-5 py-3.5 hover:bg-surface-1 transition-colors">
+                      <div className={`w-9 h-9 rounded-xl flex items-center justify-center font-bold text-xs border shrink-0 ${meta.color}`}>
+                        {meta.label}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="font-semibold text-ink text-sm">
+                          {shift.startTime.toLocaleDateString('en-AU', {
+                            weekday: 'short', month: 'short', day: 'numeric',
+                            timeZone: 'Australia/Melbourne',
+                          })}
+                        </p>
+                        <p className="text-xs text-ink/45 mt-0.5">
+                          {shift.worker?.name ?? 'Unknown'} · <span className="font-mono">{hrs.toFixed(1)}h @ ${shift.hourlyRate}/hr</span>
+                        </p>
+                      </div>
+                      <div className="text-right shrink-0">
+                        <p className="font-black font-mono text-emerald-600 text-sm">${cost.toFixed(2)}</p>
+                        <div className="flex items-center gap-1 justify-end mt-0.5">
+                          <DollarSign className="w-2.5 h-2.5 text-emerald-400" />
+                          <span className="text-[10px] text-emerald-500 font-bold uppercase">Completed</span>
+                        </div>
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+            )}
+          </div>
+        )}
       </main>
     </div>
   )
