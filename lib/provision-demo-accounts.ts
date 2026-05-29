@@ -458,6 +458,45 @@ async function seedDemoData(facilityManagerId: string, nurseId: string, enId: st
   }
 }
 
+// Provision a single demo account by role key (e.g. 'ADMIN', 'NURSE').
+// Used by the demo-login route to avoid provisioning all 5 accounts on every fallback.
+export async function provisionOneDemoAccount(roleKey: string): Promise<string | null> {
+  const demoPassword = process.env.DEMO_ACCOUNT_PASSWORD
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+  const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY
+
+  if (!demoPassword || !supabaseUrl || !anonKey) return null
+
+  const config = DEMO_CONFIGS[roleKey]
+  if (!config) return null
+
+  try {
+    const userId = await ensureAccount(config, demoPassword, supabaseUrl, anonKey, serviceRoleKey ?? '')
+    if (userId) {
+      const requiredRoles = ['FACILITY', 'NURSE', 'EN', 'PCA']
+      const emails = requiredRoles.map(r => DEMO_CONFIGS[r].email)
+      const users = await prisma.user.findMany({
+        where: { email: { in: emails } },
+        select: { id: true, email: true },
+      })
+      if (users.length === requiredRoles.length) {
+        const facilityId = users.find(u => u.email === DEMO_CONFIGS['FACILITY'].email)?.id
+        const nurseId    = users.find(u => u.email === DEMO_CONFIGS['NURSE'].email)?.id
+        const enId       = users.find(u => u.email === DEMO_CONFIGS['EN'].email)?.id
+        const pcaId      = users.find(u => u.email === DEMO_CONFIGS['PCA'].email)?.id
+        if (facilityId && nurseId && enId && pcaId) {
+          await seedDemoData(facilityId, nurseId, enId, pcaId)
+        }
+      }
+    }
+    return userId
+  } catch (err) {
+    console.error('[demo] provisionOneDemoAccount failed for', roleKey, err)
+    return null
+  }
+}
+
 export async function provisionDemoAccounts(force = false): Promise<void> {
   const demoPassword = process.env.DEMO_ACCOUNT_PASSWORD
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
