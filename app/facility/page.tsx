@@ -12,7 +12,7 @@ import { Role } from '@prisma/client'
 export const dynamic = 'force-dynamic';
 
 async function getFacilityData() {
-  const supabase = await createClient()
+  const supabase = createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/login')
 

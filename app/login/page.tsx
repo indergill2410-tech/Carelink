@@ -1,6 +1,6 @@
 'use client'
 
-import { Suspense, useState, useCallback } from 'react'
+import { Suspense, useState, useEffect, useCallback } from 'react'
 import { useSearchParams, useRouter } from 'next/navigation'
 import { login, signup } from './actions'
 import { Button } from '@/components/ui/button'
@@ -83,6 +83,10 @@ function LoginContent() {
   const [isRegistering, setIsRegistering] = useState(false)
   const [loadingDemo, setLoadingDemo] = useState<string | null>(null)
   const [demoError, setDemoError] = useState<string | null>(null)
+
+  useEffect(() => {
+    setLoadingDemo(null)
+  }, [searchParams])
 
   const handleDemoLogin = useCallback(async (role: string) => {
     setLoadingDemo(role)

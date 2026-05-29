@@ -11,7 +11,7 @@ import { AcceptShiftSchema } from '@/lib/validations'
 export const dynamic = 'force-dynamic'
 
 async function getWorkerData() {
-  const supabase = await createClient()
+  const supabase = createClient()
   const { data: { user }, error } = await supabase.auth.getUser()
   if (error || !user) redirect('/login')
 
@@ -42,7 +42,7 @@ export default async function WorkerPortal({ searchParams }: { searchParams: { e
     const parsed = AcceptShiftSchema.safeParse({ shiftId: formData.get('shiftId') })
     if (!parsed.success) redirect('/worker?error=Invalid+shift')
 
-    const supabase = await createClient()
+    const supabase = createClient()
     const { data: { user: authUser } } = await supabase.auth.getUser()
     if (!authUser) redirect('/login')
 
