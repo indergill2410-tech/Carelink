@@ -125,7 +125,7 @@ function OverviewTab({ data }: { data: Awaited<ReturnType<typeof getDashboardDat
               />
             ) : (
               data.shifts.slice(0, 10).map((s) => (
-                <div key={s.id} className="flex items-center justify-between gap-4 p-4 border border-slate-200/70 rounded-2xl bg-white/80 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-card">
+                <div key={s.id} className="flex items-center justify-between gap-4 p-4 border border-slate-200/70 rounded-2xl bg-white/80">
                   <div className="flex gap-4 items-center">
                     <div className="w-10 h-10 rounded-2xl bg-ink text-white border border-white/20 flex items-center justify-center font-bold text-xs shadow-sm">{s.role}</div>
                     <div>
