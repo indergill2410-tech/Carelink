@@ -19,9 +19,30 @@ module.exports = {
           foreground: 'hsl(var(--primary-foreground))',
         },
         navy: '#0f2a44',
+        ink: '#07111f',
         teal: '#028090',
         mint: '#4fd1b2',
+        electric: '#00c9a7',
+        'electric-dim': '#008f78',
+        'pulse-blue': '#3b82f6',
       }
+    },
+    boxShadow: {
+      card: 'var(--shadow-card)',
+      hover: 'var(--shadow-hover)',
+      modal: 'var(--shadow-modal)',
+      electric: 'var(--glow-electric)',
+    },
+    transitionTimingFunction: {
+      spring: 'var(--ease-spring)',
+    },
+    keyframes: {
+      shimmer: {
+        '100%': { transform: 'translateX(100%)' },
+      },
+    },
+    animation: {
+      shimmer: 'shimmer 1.5s linear infinite',
     },
   },
   plugins: [],

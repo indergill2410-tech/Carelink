@@ -1,6 +1,9 @@
 import { Activity, Clock, FileWarning, Users, X, Building2, CheckCircle, XCircle, LayoutDashboard } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { EmptyState } from '@/components/ui/empty-state';
+import { StatsCard } from '@/components/ui/stats-card';
+import { StatusBadge } from '@/components/ui/status-badge';
 import { prisma } from '@/lib/prisma';
 import { signOut } from '@/app/login/actions';
 import { revalidatePath } from 'next/cache';
@@ -110,21 +113,23 @@ function OverviewTab({ data }: { data: Awaited<ReturnType<typeof getDashboardDat
     <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
       <Card className="lg:col-span-2">
         <CardHeader>
-          <CardTitle>Recent Dispatch Activity</CardTitle>
+          <CardTitle className="text-ink">Recent Dispatch Activity</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="space-y-4">
             {data.shifts.length === 0 ? (
-              <div className="p-8 text-center text-gray-500 border border-dashed rounded-xl">
-                No shifts requested yet. Broadcast a shift to get started.
-              </div>
+              <EmptyState
+                icon={<Activity className="h-6 w-6" />}
+                title="No shifts requested yet"
+                description="Broadcast the first shift to start matching workers."
+              />
             ) : (
               data.shifts.slice(0, 10).map((s) => (
-                <div key={s.id} className="flex items-center justify-between p-4 border rounded-xl bg-gray-50/50">
+                <div key={s.id} className="flex items-center justify-between gap-4 p-4 border border-slate-200/70 rounded-2xl bg-white/80 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-card">
                   <div className="flex gap-4 items-center">
-                    <div className="w-10 h-10 rounded-full bg-white border flex items-center justify-center font-bold text-navy text-xs">{s.role}</div>
+                    <div className="w-10 h-10 rounded-2xl bg-ink text-white border border-white/20 flex items-center justify-center font-bold text-xs shadow-sm">{s.role}</div>
                     <div>
-                      <p className="font-semibold text-navy">{s.facility.name}</p>
+                      <p className="font-semibold text-ink">{s.facility.name}</p>
                       <p className="text-sm text-gray-500">
                         {new Date(s.startTime).toLocaleDateString('en-AU', { weekday: 'short', month: 'short', day: 'numeric', timeZone: 'Australia/Melbourne' })}
                         {' · '}
@@ -135,14 +140,7 @@ function OverviewTab({ data }: { data: Awaited<ReturnType<typeof getDashboardDat
                       </p>
                     </div>
                   </div>
-                  <span className={`px-3 py-1 rounded-full text-xs font-bold ${
-                    s.status === 'PENDING' ? 'bg-amber-100 text-amber-800' :
-                    s.status === 'MATCHED' ? 'bg-teal-100 text-teal-800' :
-                    s.status === 'COMPLETED' ? 'bg-green-100 text-green-800' :
-                    'bg-gray-100 text-gray-600'
-                  }`}>
-                    {s.status}
-                  </span>
+                  <StatusBadge status={s.status} />
                 </div>
               ))
             )}
@@ -152,11 +150,11 @@ function OverviewTab({ data }: { data: Awaited<ReturnType<typeof getDashboardDat
 
       <Card>
         <CardHeader>
-          <CardTitle>Urgent Action Required</CardTitle>
+          <CardTitle className="text-ink">Urgent Action Required</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
           {data.unfilledShifts.map(s => (
-            <div key={s.id} className="p-4 bg-red-50 border border-red-100 rounded-xl">
+            <div key={s.id} className="p-4 bg-rose-50 border border-rose-100 rounded-2xl">
               <p className="font-bold text-red-900 text-sm">{s.role} Shift</p>
               <p className="text-red-700 text-xs mt-1 mb-3">{s.facility.name} · Unfilled</p>
               <form action={cancelShift}>
@@ -166,7 +164,7 @@ function OverviewTab({ data }: { data: Awaited<ReturnType<typeof getDashboardDat
             </div>
           ))}
           {data.complianceAlerts.slice(0, 3).map(w => (
-            <div key={w.id} className="p-4 bg-amber-50 border border-amber-100 rounded-xl">
+            <div key={w.id} className="p-4 bg-amber-50 border border-amber-100 rounded-2xl">
               <p className="font-bold text-amber-900 text-sm">Compliance Review</p>
               <p className="text-amber-700 text-xs mt-1 mb-3">{w.name || w.email} · {w.complianceStatus}</p>
               <form action={toggleCompliance}>
@@ -178,7 +176,11 @@ function OverviewTab({ data }: { data: Awaited<ReturnType<typeof getDashboardDat
             </div>
           ))}
           {data.unfilledShifts.length === 0 && data.complianceAlerts.length === 0 && (
-            <p className="text-sm text-gray-500 text-center py-4">You&apos;re all caught up!</p>
+            <EmptyState
+              icon={<CheckCircle className="h-6 w-6" />}
+              title="All caught up"
+              description="No unfilled shifts or compliance alerts need action."
+            />
           )}
         </CardContent>
       </Card>
@@ -195,33 +197,28 @@ function ComplianceTab({ workers, toggleCompliance }: {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center gap-4">
-        <div className="flex-1 bg-green-50 border border-green-200 rounded-xl p-4 text-center">
-          <p className="text-2xl font-bold text-green-700">{green.length}</p>
-          <p className="text-sm text-green-600">Compliant</p>
-        </div>
-        <div className="flex-1 bg-red-50 border border-red-200 rounded-xl p-4 text-center">
-          <p className="text-2xl font-bold text-red-700">{nonGreen.length}</p>
-          <p className="text-sm text-red-600">Require Review</p>
-        </div>
-        <div className="flex-1 bg-gray-50 border rounded-xl p-4 text-center">
-          <p className="text-2xl font-bold text-gray-700">{workers.length}</p>
-          <p className="text-sm text-gray-600">Total Workers</p>
-        </div>
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <StatsCard label="Compliant" value={green.length} hint="Ready for shifts" tone="success" />
+        <StatsCard label="Require Review" value={nonGreen.length} hint="Needs admin action" tone="danger" />
+        <StatsCard label="Total Workers" value={workers.length} hint="In registry" />
       </div>
 
       <Card>
         <CardHeader>
-          <CardTitle>Worker Compliance Status</CardTitle>
+          <CardTitle className="text-ink">Worker Compliance Status</CardTitle>
         </CardHeader>
         <CardContent>
           {workers.length === 0 ? (
-            <p className="text-gray-500 text-center py-8">No workers registered yet.</p>
+            <EmptyState
+              icon={<Users className="h-6 w-6" />}
+              title="No workers registered yet"
+              description="New workers will appear here once they sign up."
+            />
           ) : (
             <div className="space-y-3">
               {/* Non-compliant first */}
               {[...nonGreen, ...green].map(w => (
-                <div key={w.id} className="flex items-center justify-between p-4 border rounded-xl hover:bg-gray-50">
+                <div key={w.id} className="flex items-center justify-between gap-4 p-4 border border-slate-200/70 rounded-2xl bg-white/80 hover:shadow-card transition-all">
                   <div className="flex items-center gap-3">
                     <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
                       w.complianceStatus === 'GREEN' ? 'bg-green-100' : 'bg-red-100'
@@ -236,11 +233,7 @@ function ComplianceTab({ workers, toggleCompliance }: {
                     </div>
                   </div>
                   <div className="flex items-center gap-3">
-                    <span className={`px-2 py-1 rounded-full text-xs font-bold ${
-                      w.complianceStatus === 'GREEN' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'
-                    }`}>
-                      {w.complianceStatus}
-                    </span>
+                    <StatusBadge status={w.complianceStatus ?? 'RED'} />
                     <form action={toggleCompliance}>
                       <input type="hidden" name="workerId" value={w.id} />
                       <Button size="sm" variant="outline" type="submit">
@@ -269,20 +262,26 @@ function WorkforceTab({ workers }: { workers: Awaited<ReturnType<typeof getDashb
     <div className="space-y-6">
       <div className="grid grid-cols-3 gap-4">
         {(['NURSE', 'EN', 'PCA'] as const).map(role => (
-          <div key={role} className="bg-white border rounded-xl p-4 text-center">
-            <p className="text-2xl font-bold text-navy">{byRole[role].length}</p>
-            <p className="text-sm text-gray-500">{role === 'NURSE' ? 'Registered Nurses' : role === 'EN' ? 'Enrolled Nurses' : 'Personal Care Assistants'}</p>
-          </div>
+          <StatsCard
+            key={role}
+            label={role === 'NURSE' ? 'Registered Nurses' : role === 'EN' ? 'Enrolled Nurses' : 'Personal Care Assistants'}
+            value={byRole[role].length}
+            tone={role === 'NURSE' ? 'blue' : role === 'EN' ? 'success' : 'warning'}
+          />
         ))}
       </div>
 
       <Card>
         <CardHeader>
-          <CardTitle>All Workers ({workers.length})</CardTitle>
+          <CardTitle className="text-ink">All Workers ({workers.length})</CardTitle>
         </CardHeader>
         <CardContent>
           {workers.length === 0 ? (
-            <p className="text-gray-500 text-center py-8">No workers registered yet.</p>
+            <EmptyState
+              icon={<Users className="h-6 w-6" />}
+              title="No workers registered yet"
+              description="The workforce table will populate as demo or real workers are added."
+            />
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
@@ -303,11 +302,7 @@ function WorkforceTab({ workers }: { workers: Awaited<ReturnType<typeof getDashb
                         <span className="px-2 py-0.5 rounded text-xs font-bold bg-navy/10 text-navy">{w.role}</span>
                       </td>
                       <td className="py-3">
-                        <span className={`px-2 py-0.5 rounded text-xs font-bold ${
-                          w.complianceStatus === 'GREEN' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'
-                        }`}>
-                          {w.complianceStatus}
-                        </span>
+                        <StatusBadge status={w.complianceStatus ?? 'RED'} />
                       </td>
                     </tr>
                   ))}
@@ -329,11 +324,15 @@ function FacilitiesTab({ facilities, shifts }: {
     <div className="space-y-6">
       <Card>
         <CardHeader>
-          <CardTitle>All Facilities ({facilities.length})</CardTitle>
+          <CardTitle className="text-ink">All Facilities ({facilities.length})</CardTitle>
         </CardHeader>
         <CardContent>
           {facilities.length === 0 ? (
-            <p className="text-gray-500 text-center py-8">No facilities registered yet.</p>
+            <EmptyState
+              icon={<Building2 className="h-6 w-6" />}
+              title="No facilities registered yet"
+              description="Facilities will appear here after they are created or linked."
+            />
           ) : (
             <div className="space-y-4">
               {facilities.map(f => {
@@ -342,14 +341,14 @@ function FacilitiesTab({ facilities, shifts }: {
                 const pending = facilityShifts.filter(s => s.status === 'PENDING').length;
 
                 return (
-                  <div key={f.id} className="p-4 border rounded-xl hover:bg-gray-50">
+                  <div key={f.id} className="p-4 border border-slate-200/70 rounded-2xl bg-white/80 hover:shadow-card transition-all">
                     <div className="flex items-start justify-between">
                       <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-xl bg-teal-100 flex items-center justify-center">
-                          <Building2 className="w-5 h-5 text-teal-700" />
+                        <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-electric to-pulse-blue flex items-center justify-center shadow-sm">
+                          <Building2 className="w-5 h-5 text-white" />
                         </div>
                         <div>
-                          <p className="font-semibold text-navy">{f.name}</p>
+                          <p className="font-semibold text-ink">{f.name}</p>
                           <p className="text-xs text-gray-500 mt-0.5">{f.address}</p>
                         </div>
                       </div>
@@ -401,9 +400,9 @@ export default async function Dashboard({
   return (
     <div className="flex min-h-screen bg-background">
       {/* Sidebar */}
-      <aside className="w-64 bg-navy text-white p-6 hidden md:flex flex-col gap-6 shrink-0">
+      <aside className="w-64 bg-ink text-white p-6 hidden md:flex flex-col gap-6 shrink-0 shadow-modal">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-teal to-mint flex items-center justify-center font-bold">C</div>
+          <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-electric to-pulse-blue flex items-center justify-center font-bold shadow-electric">C</div>
           <div>
             <h1 className="font-bold text-lg leading-tight">Carelink</h1>
             <p className="text-xs text-gray-400">Enterprise</p>
@@ -417,7 +416,7 @@ export default async function Dashboard({
               href={tab.id === 'overview' ? '/dashboard' : `/dashboard?tab=${tab.id}`}
               className={`flex items-center gap-3 px-4 py-3 rounded-xl font-medium transition ${
                 activeTab === tab.id
-                  ? 'bg-white/10 text-white'
+                  ? 'bg-white/10 text-white shadow-[inset_3px_0_0_rgba(0,201,167,0.9)]'
                   : 'text-gray-400 hover:text-white hover:bg-white/5'
               }`}
             >
@@ -443,7 +442,7 @@ export default async function Dashboard({
             <p className="text-gray-500 text-sm font-medium">
               {tabs.find(t => t.id === activeTab)?.label ?? 'Dashboard'}
             </p>
-            <h2 className="text-3xl font-bold text-navy">Global Dispatch</h2>
+              <h2 className="text-3xl font-bold text-ink">Global Dispatch</h2>
           </div>
           <div className="flex gap-4">
             <a href="/dashboard?broadcast=1">
@@ -454,53 +453,10 @@ export default async function Dashboard({
 
         {/* KPIs */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium text-gray-500 flex items-center gap-2">
-                <Clock className="w-4 h-4" /> Live Shifts
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="text-3xl font-bold text-navy">{data.shifts.length}</div>
-              <p className="text-xs text-mint mt-1 font-medium">Tracking currently</p>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium text-gray-500 flex items-center gap-2">
-                <Activity className="w-4 h-4" /> Unfilled Requests
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="text-3xl font-bold text-navy">{data.unfilledShifts.length}</div>
-              <p className="text-xs text-amber-500 mt-1 font-medium">Require action</p>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium text-gray-500 flex items-center gap-2">
-                <FileWarning className="w-4 h-4" /> Compliance Alerts
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="text-3xl font-bold text-navy">{data.complianceAlerts.length}</div>
-              <p className="text-xs text-gray-500 mt-1 font-medium">Require review</p>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium text-gray-500 flex items-center gap-2">
-                <Users className="w-4 h-4" /> Active Workforce
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="text-3xl font-bold text-navy">{data.workers.length}</div>
-              <p className="text-xs text-gray-500 mt-1 font-medium">Across {data.facilities.length} facilities</p>
-            </CardContent>
-          </Card>
+          <StatsCard label="Live Shifts" value={data.shifts.length} hint="Tracking currently" icon={<Clock className="h-4 w-4" />} tone="blue" />
+          <StatsCard label="Unfilled Requests" value={data.unfilledShifts.length} hint="Require action" icon={<Activity className="h-4 w-4" />} tone="warning" />
+          <StatsCard label="Compliance Alerts" value={data.complianceAlerts.length} hint="Require review" icon={<FileWarning className="h-4 w-4" />} tone="danger" />
+          <StatsCard label="Active Workforce" value={data.workers.length} hint={`Across ${data.facilities.length} facilities`} icon={<Users className="h-4 w-4" />} />
         </div>
 
         {/* Tab Content */}
@@ -512,7 +468,7 @@ export default async function Dashboard({
         {/* Broadcast Shift Overlay */}
         {showBroadcast && (
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
-            <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-8 relative">
+            <div className="bg-white rounded-2xl shadow-modal w-full max-w-md p-8 relative">
               <a href="/dashboard" className="absolute top-4 right-4 text-gray-400 hover:text-gray-600">
                 <X className="w-5 h-5" />
               </a>

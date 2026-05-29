@@ -3,6 +3,8 @@ import { createClient } from '@/utils/supabase/server'
 import { prisma } from '@/lib/prisma'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
+import { EmptyState } from '@/components/ui/empty-state'
+import { StatusBadge } from '@/components/ui/status-badge'
 import { Stethoscope, CalendarCheck, Wallet, UserCircle, Clock } from 'lucide-react'
 import { revalidatePath } from 'next/cache'
 import { LogoutButton } from '@/components/LogoutButton'
@@ -75,20 +77,20 @@ export default async function WorkerPortal({ searchParams }: { searchParams: { e
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col max-w-2xl mx-auto">
+    <div className="min-h-screen bg-background flex flex-col max-w-2xl mx-auto shadow-card">
       {/* Mobile Header */}
-      <header className="bg-navy text-white px-6 py-5 rounded-b-3xl shadow-md">
+      <header className="mesh-hero text-white px-6 py-6 rounded-b-[2rem] shadow-modal">
         <div className="flex justify-between items-center">
           <div>
-            <p className="text-sm text-teal-200 font-medium">Welcome back,</p>
+            <p className="text-sm text-electric font-medium">Welcome back,</p>
             <h1 className="font-bold text-xl">{user.name ?? 'Worker'}</h1>
           </div>
           <LogoutButton />
         </div>
 
         <div className="mt-6 flex gap-4">
-          <div className="bg-white/10 rounded-xl p-3 flex-1">
-            <p className="text-xs text-teal-100">Status</p>
+          <div className="bg-white/10 rounded-2xl p-3 flex-1 ring-1 ring-white/10 backdrop-blur-xl">
+            <p className="text-xs text-slate-300">Status</p>
             <div className="flex items-center gap-2 mt-1">
               <div className={`w-2 h-2 rounded-full ${user.complianceStatus === 'GREEN' ? 'bg-green-400' : 'bg-rose-400'}`}></div>
               <span className="text-sm font-semibold text-white">
@@ -96,8 +98,8 @@ export default async function WorkerPortal({ searchParams }: { searchParams: { e
               </span>
             </div>
           </div>
-          <div className="bg-white/10 rounded-xl p-3 flex-1">
-            <p className="text-xs text-teal-100">My Shifts</p>
+          <div className="bg-white/10 rounded-2xl p-3 flex-1 ring-1 ring-white/10 backdrop-blur-xl">
+            <p className="text-xs text-slate-300">My Shifts</p>
             <p className="text-sm font-semibold mt-1">{myShifts.length}</p>
           </div>
         </div>
@@ -115,21 +117,23 @@ export default async function WorkerPortal({ searchParams }: { searchParams: { e
           </div>
         )}
 
-        <h2 className="font-bold text-navy mb-4 text-lg">Available Shifts Near You</h2>
+        <h2 className="font-bold text-ink mb-4 text-lg">Available Shifts Near You</h2>
 
         {availableShifts.length === 0 ? (
-          <div className="text-center py-10 bg-white rounded-2xl border border-dashed border-gray-200">
-            <p className="text-gray-500">No open shifts right now. Check back soon.</p>
-          </div>
+          <EmptyState
+            icon={<CalendarCheck className="h-6 w-6" />}
+            title="No open shifts right now"
+            description="New requests from nearby facilities will appear here."
+          />
         ) : (
           <div className="space-y-4">
             {availableShifts.map(shift => (
-              <Card key={shift.id} className="border-0 shadow-sm overflow-hidden">
-                <div className="h-2 w-full bg-amber-400"></div>
+              <Card key={shift.id} className="overflow-hidden">
+                <div className="h-2 w-full bg-gradient-to-r from-amber-400 via-electric to-pulse-blue"></div>
                 <CardContent className="p-4">
                   <div className="flex justify-between items-start mb-2">
-                    <h3 className="font-bold text-navy">{shift.facility.name}</h3>
-                    <span className="bg-teal-50 text-teal-700 text-xs font-bold px-2 py-1 rounded-md">
+                    <h3 className="font-bold text-ink">{shift.facility.name}</h3>
+                    <span className="bg-electric/10 text-electric-dim text-xs font-bold px-2 py-1 rounded-lg number-tabular">
                       ${shift.hourlyRate.toFixed(0)}/hr
                     </span>
                   </div>
@@ -152,6 +156,7 @@ export default async function WorkerPortal({ searchParams }: { searchParams: { e
                     <div className="flex items-center gap-2">
                       <Stethoscope className="w-4 h-4 text-gray-400" />
                       <span>{shift.role} Required</span>
+                      <StatusBadge status="PENDING" className="ml-auto" />
                     </div>
                   </div>
 
@@ -173,20 +178,20 @@ export default async function WorkerPortal({ searchParams }: { searchParams: { e
       </main>
 
       {/* Bottom Nav */}
-      <nav className="fixed bottom-0 w-full bg-white border-t flex justify-around p-3 pb-safe">
-        <a href="/worker" className="flex flex-col items-center gap-1 text-teal-600">
+      <nav className="fixed bottom-3 left-1/2 z-40 flex w-[min(92vw,40rem)] -translate-x-1/2 justify-around rounded-3xl border border-white/70 bg-white/85 p-2 shadow-hover backdrop-blur-xl">
+        <a href="/worker" className="flex flex-col items-center gap-1 rounded-2xl bg-electric/10 px-4 py-2 text-electric-dim">
           <CalendarCheck className="w-6 h-6" />
           <span className="text-[10px] font-medium">Feed</span>
         </a>
-        <a href="/worker/my-shifts" className="flex flex-col items-center gap-1 text-gray-400">
+        <a href="/worker/my-shifts" className="flex flex-col items-center gap-1 rounded-2xl px-4 py-2 text-gray-400">
           <Clock className="w-6 h-6" />
           <span className="text-[10px] font-medium">My Shifts</span>
         </a>
-        <a href="/worker/pay" className="flex flex-col items-center gap-1 text-gray-400">
+        <a href="/worker/pay" className="flex flex-col items-center gap-1 rounded-2xl px-4 py-2 text-gray-400">
           <Wallet className="w-6 h-6" />
           <span className="text-[10px] font-medium">Pay</span>
         </a>
-        <a href="/worker/profile" className="flex flex-col items-center gap-1 text-gray-400">
+        <a href="/worker/profile" className="flex flex-col items-center gap-1 rounded-2xl px-4 py-2 text-gray-400">
           <UserCircle className="w-6 h-6" />
           <span className="text-[10px] font-medium">Profile</span>
         </a>
