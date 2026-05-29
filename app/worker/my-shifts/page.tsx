@@ -10,7 +10,7 @@ import { LogoutButton } from '@/components/LogoutButton'
 export const dynamic = 'force-dynamic'
 
 export default async function MyShiftsPage() {
-  const supabase = createClient()
+  const supabase = await createClient()
   const { data: { user }, error } = await supabase.auth.getUser()
   if (error || !user) redirect('/login')
 
@@ -40,7 +40,7 @@ export default async function MyShiftsPage() {
     const shiftId = formData.get('shiftId') as string
     if (!shiftId) return
 
-    const supabase = createClient()
+    const supabase = await createClient()
     const { data: { user: authUser } } = await supabase.auth.getUser()
     if (!authUser) redirect('/login')
 
@@ -58,7 +58,7 @@ export default async function MyShiftsPage() {
     const shiftId = formData.get('shiftId') as string
     if (!shiftId) return
 
-    const supabase = createClient()
+    const supabase = await createClient()
     const { data: { user: authUser } } = await supabase.auth.getUser()
     if (!authUser) redirect('/login')
 

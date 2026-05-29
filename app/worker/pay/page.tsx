@@ -8,7 +8,7 @@ import { LogoutButton } from '@/components/LogoutButton'
 export const dynamic = 'force-dynamic'
 
 export default async function PayPage() {
-  const supabase = createClient()
+  const supabase = await createClient()
   const { data: { user }, error } = await supabase.auth.getUser()
   if (error || !user) redirect('/login')
 
