@@ -47,8 +47,9 @@ export async function POST(req: NextRequest) {
   const phone = (formData.get('phone') as string)?.trim() || null
   const skillsRaw = (formData.get('skills') as string)?.trim() || ''
 
-  if (!name || name.length < 2 || name.length > 100) {
-    return NextResponse.json({ error: 'Name must be between 2 and 100 characters' }, { status: 400 })
+  const validation = UpdateProfileSchema.safeParse({ name, phone, skills: skillsRaw })
+  if (!validation.success) {
+    return NextResponse.json({ error: validation.error.errors[0].message }, { status: 400 })
   }
 
   const skills = skillsRaw
