@@ -98,7 +98,12 @@ function LoginContent() {
               </div>
 
               <div className="space-y-2">
-                <label className="text-sm font-medium text-navy">Password</label>
+                <div className="flex items-center justify-between">
+                  <label className="text-sm font-medium text-navy">Password</label>
+                  {!isRegistering && (
+                    <a href="/forgot-password" className="text-xs text-teal hover:underline">Forgot password?</a>
+                  )}
+                </div>
                 <Input name="password" type="password" placeholder="••••••••" required />
               </div>
 
