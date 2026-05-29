@@ -27,7 +27,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'DEMO_ACCOUNT_PASSWORD env var not set' }, { status: 500 })
   }
 
-  const supabase = createClient()
+  const supabase = await createClient()
 
   // Fast path — startup provisioning should have run already
   const { error: signInError } = await supabase.auth.signInWithPassword({
