@@ -769,6 +769,9 @@ export default async function Dashboard({
 }: {
   searchParams: { broadcast?: string; tab?: string; error?: string }
 }) {
+  const admin = await requireAdmin()
+  if (!admin) redirect('/login?error=Unauthorized')
+
   const data          = await getDashboardData()
   const showBroadcast = searchParams.broadcast === '1'
   const broadcastError = searchParams.error

@@ -45,7 +45,14 @@ export async function signup(formData: FormData) {
   }
 
   const { email, password, name, role } = parsed.data
-  const phone = (formData.get('phone') as string)?.trim() || undefined
+  const phoneRaw = (formData.get('phone') as string)?.trim() || undefined
+  if (phoneRaw) {
+    const e164Regex = /^\+[1-9]\d{1,14}$/
+    if (!e164Regex.test(phoneRaw)) {
+      redirect('/login?error=' + encodeURIComponent('Invalid phone number. Use E.164 format, e.g. +61412345678.'))
+    }
+  }
+  const phone = phoneRaw
 
   const supabase = await createClient()
   const { data: authData, error } = await supabase.auth.signUp({

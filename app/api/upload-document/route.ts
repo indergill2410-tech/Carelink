@@ -20,6 +20,8 @@ const ALLOWED_MIME_TYPES = new Set([
   'image/webp',
 ])
 
+const ALLOWED_EXTENSIONS = new Set(['pdf', 'jpg', 'jpeg', 'png', 'webp'])
+
 const MIME_TO_EXT: Record<string, string> = {
   'application/pdf': 'pdf',
   'image/jpeg': 'jpg',
@@ -45,8 +47,9 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Invalid document type' }, { status: 400 })
   }
 
-  if (!ALLOWED_MIME_TYPES.has(file.type)) {
-    return NextResponse.json({ error: 'Invalid file type. Upload PDF, JPG, PNG, or WebP.' }, { status: 400 })
+  const fileExt = file.name.split('.').pop()?.toLowerCase() ?? ''
+  if (!ALLOWED_MIME_TYPES.has(file.type) || !ALLOWED_EXTENSIONS.has(fileExt)) {
+    return NextResponse.json({ error: 'Invalid file type or extension. Upload PDF, JPG, PNG, or WebP.' }, { status: 400 })
   }
 
   if (file.size > 10 * 1024 * 1024) {

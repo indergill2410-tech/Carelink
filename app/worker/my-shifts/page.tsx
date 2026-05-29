@@ -131,7 +131,7 @@ export default async function MyShiftsPage({
       where: { facilityId: shift.facilityId, role: 'ADMIN' },
       select: { id: true },
     })
-    if (!facilityAdmin) return
+    if (!facilityAdmin) redirect('/worker/my-shifts?error=' + encodeURIComponent('Could not submit rating — facility administrator not found.'))
     await prisma.shiftRating.upsert({
       where: { shiftId_raterId: { shiftId, raterId: authUser.id } },
       create: { shiftId, raterId: authUser.id, rateeId: facilityAdmin.id, rating, comment },
