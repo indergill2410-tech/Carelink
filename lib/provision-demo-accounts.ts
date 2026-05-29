@@ -63,15 +63,23 @@ async function ensureAccount(
   anonKey: string,
   serviceRoleKey: string, // empty string = no admin API access
 ): Promise<string | null> {
-  // Try signing in with a temporary in-memory anon client (no cookies, no persistSession)
-  const anonClient = createAnonClient(supabaseUrl, anonKey, {
+  // sb_publishable_ keys enforce allowed-hosts against the Origin header.
+  // Inject NEXT_PUBLIC_SITE_URL so server-side calls pass the check.
+  const siteOrigin = process.env.NEXT_PUBLIC_SITE_URL ?? 'http://localhost:3000'
+  const clientOpts = {
     auth: { autoRefreshToken: false, persistSession: false },
-  })
+    global: { headers: { origin: siteOrigin } },
+  }
+
+  const anonClient = createAnonClient(supabaseUrl, anonKey, clientOpts)
 
   const { data: signInData, error: signInError } = await anonClient.auth.signInWithPassword({
     email: config.email,
     password: demoPassword,
   })
+
+  console.log('[demo] signIn attempt', config.email,
+    signInError ? `FAILED status=${signInError.status} msg=${signInError.message}` : 'OK')
 
   if (!signInError && signInData?.user) {
     // Sign-in succeeded — sign out and sync the public.User role/name
@@ -155,9 +163,7 @@ async function ensureAccount(
   }
 
   // Service role key is present — use admin API to delete + recreate the broken account.
-  const adminClient = createAdminClient(supabaseUrl, serviceRoleKey, {
-    auth: { autoRefreshToken: false, persistSession: false },
-  })
+  const adminClient = createAdminClient(supabaseUrl, serviceRoleKey, clientOpts)
 
   // Sign-in failed with a credential/account error — account was likely created via
   // direct SQL without auth.identities. Find existing public.User row.
@@ -207,9 +213,11 @@ async function ensureAccount(
   })
 
   if (createError || !created?.user) {
-    console.error('[demo] Failed to create auth user for', config.email, createError?.message)
+    console.error('[demo] Failed to create auth user for', config.email,
+      `status=${createError?.status} msg=${createError?.message}`)
     return null
   }
+  console.log('[demo] Created auth user', config.email, '->', created.user.id)
 
   const userId = created.user.id
 
