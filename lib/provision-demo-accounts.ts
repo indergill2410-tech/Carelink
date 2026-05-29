@@ -212,9 +212,15 @@ async function ensureAccount(
       return existingId
     }
 
-    console.warn('[demo] updateUserById failed for', config.email, updateError.message, '— falling back to delete+recreate')
+    const isUserNotFound = updateError.status === 404
+    if (!isUserNotFound) {
+      console.error('[demo] updateUserById failed with unexpected error for', config.email, updateError.message)
+      return null
+    }
 
-    // Update failed — do full delete+recreate
+    console.warn('[demo] User not found in Auth for', config.email, '— falling back to delete+recreate')
+
+    // Update failed because user doesn't exist in Auth — do full delete+recreate
     try {
       await prisma.shift.updateMany({ where: { workerId: existingId }, data: { workerId: null } })
     } catch { /* best-effort */ }
