@@ -13,6 +13,22 @@ const ALLOWED_DOC_TYPES = [
   'NURSING_REGISTRATION',
 ]
 
+const ALLOWED_MIME_TYPES = new Set([
+  'application/pdf',
+  'image/jpeg',
+  'image/png',
+  'image/webp',
+])
+
+const ALLOWED_EXTENSIONS = new Set(['pdf', 'jpg', 'jpeg', 'png', 'webp'])
+
+const MIME_TO_EXT: Record<string, string> = {
+  'application/pdf': 'pdf',
+  'image/jpeg': 'jpg',
+  'image/png': 'png',
+  'image/webp': 'webp',
+}
+
 export async function POST(req: NextRequest) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
@@ -31,11 +47,16 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Invalid document type' }, { status: 400 })
   }
 
+  const fileExt = file.name.split('.').pop()?.toLowerCase() ?? ''
+  if (!ALLOWED_MIME_TYPES.has(file.type) || !ALLOWED_EXTENSIONS.has(fileExt)) {
+    return NextResponse.json({ error: 'Invalid file type or extension. Upload PDF, JPG, PNG, or WebP.' }, { status: 400 })
+  }
+
   if (file.size > 10 * 1024 * 1024) {
     return NextResponse.json({ error: 'File too large (max 10MB)' }, { status: 400 })
   }
 
-  const ext = file.name.split('.').pop()?.toLowerCase() ?? 'bin'
+  const ext = MIME_TO_EXT[file.type] ?? 'bin'
   const path = `${user.id}/${docType}_${randomUUID()}.${ext}`
 
   const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!

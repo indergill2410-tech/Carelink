@@ -52,7 +52,8 @@ async function broadcastShift(formData: FormData) {
   const start = parseMelbourne(startTime)
   const end   = parseMelbourne(endTime)
 
-  if (!facilityId || !role || isNaN(start.getTime()) || isNaN(end.getTime()) || start >= end || isNaN(hourlyRate)) {
+  const VALID_ROLES: string[] = ['NURSE', 'EN', 'PCA']
+  if (!facilityId || !VALID_ROLES.includes(role) || isNaN(start.getTime()) || isNaN(end.getTime()) || start >= end || isNaN(hourlyRate) || hourlyRate <= 0) {
     redirect('/dashboard?broadcast=1&error=Invalid+shift+details')
   }
 
@@ -79,9 +80,12 @@ async function toggleCompliance(formData: FormData) {
 
   const workerId = formData.get('workerId') as string
   if (!workerId) return
-  const w = await prisma.user.findUnique({ where: { id: workerId } })
-  if (!w) return
-  await prisma.user.update({ where: { id: workerId }, data: { complianceStatus: w.complianceStatus === 'GREEN' ? 'RED' : 'GREEN' } })
+  // Atomic: flip in a single round-trip using a raw conditional expression
+  await prisma.$executeRaw`
+    UPDATE "User"
+    SET "complianceStatus" = CASE WHEN "complianceStatus" = 'GREEN' THEN 'RED' ELSE 'GREEN' END
+    WHERE id = ${workerId}
+  `
   revalidatePath('/dashboard')
 }
 
@@ -91,9 +95,10 @@ async function toggleWorkerActive(formData: FormData) {
 
   const workerId = formData.get('workerId') as string
   if (!workerId) return
-  const w = await prisma.user.findUnique({ where: { id: workerId } })
-  if (!w) return
-  await prisma.user.update({ where: { id: workerId }, data: { isActive: !w.isActive } })
+  // Atomic: flip boolean in a single round-trip
+  await prisma.$executeRaw`
+    UPDATE "User" SET "isActive" = NOT "isActive" WHERE id = ${workerId}
+  `
   revalidatePath('/dashboard')
 }
 
@@ -106,9 +111,7 @@ async function reviewDocument(formData: FormData) {
   const reviewNote = (formData.get('reviewNote') as string) || null
   if (!docId || !['APPROVED','REJECTED'].includes(action)) return
 
-  await prisma.complianceDocument.update({ where: { id: docId }, data: { status: action, reviewNote } })
-
-  const doc = await prisma.complianceDocument.findUnique({ where: { id: docId } })
+  const doc = await prisma.complianceDocument.update({ where: { id: docId }, data: { status: action, reviewNote } })
   if (doc) {
     const required = ['POLICE_CHECK','WORKING_WITH_CHILDREN','FIRST_AID','IMMUNISATION','ID_PROOF']
     const approved = await prisma.complianceDocument.findMany({
@@ -143,12 +146,14 @@ async function reviewDocument(formData: FormData) {
 
 async function assignWorker(formData: FormData) {
   'use server'
+  if (!await requireAdmin()) return
+
   const shiftId  = formData.get('shiftId') as string
   const workerId = formData.get('workerId') as string
   if (!shiftId || !workerId) return
 
   const [shift, worker] = await Promise.all([
-    prisma.shift.findUnique({ where: { id: shiftId }, include: { facility: true } }),
+    prisma.shift.findUnique({ where: { id: shiftId }, include: { facility: { select: { id: true, name: true } } } }),
     prisma.user.findUnique({ where: { id: workerId } }),
   ])
   if (!shift || shift.status !== 'PENDING' || !worker) return
@@ -177,18 +182,27 @@ async function assignWorker(formData: FormData) {
 async function getDashboardData() {
   const [shifts, workers, facilitiesList, pendingDocs] = await Promise.all([
     prisma.shift.findMany({
-      include: { facility: true, worker: true },
+      include: {
+        facility: { select: { id: true, name: true, address: true } },
+        worker:   { select: { id: true, name: true, email: true, role: true } },
+      },
       orderBy: { startTime: 'desc' },
       take: 100,
     }),
     prisma.user.findMany({
       where: { role: { in: ['NURSE','EN','PCA'] } },
       orderBy: { name: 'asc' },
+      select: {
+        id: true, name: true, role: true,
+        complianceStatus: true, isActive: true,
+        rating: true, facilityId: true, email: true,
+        phone: true, skills: true, createdAt: true,
+      },
     }),
     prisma.facility.findMany({ orderBy: { name: 'asc' } }),
     prisma.complianceDocument.findMany({
       where: { status: 'PENDING' },
-      include: { user: true },
+      include: { user: { select: { id: true, name: true, email: true, role: true } } },
       orderBy: { createdAt: 'asc' },
     }),
   ])
@@ -755,6 +769,9 @@ export default async function Dashboard({
 }: {
   searchParams: { broadcast?: string; tab?: string; error?: string }
 }) {
+  const admin = await requireAdmin()
+  if (!admin) redirect('/login?error=Unauthorized')
+
   const data          = await getDashboardData()
   const showBroadcast = searchParams.broadcast === '1'
   const broadcastError = searchParams.error

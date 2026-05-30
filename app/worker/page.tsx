@@ -38,7 +38,7 @@ async function getWorkerData() {
   const [availableShifts, myActiveShifts, unreadCount] = await Promise.all([
     prisma.shift.findMany({
       where: { status: 'PENDING', workerId: null },
-      include: { facility: true },
+      include: { facility: { select: { id: true, name: true, address: true } } },
       orderBy: [{ urgent: 'desc' }, { startTime: 'asc' }],
     }),
     prisma.shift.count({
@@ -74,7 +74,7 @@ export default async function WorkerPortal({ searchParams }: { searchParams: { e
 
     const shift = await prisma.shift.findUnique({
       where: { id: parsed.data.shiftId },
-      include: { facility: true },
+      include: { facility: { select: { id: true, name: true } } },
     })
     if (!shift || shift.status !== 'PENDING' || shift.workerId) redirect('/worker?error=shift_already_taken')
     if (dbUser.role !== shift.role) redirect('/worker?error=role_mismatch')

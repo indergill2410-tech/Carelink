@@ -39,7 +39,10 @@ export default async function MyShiftsPage({
 
   const shifts = await prisma.shift.findMany({
     where: { workerId: user.id },
-    include: { facility: true, ratings: { where: { raterId: user.id } } },
+    include: {
+      facility: { select: { id: true, name: true, address: true } },
+      ratings: { where: { raterId: user.id } },
+    },
     orderBy: { startTime: 'desc' },
   })
 
@@ -79,10 +82,15 @@ export default async function MyShiftsPage({
     const supabase = await createClient()
     const { data: { user: authUser } } = await supabase.auth.getUser()
     if (!authUser) redirect('/login')
-    await prisma.shift.updateMany({
-      where: { id: shiftId, workerId: authUser.id, status: 'CLOCKED_IN' },
-      data: { status: 'COMPLETED', clockOutAt: new Date() },
-    })
+    try {
+      await prisma.shift.updateMany({
+        where: { id: shiftId, workerId: authUser.id, status: 'CLOCKED_IN' },
+        data: { status: 'COMPLETED', clockOutAt: new Date() },
+      })
+    } catch (err) {
+      console.error('[clockOut] Prisma error:', err)
+      return
+    }
     revalidatePath('/worker/my-shifts')
     revalidatePath('/facility')
     revalidatePath('/dashboard')
@@ -95,10 +103,15 @@ export default async function MyShiftsPage({
     const supabase = await createClient()
     const { data: { user: authUser } } = await supabase.auth.getUser()
     if (!authUser) redirect('/login')
-    await prisma.shift.updateMany({
-      where: { id: shiftId, workerId: authUser.id, status: 'MATCHED' },
-      data: { status: 'CANCELLED' },
-    })
+    try {
+      await prisma.shift.updateMany({
+        where: { id: shiftId, workerId: authUser.id, status: 'MATCHED' },
+        data: { status: 'CANCELLED' },
+      })
+    } catch (err) {
+      console.error('[cancelShift] Prisma error:', err)
+      return
+    }
     revalidatePath('/worker/my-shifts')
   }
 
@@ -111,11 +124,17 @@ export default async function MyShiftsPage({
     const supabase = await createClient()
     const { data: { user: authUser } } = await supabase.auth.getUser()
     if (!authUser) redirect('/login')
-    const shift = await prisma.shift.findFirst({ where: { id: shiftId, workerId: authUser.id } })
+    const shift = await prisma.shift.findFirst({ where: { id: shiftId, workerId: authUser.id, status: 'COMPLETED' } })
     if (!shift) return
+    // rateeId must be a User ID — find the facility's admin manager
+    const facilityAdmin = await prisma.user.findFirst({
+      where: { facilityId: shift.facilityId, role: 'ADMIN' },
+      select: { id: true },
+    })
+    if (!facilityAdmin) redirect('/worker/my-shifts?error=' + encodeURIComponent('Could not submit rating — facility administrator not found.'))
     await prisma.shiftRating.upsert({
       where: { shiftId_raterId: { shiftId, raterId: authUser.id } },
-      create: { shiftId, raterId: authUser.id, rateeId: shift.facilityId, rating, comment },
+      create: { shiftId, raterId: authUser.id, rateeId: facilityAdmin.id, rating, comment },
       update: { rating, comment },
     })
     revalidatePath('/worker/my-shifts')

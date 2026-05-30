@@ -45,40 +45,48 @@ export async function signup(formData: FormData) {
   }
 
   const { email, password, name, role } = parsed.data
+  const phoneRaw = (formData.get('phone') as string)?.trim() || undefined
+  if (phoneRaw) {
+    const e164Regex = /^\+[1-9]\d{1,14}$/
+    if (!e164Regex.test(phoneRaw)) {
+      redirect('/login?error=' + encodeURIComponent('Invalid phone number. Use E.164 format, e.g. +61412345678.'))
+    }
+  }
+  const phone = phoneRaw
 
   const supabase = await createClient()
   const { data: authData, error } = await supabase.auth.signUp({
     email,
     password,
+    phone: phone || undefined,
     options: { data: { name, requested_role: role } },
   })
   if (error) redirect('/login?error=' + encodeURIComponent(error.message))
 
   if (authData.user) {
-    // Wait briefly for the auth trigger to insert the row before we upsert
-    await new Promise(resolve => setTimeout(resolve, 1500))
-    let destination = '/worker'
-    try {
-      if (role === 'FACILITY') {
+    const userId   = authData.user.id
+    const dbRole   = role === 'FACILITY' ? ('ADMIN' as const) : (role as 'NURSE' | 'EN' | 'PCA')
+    const destination = role === 'FACILITY' ? '/facility' : '/worker'
+    const phoneData = phone ? { phone } : {}
+
+    // Retry up to 5 times with 500ms back-off — Supabase auth trigger that
+    // inserts the User row may not have fired yet when signUp resolves.
+    let lastErr: unknown
+    for (let attempt = 0; attempt < 5; attempt++) {
+      if (attempt > 0) await new Promise(r => setTimeout(r, 500 * attempt))
+      try {
         await prisma.user.upsert({
-          where: { id: authData.user.id },
-          update: { role: 'ADMIN', name },
-          create: { id: authData.user.id, email, role: 'ADMIN', name },
+          where:  { id: userId },
+          update: { role: dbRole, name, ...phoneData },
+          create: { id: userId, email, role: dbRole, name, ...phoneData },
         })
-        destination = '/facility'
-      } else {
-        const dbRole = role as 'NURSE' | 'EN' | 'PCA'
-        await prisma.user.upsert({
-          where: { id: authData.user.id },
-          update: { role: dbRole, name },
-          create: { id: authData.user.id, email, role: dbRole, name },
-        })
+        redirect(destination)
+      } catch (err) {
+        lastErr = err
       }
-    } catch (err) {
-      console.error('[signup] DB upsert failed:', err)
-      redirect('/login?error=' + encodeURIComponent('Account created but profile setup failed. Please sign in.'))
     }
-    redirect(destination)
+    console.error('[signup] DB upsert failed after retries:', lastErr)
+    redirect('/login?error=' + encodeURIComponent('Account created but profile setup failed. Please sign in.'))
   }
   redirect('/login')
 }

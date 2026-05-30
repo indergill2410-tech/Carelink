@@ -19,12 +19,16 @@ export async function proxy(request: NextRequest) {
         get(name: string) { return request.cookies.get(name)?.value },
         set(name: string, value: string, options: CookieOptions) {
           request.cookies.set({ name, value, ...options })
+          const prev = response.cookies.getAll()
           response = NextResponse.next({ request: { headers: request.headers } })
+          prev.forEach(c => response.cookies.set(c))
           response.cookies.set({ name, value, ...options })
         },
         remove(name: string, options: CookieOptions) {
           request.cookies.set({ name, value: '', ...options })
+          const prev = response.cookies.getAll()
           response = NextResponse.next({ request: { headers: request.headers } })
+          prev.forEach(c => response.cookies.set(c))
           response.cookies.set({ name, value: '', ...options })
         },
       },
