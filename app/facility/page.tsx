@@ -10,6 +10,9 @@ import {
 import { revalidatePath } from 'next/cache'
 import { signOut } from '@/app/login/actions'
 import { Role } from '@prisma/client'
+import { fromZonedTime } from 'date-fns-tz'
+
+const TZ = 'Australia/Melbourne'
 
 export const dynamic = 'force-dynamic'
 
@@ -39,7 +42,7 @@ async function getFacilityData() {
   if (!user) redirect('/login')
 
   const dbUser = await prisma.user.findUnique({ where: { id: user.id } })
-  if (!dbUser || dbUser.role !== 'ADMIN') redirect('/login')
+  if (!dbUser || (dbUser.role !== 'ADMIN' && dbUser.role !== 'FACILITY_ADMIN')) redirect('/login')
 
   let facility = null
   if (dbUser.facilityId) {
@@ -91,7 +94,7 @@ export default async function FacilityPortal({
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return
     const dbUser = await prisma.user.findUnique({ where: { id: user.id } })
-    if (!dbUser || dbUser.role !== 'ADMIN') return
+    if (!dbUser || (dbUser.role !== 'ADMIN' && dbUser.role !== 'FACILITY_ADMIN')) return
 
     const shiftId = formData.get('shiftId') as string
     if (!shiftId) return
@@ -107,7 +110,7 @@ export default async function FacilityPortal({
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return
     const dbUser = await prisma.user.findUnique({ where: { id: user.id } })
-    if (!dbUser || dbUser.role !== 'ADMIN' || dbUser.facilityId !== facility.id) return
+    if (!dbUser || (dbUser.role !== 'ADMIN' && dbUser.role !== 'FACILITY_ADMIN') || dbUser.facilityId !== facility.id) return
     const role = formData.get('role') as string
     const date = formData.get('date') as string
     const startT = (formData.get('startTime') as string) || '07:00'
@@ -121,8 +124,8 @@ export default async function FacilityPortal({
       redirect('/facility?error=Invalid+shift+details')
     }
 
-    const startTime = new Date(`${date}T${startT}:00+10:00`)
-    const endTime   = new Date(`${date}T${endT}:00+10:00`)
+    const startTime = fromZonedTime(`${date}T${startT}:00`, TZ)
+    const endTime   = fromZonedTime(`${date}T${endT}:00`, TZ)
 
     if (isNaN(startTime.getTime()) || isNaN(endTime.getTime()) || startTime >= endTime) {
       redirect('/facility?error=Invalid+time+range')

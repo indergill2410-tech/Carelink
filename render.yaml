@@ -2,7 +2,7 @@ services:
   - type: web
     name: carelink
     runtime: node
-    plan: starter
+    plan: standard
     buildCommand: npm ci && npx prisma generate && npm run build
     startCommand: npm start
     healthCheckPath: /api/health

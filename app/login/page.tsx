@@ -241,6 +241,7 @@ function LoginContent() {
   const searchParams = useSearchParams()
   const router = useRouter()
   const errorMessage = searchParams.get('error')
+  const message = searchParams.get('message')
 
   const [authMode, setAuthMode] = useState<'email' | 'phone'>('email')
   const [isRegistering, setIsRegistering] = useState(false)
@@ -298,6 +299,17 @@ function LoginContent() {
               {isRegistering ? 'Join the Carelink network' : 'Sign in to your account'}
             </p>
           </div>
+
+          {/* Check email banner */}
+          {message === 'check-email' && (
+            <div className="flex items-start gap-2.5 p-3.5 bg-teal/5 border border-teal/20 rounded-xl text-sm animate-fade-in">
+              <CheckCircle2 className="w-4 h-4 shrink-0 text-teal mt-0.5" />
+              <span className="text-ink/70">
+                <span className="font-semibold text-ink">Check your email</span> — we&apos;ve sent a confirmation link.
+                Click it to activate your account.
+              </span>
+            </div>
+          )}
 
           {/* URL error */}
           {errorMessage && (

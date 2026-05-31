@@ -1,6 +1,15 @@
 import { createServerClient, type CookieOptions } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
 
+const WORKER_ROLES = new Set(['NURSE', 'EN', 'PCA'])
+
+function getPortalForRole(role: string): string {
+  if (role === 'ADMIN') return '/dashboard'
+  if (role === 'FACILITY_ADMIN') return '/facility'
+  if (WORKER_ROLES.has(role)) return '/worker'
+  return '/login'
+}
+
 export async function proxy(request: NextRequest) {
   let response = NextResponse.next({
     request: { headers: request.headers },
@@ -80,25 +89,21 @@ export async function proxy(request: NextRequest) {
     if (!role) console.warn('[Middleware] Role not found in DB for user', user.id)
   }
 
-  if (isDashboard && role !== 'ADMIN') {
-    const url = request.nextUrl.clone()
-    url.pathname = '/login'
-    url.searchParams.set('error', 'Unauthorized')
-    return NextResponse.redirect(url)
+  const resolvedRole = role ?? ''
+
+  // /dashboard — ADMIN only
+  if (isDashboard && resolvedRole !== 'ADMIN') {
+    return NextResponse.redirect(new URL(getPortalForRole(resolvedRole), request.url))
   }
 
-  if (isFacility && role !== 'ADMIN') {
-    const url = request.nextUrl.clone()
-    url.pathname = '/login'
-    url.searchParams.set('error', 'Unauthorized')
-    return NextResponse.redirect(url)
+  // /facility — ADMIN or FACILITY_ADMIN
+  if (isFacility && resolvedRole !== 'ADMIN' && resolvedRole !== 'FACILITY_ADMIN') {
+    return NextResponse.redirect(new URL(getPortalForRole(resolvedRole), request.url))
   }
 
-  if (isWorker && !['NURSE', 'EN', 'PCA'].includes(role ?? '')) {
-    const url = request.nextUrl.clone()
-    url.pathname = '/login'
-    url.searchParams.set('error', 'Unauthorized')
-    return NextResponse.redirect(url)
+  // /worker — NURSE, EN, PCA
+  if (isWorker && !WORKER_ROLES.has(resolvedRole)) {
+    return NextResponse.redirect(new URL(getPortalForRole(resolvedRole), request.url))
   }
 
   return response
@@ -106,6 +111,6 @@ export async function proxy(request: NextRequest) {
 
 export const config = {
   matcher: [
-    '/((?!_next/static|_next/image|favicon.ico|.*\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
+    '/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
   ],
 }

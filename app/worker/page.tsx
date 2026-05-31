@@ -68,24 +68,31 @@ export default async function WorkerPortal({ searchParams }: { searchParams: { e
     const { data: { user: authUser } } = await supabase.auth.getUser()
     if (!authUser) redirect('/login')
 
-    const dbUser = await prisma.user.findUnique({ where: { id: authUser.id } })
-    if (!dbUser) redirect('/login')
-    if (dbUser.complianceStatus !== 'GREEN') redirect('/worker?error=compliance_required')
+    const result = await prisma.$transaction(async (tx) => {
+      const dbUser = await tx.user.findUnique({ where: { id: authUser.id } })
+      if (!dbUser) return { error: 'user_not_found' as const }
+      if (dbUser.complianceStatus !== 'GREEN') return { error: 'compliance_required' as const }
 
-    const shift = await prisma.shift.findUnique({
-      where: { id: parsed.data.shiftId },
-      include: { facility: { select: { id: true, name: true } } },
+      const shift = await tx.shift.findUnique({
+        where: { id: parsed.data.shiftId },
+        include: { facility: { select: { id: true, name: true } } },
+      })
+      if (!shift || shift.status !== 'PENDING' || shift.workerId !== null)
+        return { error: 'shift_already_taken' as const }
+      if (dbUser.role !== shift.role) return { error: 'role_mismatch' as const }
+
+      const updated = await tx.shift.updateMany({
+        where: { id: parsed.data.shiftId, workerId: null, status: 'PENDING' },
+        data: { workerId: dbUser.id, status: 'MATCHED' },
+      })
+      if (updated.count === 0) return { error: 'shift_already_taken' as const }
+
+      return { ok: true as const, facilityName: shift.facility.name, dbUser }
     })
-    if (!shift || shift.status !== 'PENDING' || shift.workerId) redirect('/worker?error=shift_already_taken')
-    if (dbUser.role !== shift.role) redirect('/worker?error=role_mismatch')
 
-    const result = await prisma.shift.updateMany({
-      where: { id: parsed.data.shiftId, workerId: null, status: 'PENDING' },
-      data: { workerId: dbUser.id, status: 'MATCHED' },
-    })
-    if (result.count === 0) redirect('/worker?error=shift_already_taken')
+    if ('error' in result) redirect('/worker?error=' + result.error)
 
-    await notifyShiftAccepted(dbUser.id, shift!.facility.name, parsed.data.shiftId)
+    await notifyShiftAccepted(result.dbUser.id, result.facilityName, parsed.data.shiftId)
     revalidatePath('/worker')
     revalidatePath('/dashboard')
     revalidatePath('/facility')

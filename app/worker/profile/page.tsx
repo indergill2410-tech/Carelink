@@ -1,11 +1,29 @@
 import { redirect } from 'next/navigation'
 import { createClient } from '@/utils/supabase/server'
+import { createServerClient } from '@supabase/ssr'
 import { prisma } from '@/lib/prisma'
 import { CalendarCheck, Clock, Wallet, UserCircle } from 'lucide-react'
 import { LogoutButton } from '@/components/LogoutButton'
 import ProfileClient from './ProfileClient'
 
 export const dynamic = 'force-dynamic'
+
+async function getSignedDocUrl(path: string): Promise<string | null> {
+  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
+  if (!serviceKey) return null
+  const storageClient = createServerClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    serviceKey,
+    {
+      global: { headers: { origin: process.env.NEXT_PUBLIC_SITE_URL ?? 'http://localhost:3000' } },
+      cookies: { get: () => undefined, set: () => {}, remove: () => {} },
+    },
+  )
+  const { data } = await storageClient.storage
+    .from('compliance-docs')
+    .createSignedUrl(path, 3600)
+  return data?.signedUrl ?? null
+}
 
 export default async function ProfilePage() {
   const supabase = await createClient()
@@ -22,6 +40,16 @@ export default async function ProfilePage() {
 
   if (!dbUser) redirect('/login')
 
+  const docsWithUrls = await Promise.all(
+    documents.map(async d => ({
+      docType:    d.docType,
+      status:     d.status as 'PENDING' | 'APPROVED' | 'REJECTED' | 'EXPIRED' | 'MISSING',
+      expiresAt:  d.expiresAt?.toISOString() ?? null,
+      reviewNote: d.reviewNote,
+      url:        d.url ? await getSignedDocUrl(d.url) : null,
+    }))
+  )
+
   const profileData = {
     user: {
       id:               dbUser.id,
@@ -33,12 +61,7 @@ export default async function ProfilePage() {
       skills:           dbUser.skills,
       rating:           dbUser.rating,
     },
-    documents: documents.map(d => ({
-      docType:    d.docType,
-      status:     d.status as 'PENDING' | 'APPROVED' | 'REJECTED' | 'EXPIRED' | 'MISSING',
-      expiresAt:  d.expiresAt?.toISOString() ?? null,
-      reviewNote: d.reviewNote,
-    })),
+    documents: docsWithUrls,
   }
 
   const NAV = [

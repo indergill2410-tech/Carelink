@@ -5,7 +5,7 @@ import { prisma } from './prisma'
 
 type DemoConfig = {
   email: string
-  dbRole: 'ADMIN' | 'NURSE' | 'EN' | 'PCA'
+  dbRole: 'ADMIN' | 'FACILITY_ADMIN' | 'NURSE' | 'EN' | 'PCA'
   name: string
   complianceStatus: string
   destination: string
@@ -21,7 +21,7 @@ const DEMO_CONFIGS: Record<string, DemoConfig> = {
   },
   FACILITY: {
     email: 'facility@demo.carelink.app',
-    dbRole: 'ADMIN',
+    dbRole: 'FACILITY_ADMIN',
     name: 'Demo Facility Manager',
     complianceStatus: 'GREEN',
     destination: '/facility',

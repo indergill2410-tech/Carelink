@@ -1,5 +1,7 @@
 import { PrismaClient } from '@prisma/client'
 
+// DATABASE_URL must include &connection_limit=1 when using PgBouncer transaction mode
+// (port 6543) to prevent pool exhaustion. Set this in the Render environment variables.
 const globalForPrisma = globalThis as unknown as { prisma: PrismaClient | undefined }
 
 export const prisma =

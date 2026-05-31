@@ -3,6 +3,7 @@ import { createClient } from '@/utils/supabase/server'
 import { createServerClient } from '@supabase/ssr'
 import { prisma } from '@/lib/prisma'
 import { randomUUID } from 'crypto'
+import { checkRateLimit } from '@/lib/rate-limit'
 
 const ALLOWED_DOC_TYPES = [
   'POLICE_CHECK',
@@ -33,6 +34,14 @@ export async function POST(req: NextRequest) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+
+  const rateLimit = checkRateLimit(`upload-doc:${user.id}`, 10, 60_000)
+  if (!rateLimit.allowed) {
+    return NextResponse.json(
+      { error: 'Too many requests' },
+      { status: 429, headers: { 'Retry-After': String(rateLimit.retryAfter) } },
+    )
+  }
 
   const formData = await req.formData()
   const file = formData.get('file') as File | null
@@ -78,30 +87,38 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: uploadError.message }, { status: 500 })
   }
 
-  const { data: urlData } = storageClient.storage
-    .from('compliance-docs')
-    .getPublicUrl(path)
+  // Store the storage path (not a signed URL which expires) so we can generate
+  // fresh signed URLs on read. compliance-docs bucket must be private.
+  const expiryTs = expiresAt && !isNaN(new Date(expiresAt).getTime()) ? new Date(expiresAt) : null
 
   await prisma.complianceDocument.upsert({
     where: {
-      id: `${user.id}_${docType}`,
+      userId_docType: { userId: user.id, docType },
     },
     create: {
-      id: `${user.id}_${docType}`,
       userId: user.id,
       docType,
-      url: urlData.publicUrl,
+      url: path,
       status: 'PENDING',
-      expiresAt: expiresAt && !isNaN(new Date(expiresAt).getTime()) ? new Date(expiresAt) : null,
+      expiresAt: expiryTs,
     },
     update: {
-      url: urlData.publicUrl,
+      url: path,
       status: 'PENDING',
       reviewNote: null,
-      expiresAt: expiresAt && !isNaN(new Date(expiresAt).getTime()) ? new Date(expiresAt) : null,
+      expiresAt: expiryTs,
       updatedAt: new Date(),
     },
   })
 
-  return NextResponse.json({ ok: true })
+  // Return a short-lived signed URL for immediate display
+  const { data: signedData, error: signError } = await storageClient.storage
+    .from('compliance-docs')
+    .createSignedUrl(path, 3600)
+
+  if (signError || !signedData) {
+    return NextResponse.json({ ok: true })
+  }
+
+  return NextResponse.json({ ok: true, url: signedData.signedUrl })
 }
