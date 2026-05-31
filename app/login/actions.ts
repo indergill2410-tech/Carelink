@@ -28,6 +28,7 @@ export async function login(formData: FormData) {
 
   if (!dbRole) redirect('/login?error=Account+not+found')
   if (dbRole === 'ADMIN') redirect('/dashboard')
+  if (dbRole === 'FACILITY_ADMIN') redirect('/facility')
   if (['NURSE', 'EN', 'PCA'].includes(dbRole)) redirect('/worker')
   redirect('/facility')
 }
@@ -65,13 +66,14 @@ export async function signup(formData: FormData) {
 
   if (authData.user) {
     const userId   = authData.user.id
-    const dbRole   = role === 'FACILITY' ? ('ADMIN' as const) : (role as 'NURSE' | 'EN' | 'PCA')
+    const dbRole   = role === 'FACILITY' ? ('FACILITY_ADMIN' as const) : (role as 'NURSE' | 'EN' | 'PCA')
     const destination = role === 'FACILITY' ? '/facility' : '/worker'
     const phoneData = phone ? { phone } : {}
 
     // Retry up to 5 times with 500ms back-off — Supabase auth trigger that
     // inserts the User row may not have fired yet when signUp resolves.
     let lastErr: unknown
+    let upsertOk = false
     for (let attempt = 0; attempt < 5; attempt++) {
       if (attempt > 0) await new Promise(r => setTimeout(r, 500 * attempt))
       try {
@@ -80,13 +82,24 @@ export async function signup(formData: FormData) {
           update: { role: dbRole, name, ...phoneData },
           create: { id: userId, email, role: dbRole, name, ...phoneData },
         })
-        redirect(destination)
+        upsertOk = true
+        break
       } catch (err) {
         lastErr = err
       }
     }
-    console.error('[signup] DB upsert failed after retries:', lastErr)
-    redirect('/login?error=' + encodeURIComponent('Account created but profile setup failed. Please sign in.'))
+
+    if (!upsertOk) {
+      console.error('[signup] DB upsert failed after retries:', lastErr)
+      redirect('/login?error=' + encodeURIComponent('Account created but profile setup failed. Please sign in.'))
+    }
+
+    // Email verification gate — redirect if email not yet confirmed
+    if (!authData.user.email_confirmed_at) {
+      redirect('/login?message=check-email')
+    }
+
+    redirect(destination)
   }
   redirect('/login')
 }

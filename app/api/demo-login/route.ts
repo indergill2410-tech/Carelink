@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/utils/supabase/server'
 import { provisionOneDemoAccount } from '@/lib/provision-demo-accounts'
+import { checkRateLimit } from '@/lib/rate-limit'
 
 type DemoConfig = {
   email: string
@@ -17,6 +18,15 @@ const DEMO_CONFIGS: Record<string, DemoConfig> = {
 
 // POST — returns JSON so the client can handle navigation and timeouts.
 export async function POST(req: NextRequest) {
+  const ip = req.headers.get('x-forwarded-for') ?? 'unknown'
+  const rateLimit = checkRateLimit(`demo-login:${ip}`, 5, 60_000)
+  if (!rateLimit.allowed) {
+    return NextResponse.json(
+      { error: 'Too many requests' },
+      { status: 429, headers: { 'Retry-After': String(rateLimit.retryAfter) } },
+    )
+  }
+
   const body = await req.formData()
   const role = (body.get('role') as string) ?? ''
   const config = DEMO_CONFIGS[role]

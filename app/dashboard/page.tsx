@@ -4,6 +4,10 @@ import {
   BarChart3, Star, UserCog, Power, FileCheck, Zap,
   ArrowUpRight, ArrowRight,
 } from 'lucide-react'
+import { fromZonedTime } from 'date-fns-tz'
+
+const TZ = 'Australia/Melbourne'
+const parseShiftTime = (s: string) => fromZonedTime(s, TZ)
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { StatusBadge, ComplianceBadge } from '@/components/StatusBadge'
@@ -43,14 +47,8 @@ async function broadcastShift(formData: FormData) {
   const notes       = (formData.get('notes') as string) || null
   const urgent      = formData.get('urgent') === 'on'
 
-  const parseMelbourne = (s: string) => {
-    const d = new Date(s.includes('Z') ? s : `${s}Z`)
-    if (isNaN(d.getTime())) return new Date(s)
-    const tz = d.toLocaleString('en-US', { timeZone: 'Australia/Melbourne' })
-    return new Date(d.getTime() + (d.getTime() - new Date(tz).getTime()))
-  }
-  const start = parseMelbourne(startTime)
-  const end   = parseMelbourne(endTime)
+  const start = parseShiftTime(startTime)
+  const end   = parseShiftTime(endTime)
 
   const VALID_ROLES: string[] = ['NURSE', 'EN', 'PCA']
   if (!facilityId || !VALID_ROLES.includes(role) || isNaN(start.getTime()) || isNaN(end.getTime()) || start >= end || isNaN(hourlyRate) || hourlyRate <= 0) {

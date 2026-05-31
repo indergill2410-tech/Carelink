@@ -39,7 +39,7 @@ async function getFacilityData() {
   if (!user) redirect('/login')
 
   const dbUser = await prisma.user.findUnique({ where: { id: user.id } })
-  if (!dbUser || dbUser.role !== 'ADMIN') redirect('/login')
+  if (!dbUser || (dbUser.role !== 'ADMIN' && dbUser.role !== 'FACILITY_ADMIN')) redirect('/login')
 
   let facility = null
   if (dbUser.facilityId) {
@@ -91,7 +91,7 @@ export default async function FacilityPortal({
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return
     const dbUser = await prisma.user.findUnique({ where: { id: user.id } })
-    if (!dbUser || dbUser.role !== 'ADMIN') return
+    if (!dbUser || (dbUser.role !== 'ADMIN' && dbUser.role !== 'FACILITY_ADMIN')) return
 
     const shiftId = formData.get('shiftId') as string
     if (!shiftId) return
@@ -107,7 +107,7 @@ export default async function FacilityPortal({
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return
     const dbUser = await prisma.user.findUnique({ where: { id: user.id } })
-    if (!dbUser || dbUser.role !== 'ADMIN' || dbUser.facilityId !== facility.id) return
+    if (!dbUser || (dbUser.role !== 'ADMIN' && dbUser.role !== 'FACILITY_ADMIN') || dbUser.facilityId !== facility.id) return
     const role = formData.get('role') as string
     const date = formData.get('date') as string
     const startT = (formData.get('startTime') as string) || '07:00'

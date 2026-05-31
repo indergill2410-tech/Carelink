@@ -10,6 +10,7 @@ datasource db {
 
 enum Role {
   ADMIN
+  FACILITY_ADMIN
   NURSE
   EN
   PCA
@@ -31,19 +32,32 @@ enum DocumentStatus {
   EXPIRED
 }
 
+enum UserStatus {
+  ACTIVE
+  PENDING
+  BLOCKED
+}
+
+enum TimesheetStatus {
+  PENDING_APPROVAL
+  APPROVED
+  INVOICED
+}
+
 model User {
-  id               String    @id @default(uuid())
-  email            String    @unique
+  id               String     @id @default(uuid())
+  email            String     @unique
   name             String?
-  role             Role      @default(PCA)
-  complianceStatus String?   @default("RED")
+  role             Role       @default(PCA)
+  complianceStatus String?    @default("RED")
   phone            String?
-  skills           String[]  @default([])
+  skills           String[]   @default([])
   availability     Json?
   rating           Float?
-  isActive         Boolean   @default(true)
-  createdAt        DateTime  @default(now())
-  updatedAt        DateTime  @updatedAt
+  isActive         Boolean    @default(true)
+  status           UserStatus @default(PENDING)
+  createdAt        DateTime   @default(now())
+  updatedAt        DateTime   @updatedAt
 
   facilityId       String?
   facility         Facility?            @relation(fields: [facilityId], references: [id])
@@ -55,13 +69,14 @@ model User {
 }
 
 model Facility {
-  id        String   @id @default(uuid())
-  name      String
-  address   String
-  phone     String?
-  email     String?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id          String   @id @default(uuid())
+  name        String
+  address     String
+  phone       String?
+  email       String?
+  defaultRate Decimal?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 
   managers  User[]
   shifts    Shift[]
@@ -82,10 +97,22 @@ model Shift {
   createdAt   DateTime    @default(now())
   updatedAt   DateTime    @updatedAt
 
-  facility    Facility      @relation(fields: [facilityId], references: [id])
-  workerId    String?
-  worker      User?         @relation("WorkerShifts", fields: [workerId], references: [id])
-  ratings     ShiftRating[]
+  facility   Facility      @relation(fields: [facilityId], references: [id])
+  workerId   String?
+  worker     User?         @relation("WorkerShifts", fields: [workerId], references: [id])
+  ratings    ShiftRating[]
+  timesheet  Timesheet?
+}
+
+model Timesheet {
+  id        String          @id @default(uuid())
+  shiftId   String          @unique
+  shift     Shift           @relation(fields: [shiftId], references: [id], onDelete: Cascade)
+  clockIn   DateTime?
+  clockOut  DateTime?
+  status    TimesheetStatus @default(PENDING_APPROVAL)
+  createdAt DateTime        @default(now())
+  updatedAt DateTime        @updatedAt
 }
 
 model ComplianceDocument {
@@ -99,6 +126,8 @@ model ComplianceDocument {
   reviewNote  String?
   createdAt   DateTime       @default(now())
   updatedAt   DateTime       @updatedAt
+
+  @@unique([userId, docType])
 }
 
 model Notification {
