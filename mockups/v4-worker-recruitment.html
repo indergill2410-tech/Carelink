@@ -1,0 +1,530 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Carelink — For Healthcare Workers</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Inter', sans-serif; background: #fff; color: #0d0d14; overflow-x: hidden; }
+
+  /* ── Nav ──────────────────────────────────────────────── */
+  nav {
+    position: sticky; top: 0; z-index: 50;
+    background: rgba(255,255,255,0.96); backdrop-filter: blur(20px);
+    border-bottom: 1px solid #f0f0f4;
+    padding: 0 60px; height: 64px;
+    display: flex; align-items: center; justify-content: space-between;
+  }
+  .logo { display: flex; align-items: center; gap: 9px; font-size: 17px; font-weight: 900; letter-spacing: -0.5px; text-decoration: none; color: #0d0d14; }
+  .logo-mark { width: 32px; height: 32px; background: linear-gradient(135deg, #00c9a7, #0077b6); border-radius: 9px; display: flex; align-items: center; justify-content: center; }
+  .logo-mark svg { width: 16px; height: 16px; fill: none; stroke: #fff; stroke-width: 2.5; stroke-linecap: round; }
+  .nav-pill { background: #f4f4f6; color: #555; padding: 8px 16px; border-radius: 20px; font-size: 13px; font-weight: 600; text-decoration: none; }
+  .nav-cta { background: #0d0d14; color: #fff; padding: 10px 22px; border-radius: 10px; font-weight: 700; font-size: 14px; text-decoration: none; }
+
+  /* ── Hero ─────────────────────────────────────────────── */
+  .hero {
+    background: linear-gradient(160deg, #0d0d14 0%, #0d2b4a 55%, #0a3d2e 100%);
+    min-height: 92vh;
+    display: grid; grid-template-columns: 1fr 480px;
+    align-items: center; gap: 60px;
+    padding: 80px 60px;
+    position: relative; overflow: hidden;
+  }
+  /* subtle grid overlay */
+  .hero::before {
+    content: '';
+    position: absolute; inset: 0;
+    background-image:
+      linear-gradient(rgba(255,255,255,0.03) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(255,255,255,0.03) 1px, transparent 1px);
+    background-size: 48px 48px;
+  }
+  /* teal glow */
+  .hero::after {
+    content: '';
+    position: absolute; bottom: -100px; left: 30%;
+    width: 700px; height: 500px;
+    background: radial-gradient(ellipse, rgba(0,201,167,0.12) 0%, transparent 65%);
+    pointer-events: none;
+  }
+  .hero-left { position: relative; z-index: 2; }
+  .hero-tag {
+    display: inline-flex; align-items: center; gap: 8px;
+    background: rgba(0,201,167,0.1); border: 1px solid rgba(0,201,167,0.2);
+    color: #00c9a7; font-size: 11px; font-weight: 800;
+    padding: 6px 14px; border-radius: 20px;
+    text-transform: uppercase; letter-spacing: 1.5px;
+    margin-bottom: 28px;
+  }
+  .tag-dot { width: 6px; height: 6px; background: #00c9a7; border-radius: 50%; }
+  h1 {
+    font-size: 66px; font-weight: 900; line-height: 1.0;
+    letter-spacing: -3px; color: #fff; margin-bottom: 24px;
+  }
+  h1 em { color: #00c9a7; font-style: normal; display: block; }
+  .hero-sub {
+    font-size: 19px; color: rgba(255,255,255,0.52); line-height: 1.7;
+    margin-bottom: 40px; max-width: 480px;
+  }
+  .hero-sub strong { color: rgba(255,255,255,0.85); font-weight: 600; }
+  .hero-ctas { display: flex; align-items: center; gap: 14px; margin-bottom: 52px; }
+  .btn-main {
+    background: #00c9a7; color: #0d0d14;
+    padding: 16px 32px; border-radius: 12px;
+    font-weight: 800; font-size: 16px; text-decoration: none;
+    display: inline-flex; align-items: center; gap: 8px;
+    box-shadow: 0 8px 32px rgba(0,201,167,0.28);
+    transition: transform 0.15s, box-shadow 0.15s;
+  }
+  .btn-ghost {
+    color: rgba(255,255,255,0.45); font-size: 14px;
+    text-decoration: none; font-weight: 600;
+    display: flex; align-items: center; gap: 6px;
+  }
+  /* small trust line */
+  .trust-line {
+    display: flex; align-items: center; gap: 20px;
+    border-top: 1px solid rgba(255,255,255,0.07);
+    padding-top: 28px;
+  }
+  .trust-item { display: flex; align-items: center; gap: 6px; }
+  .trust-icon { color: #00c9a7; font-size: 14px; }
+  .trust-text { font-size: 12px; color: rgba(255,255,255,0.4); font-weight: 600; }
+
+  /* Profile card stack */
+  .hero-right { position: relative; z-index: 2; }
+  .profile-stack { position: relative; }
+  .profile-card {
+    background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.1);
+    backdrop-filter: blur(20px); border-radius: 20px; padding: 24px;
+    margin-bottom: 12px;
+  }
+  .profile-card.featured {
+    background: rgba(255,255,255,0.09);
+    border-color: rgba(0,201,167,0.25);
+    box-shadow: 0 0 40px rgba(0,201,167,0.08);
+  }
+  .pc-header { display: flex; align-items: center; gap: 14px; margin-bottom: 16px; }
+  .pc-avatar {
+    width: 44px; height: 44px; border-radius: 12px;
+    display: flex; align-items: center; justify-content: center;
+    font-weight: 800; font-size: 15px; color: #fff; flex-shrink: 0;
+  }
+  .pc-name { font-size: 15px; font-weight: 800; color: #fff; }
+  .pc-role { font-size: 12px; color: rgba(255,255,255,0.4); margin-top: 1px; }
+  .pc-badge {
+    margin-left: auto; background: rgba(0,201,167,0.15);
+    border: 1px solid rgba(0,201,167,0.25);
+    color: #00c9a7; font-size: 10px; font-weight: 800;
+    padding: 3px 9px; border-radius: 20px; text-transform: uppercase; letter-spacing: 0.5px;
+  }
+  .pc-stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+  .pc-stat { background: rgba(255,255,255,0.04); border-radius: 10px; padding: 10px 12px; }
+  .pc-stat-val { font-size: 17px; font-weight: 900; color: #fff; letter-spacing: -0.5px; }
+  .pc-stat-val.teal { color: #00c9a7; }
+  .pc-stat-label { font-size: 10px; color: rgba(255,255,255,0.35); margin-top: 1px; text-transform: uppercase; letter-spacing: 0.5px; }
+  .shift-tag-row { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 14px; }
+  .shift-tag {
+    font-size: 11px; font-weight: 700; padding: 5px 10px; border-radius: 8px;
+    background: rgba(255,255,255,0.06); color: rgba(255,255,255,0.55);
+  }
+  .shift-tag.active { background: rgba(0,201,167,0.12); color: #00c9a7; }
+  /* floating notification */
+  .notif-bubble {
+    position: absolute; bottom: -10px; right: -20px;
+    background: #fff; border-radius: 14px; padding: 12px 16px;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.25);
+    display: flex; align-items: center; gap: 10px;
+    animation: float 3s ease-in-out infinite;
+  }
+  @keyframes float { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-6px)} }
+  .notif-icon { width: 32px; height: 32px; background: #ebfbf8; border-radius: 9px; display: flex; align-items: center; justify-content: center; font-size: 16px; }
+  .notif-text { }
+  .notif-title { font-size: 13px; font-weight: 800; color: #0d0d14; }
+  .notif-sub { font-size: 11px; color: #888; margin-top: 1px; }
+
+  /* ── "You're not just a roster number" ──────────────────── */
+  .identity-section {
+    padding: 100px 60px; max-width: 1100px; margin: 0 auto;
+  }
+  .identity-tag {
+    font-size: 11px; font-weight: 800; text-transform: uppercase;
+    letter-spacing: 2px; color: #00c9a7; margin-bottom: 16px;
+    display: flex; align-items: center; gap: 8px;
+  }
+  .identity-tag::before { content: ''; width: 20px; height: 2px; background: #00c9a7; }
+  .identity-h2 {
+    font-size: 52px; font-weight: 900; letter-spacing: -2.5px;
+    line-height: 1.05; margin-bottom: 60px; max-width: 700px;
+  }
+  .identity-h2 span { color: #00c9a7; }
+  .identity-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 2px; }
+  .id-card {
+    background: #f8f9fb; padding: 36px 28px;
+    border-radius: 0; position: relative;
+  }
+  .id-card:first-child { border-radius: 16px 0 0 16px; }
+  .id-card:last-child { border-radius: 0 16px 16px 0; }
+  .id-card.highlight {
+    background: #0d0d14; color: #fff;
+    border-radius: 16px;
+    transform: scale(1.02);
+    z-index: 2;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.2);
+  }
+  .id-num { font-size: 11px; font-weight: 800; color: rgba(0,0,0,0.2); margin-bottom: 20px; }
+  .id-card.highlight .id-num { color: rgba(255,255,255,0.2); }
+  .id-icon { font-size: 28px; margin-bottom: 16px; }
+  .id-title { font-size: 20px; font-weight: 900; letter-spacing: -0.5px; margin-bottom: 10px; line-height: 1.2; }
+  .id-body { font-size: 14px; color: #666; line-height: 1.65; }
+  .id-card.highlight .id-body { color: rgba(255,255,255,0.55); }
+  .id-card.highlight .id-title { color: #00c9a7; }
+
+  /* ── How it works ──────────────────────────────────────── */
+  .how-section { background: #0d0d14; color: #fff; padding: 100px 60px; }
+  .how-inner { max-width: 1100px; margin: 0 auto; }
+  .how-tag { font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 2px; color: rgba(255,255,255,0.3); margin-bottom: 16px; }
+  .how-h2 { font-size: 48px; font-weight: 900; letter-spacing: -2px; margin-bottom: 60px; }
+  .how-h2 span { color: #00c9a7; }
+  .how-steps { display: grid; grid-template-columns: repeat(4, 1fr); gap: 0; position: relative; }
+  .how-steps::before {
+    content: '';
+    position: absolute; top: 24px; left: 24px; right: 24px; height: 1px;
+    background: linear-gradient(90deg, transparent, rgba(0,201,167,0.3), rgba(0,201,167,0.3), transparent);
+  }
+  .how-step { padding: 0 20px; }
+  .how-step-dot {
+    width: 48px; height: 48px; border-radius: 14px; margin-bottom: 24px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 20px; position: relative; z-index: 2;
+  }
+  .how-step-dot.s1 { background: rgba(0,201,167,0.12); border: 1px solid rgba(0,201,167,0.2); }
+  .how-step-dot.s2 { background: rgba(99,102,241,0.12); border: 1px solid rgba(99,102,241,0.2); }
+  .how-step-dot.s3 { background: rgba(245,158,11,0.12); border: 1px solid rgba(245,158,11,0.2); }
+  .how-step-dot.s4 { background: rgba(16,185,129,0.12); border: 1px solid rgba(16,185,129,0.2); }
+  .how-step-title { font-size: 17px; font-weight: 800; margin-bottom: 8px; }
+  .how-step-body { font-size: 13px; color: rgba(255,255,255,0.4); line-height: 1.65; }
+  .how-step-time { display: inline-block; margin-top: 10px; font-size: 11px; font-weight: 700; color: #00c9a7; }
+
+  /* ── Testimonials ──────────────────────────────────────── */
+  .testi-section { padding: 100px 60px; background: #f8f9fb; }
+  .testi-inner { max-width: 1100px; margin: 0 auto; }
+  .testi-tag { font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 2px; color: #00c9a7; margin-bottom: 16px; display: flex; align-items: center; gap: 8px; }
+  .testi-tag::before { content:''; width: 20px; height: 2px; background: #00c9a7; }
+  .testi-h2 { font-size: 44px; font-weight: 900; letter-spacing: -2px; margin-bottom: 48px; }
+  .testi-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+  .testi-card { background: #fff; border-radius: 20px; padding: 32px; border: 1px solid #edf0f5; }
+  .testi-card.large { grid-column: span 2; background: #0d0d14; color: #fff; border-color: transparent; }
+  .testi-quote { font-size: 16px; line-height: 1.7; color: #2d3748; margin-bottom: 24px; }
+  .testi-card.large .testi-quote { font-size: 22px; color: rgba(255,255,255,0.85); letter-spacing: -0.3px; }
+  .testi-author { display: flex; align-items: center; gap: 12px; }
+  .testi-av {
+    width: 42px; height: 42px; border-radius: 12px;
+    font-weight: 800; font-size: 14px; color: #fff;
+    display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+  }
+  .testi-name { font-weight: 800; font-size: 14px; color: #0d0d14; }
+  .testi-card.large .testi-name { color: #fff; }
+  .testi-meta { font-size: 12px; color: #aaa; margin-top: 2px; }
+  .testi-card.large .testi-meta { color: rgba(255,255,255,0.35); }
+  .testi-stars { font-size: 12px; letter-spacing: 2px; color: #f59e0b; margin-bottom: 14px; }
+
+  /* ── Roles strip ───────────────────────────────────────── */
+  .roles-strip { display: flex; border-top: 1px solid #f0f0f4; border-bottom: 1px solid #f0f0f4; }
+  .role-item { flex: 1; padding: 36px 28px; text-align: center; border-right: 1px solid #f0f0f4; }
+  .role-item:last-child { border-right: none; }
+  .role-label { font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 1.5px; color: #bbb; margin-bottom: 10px; }
+  .role-name-big { font-size: 22px; font-weight: 900; color: #0d0d14; letter-spacing: -0.5px; }
+  .role-desc { font-size: 13px; color: #aaa; margin-top: 6px; line-height: 1.4; }
+  .role-avail { display: inline-flex; align-items: center; gap: 5px; margin-top: 12px; font-size: 12px; font-weight: 700; color: #00c9a7; }
+  .avail-dot { width: 6px; height: 6px; background: #00c9a7; border-radius: 50%; animation: pulse2 2s infinite; }
+  @keyframes pulse2 { 0%,100%{opacity:1} 50%{opacity:0.3} }
+
+  /* ── Final CTA ─────────────────────────────────────────── */
+  .final-section {
+    background: linear-gradient(160deg, #0d0d14, #0a2e22 100%);
+    padding: 120px 60px; text-align: center; position: relative; overflow: hidden;
+  }
+  .final-section::before {
+    content: '';
+    position: absolute; top: 50%; left: 50%;
+    transform: translate(-50%, -50%);
+    width: 600px; height: 400px;
+    background: radial-gradient(ellipse, rgba(0,201,167,0.12) 0%, transparent 65%);
+  }
+  .final-inner { position: relative; z-index: 2; max-width: 680px; margin: 0 auto; }
+  .final-tag { font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 2px; color: rgba(0,201,167,0.6); margin-bottom: 20px; }
+  .final-h2 { font-size: 60px; font-weight: 900; letter-spacing: -3px; line-height: 1.0; color: #fff; margin-bottom: 18px; }
+  .final-h2 span { color: #00c9a7; }
+  .final-sub { font-size: 18px; color: rgba(255,255,255,0.45); line-height: 1.65; margin-bottom: 44px; }
+  .final-ctas { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; }
+  .btn-final-main { background: #00c9a7; color: #0d0d14; padding: 18px 40px; border-radius: 12px; font-weight: 900; font-size: 17px; text-decoration: none; box-shadow: 0 8px 32px rgba(0,201,167,0.3); }
+  .btn-final-ghost { background: rgba(255,255,255,0.07); border: 1px solid rgba(255,255,255,0.12); color: rgba(255,255,255,0.65); padding: 18px 32px; border-radius: 12px; font-weight: 700; font-size: 17px; text-decoration: none; }
+  .final-micro { margin-top: 20px; font-size: 12px; color: rgba(255,255,255,0.25); }
+
+  /* ── Footer ────────────────────────────────────────────── */
+  footer { background: #0d0d14; border-top: 1px solid rgba(255,255,255,0.05); padding: 28px 60px; display: flex; align-items: center; justify-content: space-between; font-size: 12px; color: rgba(255,255,255,0.25); }
+  .footer-logo { display: flex; align-items: center; gap: 8px; font-weight: 800; color: rgba(255,255,255,0.5); }
+</style>
+</head>
+<body>
+
+<!-- Nav -->
+<nav>
+  <a href="#" class="logo">
+    <div class="logo-mark">
+      <svg viewBox="0 0 24 24"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
+    </div>
+    Carelink
+  </a>
+  <div style="display:flex;align-items:center;gap:12px;">
+    <a href="#" class="nav-pill">I manage a facility</a>
+    <a href="#" class="nav-cta">Join as a worker →</a>
+  </div>
+</nav>
+
+<!-- ── HERO ──────────────────────────────────────────────── -->
+<div class="hero">
+  <div class="hero-left">
+    <div class="hero-tag"><div class="tag-dot"></div> For RNs, ENs & PCAs across Victoria</div>
+    <h1>Your skills.<br /><em>Your schedule.</em><br />Your call.</h1>
+    <p class="hero-sub">
+      You trained for years to care for people — not to fight for shifts, beg for rostered days off, or feel invisible in a system that treats you like a number.
+      <strong>Carelink gives you back control.</strong>
+    </p>
+    <div class="hero-ctas">
+      <a href="#" class="btn-main">Set up your profile — free</a>
+      <a href="#" class="btn-ghost">See available shifts →</a>
+    </div>
+    <div class="trust-line">
+      <div class="trust-item">
+        <span class="trust-icon">✓</span>
+        <span class="trust-text">5 min to set up</span>
+      </div>
+      <div class="trust-item">
+        <span class="trust-icon">✓</span>
+        <span class="trust-text">No lock-in contract</span>
+      </div>
+      <div class="trust-item">
+        <span class="trust-icon">✓</span>
+        <span class="trust-text">Accept only what you want</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Profile card stack -->
+  <div class="hero-right">
+    <div class="profile-stack">
+
+      <div class="profile-card" style="opacity:0.5;transform:translateY(-8px) scale(0.97);">
+        <div class="pc-header">
+          <div class="pc-avatar" style="background:linear-gradient(135deg,#6366f1,#4f46e5);">MP</div>
+          <div>
+            <div class="pc-name">Marcus P.</div>
+            <div class="pc-role">Enrolled Nurse · 4 yrs</div>
+          </div>
+          <div class="pc-badge">Active</div>
+        </div>
+      </div>
+
+      <div class="profile-card featured">
+        <div class="pc-header">
+          <div class="pc-avatar" style="background:linear-gradient(135deg,#00c9a7,#0077b6);">JP</div>
+          <div>
+            <div class="pc-name">Jessica P., RN</div>
+            <div class="pc-role">Registered Nurse · 6 yrs</div>
+          </div>
+          <div class="pc-badge">✓ Verified</div>
+        </div>
+        <div class="pc-stats">
+          <div class="pc-stat">
+            <div class="pc-stat-val teal">47</div>
+            <div class="pc-stat-label">Shifts done</div>
+          </div>
+          <div class="pc-stat">
+            <div class="pc-stat-val">4.9★</div>
+            <div class="pc-stat-label">Rating</div>
+          </div>
+          <div class="pc-stat">
+            <div class="pc-stat-val teal">100%</div>
+            <div class="pc-stat-label">Compliant</div>
+          </div>
+        </div>
+        <div class="shift-tag-row">
+          <span class="shift-tag active">Available Tue</span>
+          <span class="shift-tag active">Available Thu</span>
+          <span class="shift-tag">Melbourne CBD</span>
+          <span class="shift-tag">Richmond</span>
+        </div>
+      </div>
+
+      <!-- Floating notification -->
+      <div class="notif-bubble">
+        <div class="notif-icon">🔔</div>
+        <div class="notif-text">
+          <div class="notif-title">New shift matched</div>
+          <div class="notif-sub">Sunrise Aged Care · Tomorrow 7am</div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<!-- ── IDENTITY: You're not just a roster number ─────────── -->
+<div class="identity-section">
+  <div class="identity-tag">Why Carelink</div>
+  <div class="identity-h2">You didn't spend three years<br />studying to <span>feel disposable.</span></div>
+  <div class="identity-grid">
+    <div class="id-card">
+      <div class="id-num">01</div>
+      <div class="id-icon">🗓</div>
+      <div class="id-title">You pick every shift</div>
+      <div class="id-body">Browse what's available, accept what fits your life. Tuesday morning only? Night shifts only? That's entirely your choice. Nobody will call you at 6am.</div>
+    </div>
+    <div class="id-card highlight">
+      <div class="id-num">02</div>
+      <div class="id-icon" style="font-size:28px;">🛡</div>
+      <div class="id-title">Every facility is vetted</div>
+      <div class="id-body" style="">You know exactly where you're going before you arrive. No surprises. Every facility on Carelink is rated by other workers — the good ones and the ones to avoid.</div>
+    </div>
+    <div class="id-card">
+      <div class="id-num">03</div>
+      <div class="id-icon">📱</div>
+      <div class="id-title">Clock in. Go home. Done.</div>
+      <div class="id-body">Clock in on your phone. Hours are logged automatically. No paperwork. No chasing anyone. Your record is yours — portable, professional, always up to date.</div>
+    </div>
+  </div>
+</div>
+
+<!-- ── HOW IT WORKS ────────────────────────────────────────── -->
+<div class="how-section">
+  <div class="how-inner">
+    <div class="how-tag">Getting started</div>
+    <div class="how-h2">From sign-up to <span>first shift</span><br />in 24 hours.</div>
+    <div class="how-steps">
+      <div class="how-step">
+        <div class="how-step-dot s1">📋</div>
+        <div class="how-step-title">Create your profile</div>
+        <div class="how-step-body">Your name, role, availability, and the areas you work in. Takes about 5 minutes.</div>
+        <div class="how-step-time">⏱ 5 minutes</div>
+      </div>
+      <div class="how-step">
+        <div class="how-step-dot s2">🛡</div>
+        <div class="how-step-title">Upload your documents</div>
+        <div class="how-step-body">AHPRA registration, police check, immunisations. Upload once — they're stored securely and stay current.</div>
+        <div class="how-step-time">⏱ Once only</div>
+      </div>
+      <div class="how-step">
+        <div class="how-step-dot s3">🔍</div>
+        <div class="how-step-title">Browse open shifts</div>
+        <div class="how-step-body">Filter by role, location, date. See the facility, the hours, and what other workers have said about it.</div>
+        <div class="how-step-time">⏱ Daily</div>
+      </div>
+      <div class="how-step">
+        <div class="how-step-dot s4">✓</div>
+        <div class="how-step-title">Accept. Show up. Done.</div>
+        <div class="how-step-body">One tap to accept. Clock in on arrival. Your work record and reputation grow with every shift.</div>
+        <div class="how-step-time">⏱ Always this simple</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ── TESTIMONIALS ───────────────────────────────────────── -->
+<div class="testi-section">
+  <div class="testi-inner">
+    <div class="testi-tag">From our community</div>
+    <div class="testi-h2">Workers who chose<br />to work differently.</div>
+    <div class="testi-grid">
+
+      <div class="testi-card large">
+        <div class="testi-stars">★ ★ ★ ★ ★</div>
+        <div class="testi-quote">"I was burning out in my full-time role. I didn't realise how much of my stress came from having no control over my week. On Carelink I work three shifts a week, I choose every single one, and I actually look forward to going in. I'm a better nurse for it."</div>
+        <div class="testi-author">
+          <div class="testi-av" style="background:linear-gradient(135deg,#00c9a7,#0077b6);">SR</div>
+          <div>
+            <div class="testi-name">Sarah R.</div>
+            <div class="testi-meta">Registered Nurse · 8 years experience</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="testi-card">
+        <div class="testi-stars">★ ★ ★ ★ ★</div>
+        <div class="testi-quote">"I have two kids. The only way nursing works for my family is if I control my hours. Carelink is the first platform that actually respects that."</div>
+        <div class="testi-author">
+          <div class="testi-av" style="background:linear-gradient(135deg,#a78bfa,#7c3aed);">KT</div>
+          <div>
+            <div class="testi-name">Karen T.</div>
+            <div class="testi-meta">Enrolled Nurse · Geelong</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="testi-card">
+        <div class="testi-stars">★ ★ ★ ★ ★</div>
+        <div class="testi-quote">"I set up my profile on a Sunday. Had my first shift booked by Monday morning. The whole thing — profile, documents, first shift — under 24 hours."</div>
+        <div class="testi-author">
+          <div class="testi-av" style="background:linear-gradient(135deg,#f59e0b,#d97706);">DM</div>
+          <div>
+            <div class="testi-name">Daniel M.</div>
+            <div class="testi-meta">PCA · Melbourne CBD</div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<!-- ── ROLES ──────────────────────────────────────────────── -->
+<div class="roles-strip">
+  <div class="role-item">
+    <div class="role-label">For</div>
+    <div class="role-name-big">Registered Nurses</div>
+    <div class="role-desc">AHPRA-registered RNs.<br />Hospital or aged care background.</div>
+    <div class="role-avail"><div class="avail-dot"></div> Shifts available now</div>
+  </div>
+  <div class="role-item">
+    <div class="role-label">For</div>
+    <div class="role-name-big">Enrolled Nurses</div>
+    <div class="role-desc">Division 2 nurses.<br />Certificate IV and above.</div>
+    <div class="role-avail"><div class="avail-dot"></div> Shifts available now</div>
+  </div>
+  <div class="role-item">
+    <div class="role-label">For</div>
+    <div class="role-name-big">Personal Care Assistants</div>
+    <div class="role-desc">Cert III or higher.<br />Aged care or disability experience.</div>
+    <div class="role-avail"><div class="avail-dot"></div> Shifts available now</div>
+  </div>
+</div>
+
+<!-- ── FINAL CTA ──────────────────────────────────────────── -->
+<div class="final-section">
+  <div class="final-inner">
+    <div class="final-tag">Ready to work differently?</div>
+    <div class="final-h2">Your next shift.<br /><span>On your terms.</span></div>
+    <div class="final-sub">Join the growing community of Victorian healthcare workers who decided their skills — and their time — deserve more respect.</div>
+    <div class="final-ctas">
+      <a href="#" class="btn-final-main">Create your free profile →</a>
+      <a href="#" class="btn-final-ghost">Browse open shifts</a>
+    </div>
+    <div class="final-micro">Free to join. No lock-in. Accept only shifts you want.</div>
+  </div>
+</div>
+
+<!-- Footer -->
+<footer>
+  <div class="footer-logo">
+    <div class="logo-mark" style="width:26px;height:26px;">
+      <svg viewBox="0 0 24 24" style="width:13px;height:13px;fill:none;stroke:#fff;stroke-width:2.5;stroke-linecap:round;"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
+    </div>
+    Carelink
+  </div>
+  <span>Victoria, Australia · AHPRA-verified · Aged Care Act 2024</span>
+</footer>
+
+</body>
+</html>
