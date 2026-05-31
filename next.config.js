@@ -2,6 +2,13 @@
 const nextConfig = {
   async headers() {
     return [
+      // Prevent bfcache from serving stale auth state on browser back navigation
+      {
+        source: '/(dashboard|facility|worker)(.*)',
+        headers: [
+          { key: 'Cache-Control', value: 'no-store, must-revalidate' },
+        ],
+      },
       {
         source: '/(.*)',
         headers: [
