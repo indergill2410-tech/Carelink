@@ -1,0 +1,311 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Carelink v3 — Speed & Simplicity</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Inter', sans-serif; background: #fff; color: #0d0d0d; }
+
+  /* Nav */
+  nav { padding: 0 60px; height: 64px; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid #f0f0f0; }
+  .logo { display: flex; align-items: center; gap: 9px; font-size: 17px; font-weight: 900; letter-spacing: -0.5px; }
+  .logo-dot { width: 10px; height: 10px; background: #00c9a7; border-radius: 50%; }
+  .nav-right { display: flex; align-items: center; gap: 24px; }
+  .nav-link { font-size: 14px; color: #888; text-decoration: none; font-weight: 500; }
+  .nav-btn { background: #0d0d0d; color: #fff; padding: 10px 22px; border-radius: 8px; font-weight: 700; font-size: 14px; text-decoration: none; }
+
+  /* Hero */
+  .hero { padding: 120px 60px 80px; max-width: 1200px; margin: 0 auto; }
+  .hero-kicker { font-size: 13px; font-weight: 700; color: #00c9a7; text-transform: uppercase; letter-spacing: 2px; margin-bottom: 20px; display: flex; align-items: center; gap: 8px; }
+  .kicker-line { width: 24px; height: 2px; background: #00c9a7; }
+  h1 { font-size: 80px; font-weight: 900; line-height: 0.95; letter-spacing: -4px; margin-bottom: 32px; max-width: 900px; }
+  h1 .big-num { display: block; color: #00c9a7; font-size: 120px; }
+  .hero-body { display: grid; grid-template-columns: 1fr 440px; gap: 80px; align-items: start; }
+  .hero-left { }
+  .hero-sub { font-size: 20px; color: #555; line-height: 1.65; margin-bottom: 40px; max-width: 480px; }
+  .hero-cta-group { display: flex; align-items: center; gap: 16px; }
+  .btn-big { background: #0d0d0d; color: #fff; padding: 18px 36px; border-radius: 10px; font-weight: 800; font-size: 17px; text-decoration: none; display: inline-flex; align-items: center; gap: 8px; }
+  .btn-link { font-size: 15px; color: #aaa; text-decoration: none; font-weight: 600; }
+
+  /* Timer widget */
+  .timer-widget { background: #0d0d0d; border-radius: 20px; padding: 32px; color: #fff; position: relative; overflow: hidden; }
+  .timer-widget::before { content: ''; position: absolute; top: -40px; right: -40px; width: 160px; height: 160px; background: radial-gradient(circle, rgba(0,201,167,0.2), transparent 70%); }
+  .tw-label { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 1.5px; color: rgba(255,255,255,0.4); margin-bottom: 8px; }
+  .tw-title { font-size: 15px; font-weight: 700; color: rgba(255,255,255,0.8); margin-bottom: 24px; }
+  .tw-progress { background: rgba(255,255,255,0.08); border-radius: 100px; height: 6px; margin-bottom: 8px; overflow: hidden; }
+  .tw-fill { background: linear-gradient(90deg, #00c9a7, #0077b6); height: 100%; border-radius: 100px; width: 68%; }
+  .tw-status { display: flex; justify-content: space-between; font-size: 12px; color: rgba(255,255,255,0.4); margin-bottom: 28px; }
+  .tw-status strong { color: #00c9a7; }
+  .tw-steps { display: flex; flex-direction: column; gap: 12px; }
+  .tw-step { display: flex; align-items: center; gap: 12px; }
+  .tw-step-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+  .tw-step-dot.done { background: #00c9a7; }
+  .tw-step-dot.active { background: #00c9a7; box-shadow: 0 0 0 4px rgba(0,201,167,0.2); animation: gpulse 1.5s infinite; }
+  .tw-step-dot.pending { background: rgba(255,255,255,0.2); }
+  @keyframes gpulse { 0%,100%{box-shadow:0 0 0 4px rgba(0,201,167,0.2)} 50%{box-shadow:0 0 0 8px rgba(0,201,167,0.1)} }
+  .tw-step-text { font-size: 13px; color: rgba(255,255,255,0.6); }
+  .tw-step-text strong { color: #fff; }
+  .tw-step-time { font-size: 12px; color: rgba(255,255,255,0.3); margin-left: auto; }
+
+  /* Comparison */
+  .comparison { background: #f8f8f8; padding: 100px 60px; }
+  .comparison-inner { max-width: 1100px; margin: 0 auto; }
+  .comp-header { margin-bottom: 60px; }
+  .comp-kicker { font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 2px; color: #999; margin-bottom: 12px; }
+  .comp-h2 { font-size: 52px; font-weight: 900; letter-spacing: -2.5px; }
+  .comp-h2 .strike { text-decoration: line-through; color: #ccc; }
+  .comp-h2 .new { color: #0d0d0d; }
+  .comp-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+  .comp-col { background: #fff; border-radius: 16px; padding: 32px; border: 1px solid #ebebeb; }
+  .comp-col.old { opacity: 0.7; }
+  .comp-col-label { font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 1.5px; color: #bbb; margin-bottom: 24px; }
+  .comp-col-label.new-label { color: #00c9a7; }
+  .comp-item { display: flex; align-items: flex-start; gap: 12px; padding: 14px 0; border-bottom: 1px solid #f5f5f5; }
+  .comp-item:last-child { border-bottom: none; }
+  .comp-icon { font-size: 18px; flex-shrink: 0; margin-top: 1px; }
+  .comp-text { }
+  .comp-main { font-size: 14px; font-weight: 600; color: #1a1a1a; }
+  .comp-sub { font-size: 12px; color: #999; margin-top: 2px; }
+  .comp-col.old .comp-main { color: #888; }
+
+  /* Big numbers */
+  .numbers-section { max-width: 1100px; margin: 0 auto; padding: 100px 60px; }
+  .num-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 0; border: 1px solid #ebebeb; border-radius: 16px; overflow: hidden; }
+  .num-item { padding: 40px 32px; border-right: 1px solid #ebebeb; }
+  .num-item:last-child { border-right: none; }
+  .big-n { font-size: 56px; font-weight: 900; letter-spacing: -3px; color: #0d0d0d; line-height: 1; }
+  .big-n span { color: #00c9a7; }
+  .num-label { font-size: 13px; color: #888; margin-top: 8px; line-height: 1.4; }
+
+  /* Roles */
+  .roles-section { background: #0d0d0d; color: #fff; padding: 80px 60px; }
+  .roles-inner { max-width: 1100px; margin: 0 auto; }
+  .roles-kicker { font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 2px; color: rgba(255,255,255,0.3); margin-bottom: 16px; }
+  .roles-h2 { font-size: 44px; font-weight: 900; letter-spacing: -2px; margin-bottom: 48px; }
+  .roles-h2 span { color: #00c9a7; }
+  .roles-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+  .role-card { background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08); border-radius: 14px; padding: 28px; }
+  .role-tag { display: inline-block; background: rgba(0,201,167,0.12); color: #00c9a7; font-size: 11px; font-weight: 800; padding: 4px 10px; border-radius: 6px; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 16px; }
+  .role-name { font-size: 20px; font-weight: 800; margin-bottom: 8px; }
+  .role-rate { font-size: 28px; font-weight: 900; color: #00c9a7; letter-spacing: -1px; }
+  .role-rate span { font-size: 14px; font-weight: 500; color: rgba(255,255,255,0.4); }
+  .role-avail { font-size: 12px; color: rgba(255,255,255,0.4); margin-top: 6px; }
+
+  /* Final CTA — stark */
+  .final-cta { padding: 120px 60px; text-align: center; background: #fff; }
+  .final-h2 { font-size: 72px; font-weight: 900; letter-spacing: -4px; line-height: 0.95; margin-bottom: 24px; }
+  .final-sub { font-size: 18px; color: #888; margin-bottom: 48px; }
+  .final-actions { display: flex; gap: 12px; justify-content: center; align-items: center; flex-wrap: wrap; }
+  .btn-final { background: #0d0d0d; color: #fff; padding: 20px 48px; border-radius: 10px; font-weight: 900; font-size: 18px; text-decoration: none; }
+  .btn-final.secondary { background: transparent; color: #0d0d0d; border: 2px solid #ebebeb; }
+  .final-micro { font-size: 12px; color: #bbb; margin-top: 16px; }
+
+  footer { border-top: 1px solid #f0f0f0; padding: 24px 60px; display: flex; align-items: center; justify-content: space-between; font-size: 13px; color: #bbb; }
+</style>
+</head>
+<body>
+
+<!-- Nav -->
+<nav>
+  <div class="logo"><div class="logo-dot"></div> Carelink</div>
+  <div class="nav-right">
+    <a href="#" class="nav-link">Facilities</a>
+    <a href="#" class="nav-link">Workers</a>
+    <a href="#" class="nav-link">Sign in</a>
+    <a href="#" class="nav-btn">Start free →</a>
+  </div>
+</nav>
+
+<!-- Hero -->
+<div class="hero">
+  <div class="hero-kicker"><div class="kicker-line"></div> Aged care staffing. Reinvented.</div>
+  <h1>
+    <span class="big-num">27</span>
+    minutes to<br />fill a shift.
+  </h1>
+
+  <div class="hero-body">
+    <div class="hero-left">
+      <p class="hero-sub">The old way takes 4 hours, costs 40% more, and still might not work. Carelink connects aged care facilities with AHPRA-registered nurses across Victoria — instantly.</p>
+      <div class="hero-cta-group">
+        <a href="#" class="btn-big">Post a shift →</a>
+        <a href="#" class="btn-link">I'm a healthcare worker</a>
+      </div>
+    </div>
+
+    <!-- Live timer widget -->
+    <div class="timer-widget">
+      <div class="tw-label">Live activity</div>
+      <div class="tw-title">NURSE shift — Sunrise Aged Care</div>
+      <div class="tw-progress"><div class="tw-fill"></div></div>
+      <div class="tw-status"><span>Posted 18 min ago</span> <strong>1 worker matched</strong></div>
+      <div class="tw-steps">
+        <div class="tw-step">
+          <div class="tw-step-dot done"></div>
+          <div class="tw-step-text"><strong>Shift broadcast</strong> to 14 nurses</div>
+          <div class="tw-step-time">0:32</div>
+        </div>
+        <div class="tw-step">
+          <div class="tw-step-dot done"></div>
+          <div class="tw-step-text"><strong>3 workers</strong> viewed shift</div>
+          <div class="tw-step-time">4:17</div>
+        </div>
+        <div class="tw-step">
+          <div class="tw-step-dot active"></div>
+          <div class="tw-step-text"><strong>Jessica P. (RN)</strong> — documents verified</div>
+          <div class="tw-step-time">18:03</div>
+        </div>
+        <div class="tw-step">
+          <div class="tw-step-dot pending"></div>
+          <div class="tw-step-text">Facility confirmed — shift locked</div>
+          <div class="tw-step-time">—</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Big numbers -->
+<div class="numbers-section">
+  <div class="num-grid">
+    <div class="num-item">
+      <div class="big-n">27<span>m</span></div>
+      <div class="num-label">Average time to fill a shift</div>
+    </div>
+    <div class="num-item">
+      <div class="big-n"><span>0</span>%</div>
+      <div class="num-label">Agency markup on rates</div>
+    </div>
+    <div class="num-item">
+      <div class="big-n">100<span>%</span></div>
+      <div class="num-label">AHPRA-verified workers</div>
+    </div>
+    <div class="num-item">
+      <div class="big-n">90<span>s</span></div>
+      <div class="num-label">To post a shift and broadcast</div>
+    </div>
+  </div>
+</div>
+
+<!-- Comparison -->
+<div class="comparison">
+  <div class="comparison-inner">
+    <div class="comp-header">
+      <div class="comp-kicker">The old way vs Carelink</div>
+      <div class="comp-h2"><span class="strike">4 hours of phone calls.</span><br /><span class="new">27 minutes on Carelink.</span></div>
+    </div>
+    <div class="comp-grid">
+      <div class="comp-col old">
+        <div class="comp-col-label">The old way</div>
+        <div class="comp-item">
+          <span class="comp-icon">📞</span>
+          <div class="comp-text">
+            <div class="comp-main">6am calls to agency contacts</div>
+            <div class="comp-sub">Average 3–4 hours to confirm a placement</div>
+          </div>
+        </div>
+        <div class="comp-item">
+          <span class="comp-icon">💸</span>
+          <div class="comp-text">
+            <div class="comp-main">30–40% agency markup</div>
+            <div class="comp-sub">On top of the worker's actual rate</div>
+          </div>
+        </div>
+        <div class="comp-item">
+          <span class="comp-icon">📋</span>
+          <div class="comp-text">
+            <div class="comp-main">Manual compliance checks</div>
+            <div class="comp-sub">You chase AHPRA certificates yourself</div>
+          </div>
+        </div>
+        <div class="comp-item">
+          <span class="comp-icon">📝</span>
+          <div class="comp-text">
+            <div class="comp-main">Paper timesheets</div>
+            <div class="comp-sub">Hours logged manually, errors common</div>
+          </div>
+        </div>
+      </div>
+      <div class="comp-col">
+        <div class="comp-col-label new-label">Carelink</div>
+        <div class="comp-item">
+          <span class="comp-icon">⚡</span>
+          <div class="comp-text">
+            <div class="comp-main">Post in 90 seconds</div>
+            <div class="comp-sub">Broadcast to every available worker in your area</div>
+          </div>
+        </div>
+        <div class="comp-item">
+          <span class="comp-icon">✓</span>
+          <div class="comp-text">
+            <div class="comp-main">Market rate. That's it.</div>
+            <div class="comp-sub">$42–$55/hr for RNs. No markup. Ever.</div>
+          </div>
+        </div>
+        <div class="comp-item">
+          <span class="comp-icon">🛡</span>
+          <div class="comp-text">
+            <div class="comp-main">Pre-verified compliance</div>
+            <div class="comp-sub">AHPRA, police check, immunisations — all done</div>
+          </div>
+        </div>
+        <div class="comp-item">
+          <span class="comp-icon">📱</span>
+          <div class="comp-text">
+            <div class="comp-main">Digital clock-in/out</div>
+            <div class="comp-sub">Hours auto-logged, audit trail included</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Roles -->
+<div class="roles-section">
+  <div class="roles-inner">
+    <div class="roles-kicker">Available right now</div>
+    <div class="roles-h2">Every role.<br /><span>One platform.</span></div>
+    <div class="roles-grid">
+      <div class="role-card">
+        <div class="role-tag">RN</div>
+        <div class="role-name">Registered Nurse</div>
+        <div class="role-rate">$55 <span>/ hour</span></div>
+        <div class="role-avail">AHPRA-registered · Available 24/7</div>
+      </div>
+      <div class="role-card">
+        <div class="role-tag">EN</div>
+        <div class="role-name">Enrolled Nurse</div>
+        <div class="role-rate">$45 <span>/ hour</span></div>
+        <div class="role-avail">Verified · Police-checked</div>
+      </div>
+      <div class="role-card">
+        <div class="role-tag">PCA</div>
+        <div class="role-name">Personal Care Asst.</div>
+        <div class="role-rate">$32.50 <span>/ hour</span></div>
+        <div class="role-avail">Immunisation-verified · Rated</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Final CTA -->
+<div class="final-cta">
+  <div class="final-h2">Stop calling.<br />Start posting.</div>
+  <div class="final-sub">Your next shift could be filled in the time it takes<br />to find your agency's phone number.</div>
+  <div class="final-actions">
+    <a href="#" class="btn-final">Post a shift — it's free →</a>
+    <a href="#" class="btn-final secondary">I'm a healthcare worker</a>
+  </div>
+  <div class="final-micro">No contracts. No setup fee. No agency markup. Ever.</div>
+</div>
+
+<footer>
+  <span>• Carelink</span>
+  <span>Victoria, Australia · Aged Care Act 2024</span>
+</footer>
+
+</body>
+</html>
