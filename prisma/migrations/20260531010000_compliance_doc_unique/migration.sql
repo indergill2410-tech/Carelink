@@ -4,7 +4,7 @@ DELETE FROM "ComplianceDocument" a
 USING "ComplianceDocument" b
 WHERE a."userId" = b."userId"
   AND a."docType" = b."docType"
-  AND a."createdAt" < b."createdAt";
+  AND (a."createdAt" < b."createdAt" OR (a."createdAt" = b."createdAt" AND a."id" < b."id"));
 
 -- Add the unique constraint
 ALTER TABLE "ComplianceDocument"

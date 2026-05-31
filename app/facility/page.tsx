@@ -10,6 +10,9 @@ import {
 import { revalidatePath } from 'next/cache'
 import { signOut } from '@/app/login/actions'
 import { Role } from '@prisma/client'
+import { fromZonedTime } from 'date-fns-tz'
+
+const TZ = 'Australia/Melbourne'
 
 export const dynamic = 'force-dynamic'
 
@@ -121,8 +124,8 @@ export default async function FacilityPortal({
       redirect('/facility?error=Invalid+shift+details')
     }
 
-    const startTime = new Date(`${date}T${startT}:00+10:00`)
-    const endTime   = new Date(`${date}T${endT}:00+10:00`)
+    const startTime = fromZonedTime(`${date}T${startT}:00`, TZ)
+    const endTime   = fromZonedTime(`${date}T${endT}:00`, TZ)
 
     if (isNaN(startTime.getTime()) || isNaN(endTime.getTime()) || startTime >= endTime) {
       redirect('/facility?error=Invalid+time+range')
