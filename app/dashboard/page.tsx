@@ -15,6 +15,7 @@ import { prisma } from '@/lib/prisma'
 import { createClient } from '@/utils/supabase/server'
 import { signOut } from '@/app/login/actions'
 import { createNotification } from '@/lib/notifications'
+import { getComplianceStatusForDocuments } from '@/lib/compliance'
 import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
 import { Role } from '@prisma/client'
@@ -109,16 +110,20 @@ async function reviewDocument(formData: FormData) {
   const reviewNote = (formData.get('reviewNote') as string) || null
   if (!docId || !['APPROVED','REJECTED'].includes(action)) return
 
-  const doc = await prisma.complianceDocument.update({ where: { id: docId }, data: { status: action, reviewNote } })
+  const doc = await prisma.complianceDocument.update({
+    where: { id: docId },
+    data: { status: action, reviewNote },
+    include: { user: { select: { role: true } } },
+  })
   if (doc) {
-    const required = ['POLICE_CHECK','WORKING_WITH_CHILDREN','FIRST_AID','IMMUNISATION','ID_PROOF']
-    const approved = await prisma.complianceDocument.findMany({
-      where: { userId: doc.userId, status: 'APPROVED', docType: { in: required } },
+    const documents = await prisma.complianceDocument.findMany({
+      where: { userId: doc.userId },
     })
-    const isNowCompliant = approved.length >= required.length
+    const nextComplianceStatus = getComplianceStatusForDocuments(doc.user.role, documents)
+    const isNowCompliant = nextComplianceStatus === 'GREEN'
     await prisma.user.update({
       where: { id: doc.userId },
-      data: { complianceStatus: isNowCompliant ? 'GREEN' : 'RED' },
+      data: { complianceStatus: nextComplianceStatus },
     })
     const docLabel = doc.docType.replace(/_/g, ' ')
     if (action === 'APPROVED') {

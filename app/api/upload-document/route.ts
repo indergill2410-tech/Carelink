@@ -4,15 +4,7 @@ import { createServerClient } from '@supabase/ssr'
 import { prisma } from '@/lib/prisma'
 import { randomUUID } from 'crypto'
 import { checkRateLimit } from '@/lib/rate-limit'
-
-const ALLOWED_DOC_TYPES = [
-  'POLICE_CHECK',
-  'WORKING_WITH_CHILDREN',
-  'FIRST_AID',
-  'IMMUNISATION',
-  'ID_PROOF',
-  'NURSING_REGISTRATION',
-]
+import { ALL_COMPLIANCE_DOC_TYPES, getComplianceStatusForDocuments } from '@/lib/compliance'
 
 const ALLOWED_MIME_TYPES = new Set([
   'application/pdf',
@@ -52,7 +44,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Missing file or docType' }, { status: 400 })
   }
 
-  if (!ALLOWED_DOC_TYPES.includes(docType)) {
+  if (!ALL_COMPLIANCE_DOC_TYPES.includes(docType as (typeof ALL_COMPLIANCE_DOC_TYPES)[number])) {
     return NextResponse.json({ error: 'Invalid document type' }, { status: 400 })
   }
 
@@ -110,6 +102,17 @@ export async function POST(req: NextRequest) {
       updatedAt: new Date(),
     },
   })
+
+  const [dbUser, documents] = await Promise.all([
+    prisma.user.findUnique({ where: { id: user.id }, select: { role: true } }),
+    prisma.complianceDocument.findMany({ where: { userId: user.id } }),
+  ])
+  if (dbUser) {
+    await prisma.user.update({
+      where: { id: user.id },
+      data: { complianceStatus: getComplianceStatusForDocuments(dbUser.role, documents) },
+    })
+  }
 
   // Return a short-lived signed URL for immediate display
   const { data: signedData, error: signError } = await storageClient.storage
