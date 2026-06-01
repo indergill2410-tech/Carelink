@@ -28,6 +28,13 @@ const ROLE_META: Record<string, { label: string; color: string }> = {
   PCA:   { label: 'PCA', color: 'bg-teal/10 text-teal border-teal/20' },
 }
 
+const SHIFT_TEMPLATES = [
+  { label: 'Morning RN', role: 'NURSE', start: '07:00', end: '15:00', urgent: false },
+  { label: 'Evening EN', role: 'EN', start: '15:00', end: '23:00', urgent: false },
+  { label: 'Night PCA', role: 'PCA', start: '23:00', end: '07:00', urgent: false },
+  { label: 'Urgent RN', role: 'NURSE', start: '07:00', end: '15:00', urgent: true },
+]
+
 const STATUS_BAR: Record<string, string> = {
   PENDING:    'bg-amber-400',
   MATCHED:    'bg-teal',
@@ -74,7 +81,7 @@ const labelCls = 'block text-[11px] font-semibold text-ink/50 uppercase tracking
 export default async function FacilityPortal({
   searchParams,
 }: {
-  searchParams: { error?: string; tab?: string }
+  searchParams: { error?: string; tab?: string; template?: string }
 }) {
   const { facility, shifts } = await getFacilityData()
   const error = searchParams.error
@@ -83,6 +90,7 @@ export default async function FacilityPortal({
   const pending   = shifts.filter(s => s.status === 'PENDING')
   const matched   = shifts.filter(s => s.status === 'MATCHED' || s.status === 'CLOCKED_IN')
   const completed = shifts.filter(s => s.status === 'COMPLETED')
+  const selectedTemplate = SHIFT_TEMPLATES.find(t => t.label === searchParams.template)
   const totalSpend = completed.reduce((sum, s) => {
     const hrs = (s.endTime.getTime() - s.startTime.getTime()) / 3_600_000
     return sum + s.hourlyRate * hrs
@@ -118,6 +126,8 @@ export default async function FacilityPortal({
     const rateRaw = formData.get('hourlyRate') as string
     const notes  = (formData.get('notes') as string) || null
     const urgent = formData.get('urgent') === 'on'
+    const repeatWeeksRaw = parseInt((formData.get('repeatWeeks') as string) || '1', 10)
+    const repeatWeeks = Number.isFinite(repeatWeeksRaw) ? Math.min(Math.max(repeatWeeksRaw, 1), 12) : 1
 
     const VALID_ROLES = ['NURSE', 'EN', 'PCA']
     if (!role || !VALID_ROLES.includes(role) || !date || !/^\d{4}-\d{2}-\d{2}$/.test(date)) {
@@ -127,23 +137,30 @@ export default async function FacilityPortal({
     const startTime = fromZonedTime(`${date}T${startT}:00`, TZ)
     const endTime   = fromZonedTime(`${date}T${endT}:00`, TZ)
 
-    if (isNaN(startTime.getTime()) || isNaN(endTime.getTime()) || startTime >= endTime) {
+    let normalizedEndTime = endTime
+    if (!isNaN(startTime.getTime()) && !isNaN(endTime.getTime()) && normalizedEndTime <= startTime) {
+      normalizedEndTime = new Date(normalizedEndTime.getTime() + 24 * 60 * 60 * 1000)
+    }
+
+    if (isNaN(startTime.getTime()) || isNaN(normalizedEndTime.getTime()) || startTime >= normalizedEndTime) {
       redirect('/facility?error=Invalid+time+range')
     }
 
     const hourlyRate = parseFloat(rateRaw) || ROLE_RATES[role] || 45.00
 
-    await prisma.shift.create({
-      data: {
+    await prisma.shift.createMany({
+      data: Array.from({ length: repeatWeeks }, (_, index) => {
+        const weekOffsetMs = index * 7 * 24 * 60 * 60 * 1000
+        return {
         facilityId: facility.id,
         role: role as Role,
-        startTime,
-        endTime,
+        startTime: new Date(startTime.getTime() + weekOffsetMs),
+        endTime: new Date(normalizedEndTime.getTime() + weekOffsetMs),
         hourlyRate,
         notes: notes || null,
         urgent,
         status: 'PENDING',
-      },
+      }}),
     })
 
     revalidatePath('/facility')
@@ -256,10 +273,30 @@ export default async function FacilityPortal({
               </div>
 
               <div className="bg-white p-5 space-y-4">
+                <div>
+                  <p className={labelCls}>Quick Templates</p>
+                  <div className="grid grid-cols-2 gap-2">
+                    {SHIFT_TEMPLATES.map(template => (
+                      <a
+                        key={template.label}
+                        href={`/facility?tab=shifts&template=${encodeURIComponent(template.label)}`}
+                        className={[
+                          'rounded-xl border px-3 py-2 text-xs font-bold transition-all',
+                          selectedTemplate?.label === template.label
+                            ? 'border-teal bg-teal/10 text-teal'
+                            : 'border-surface-3 bg-surface-1 text-ink/55 hover:border-teal hover:text-teal',
+                        ].join(' ')}
+                      >
+                        {template.label}
+                      </a>
+                    ))}
+                  </div>
+                </div>
+
                 <form action={requestShift} className="space-y-4">
                   <div>
                     <label className={labelCls}>Role Needed</label>
-                    <select name="role" className={inputCls} required>
+                    <select name="role" className={inputCls} defaultValue={selectedTemplate?.role ?? 'NURSE'} required>
                       <option value="NURSE">Registered Nurse (RN) — ${ROLE_RATES.NURSE}/hr</option>
                       <option value="EN">Enrolled Nurse (EN) — ${ROLE_RATES.EN}/hr</option>
                       <option value="PCA">Personal Care Assistant — ${ROLE_RATES.PCA}/hr</option>
@@ -274,11 +311,11 @@ export default async function FacilityPortal({
                   <div className="grid grid-cols-2 gap-3">
                     <div>
                       <label className={labelCls}>Start</label>
-                      <input type="time" name="startTime" defaultValue="07:00" className={inputCls} required />
+                      <input type="time" name="startTime" defaultValue={selectedTemplate?.start ?? '07:00'} className={inputCls} required />
                     </div>
                     <div>
                       <label className={labelCls}>End</label>
-                      <input type="time" name="endTime" defaultValue="15:00" className={inputCls} required />
+                      <input type="time" name="endTime" defaultValue={selectedTemplate?.end ?? '15:00'} className={inputCls} required />
                     </div>
                   </div>
 
@@ -296,6 +333,17 @@ export default async function FacilityPortal({
                   </div>
 
                   <div>
+                    <label className={labelCls}>Repeat Weekly</label>
+                    <select name="repeatWeeks" defaultValue="1" className={inputCls}>
+                      <option value="1">One-off shift</option>
+                      <option value="2">Repeat for 2 weeks</option>
+                      <option value="4">Repeat for 4 weeks</option>
+                      <option value="8">Repeat for 8 weeks</option>
+                      <option value="12">Repeat for 12 weeks</option>
+                    </select>
+                  </div>
+
+                  <div>
                     <label className={labelCls}>Notes (optional)</label>
                     <textarea
                       name="notes"
@@ -307,7 +355,7 @@ export default async function FacilityPortal({
                   </div>
 
                   <label className="flex items-center gap-2.5 cursor-pointer select-none group">
-                    <input type="checkbox" name="urgent" className="w-4 h-4 rounded accent-rose-500" />
+                    <input type="checkbox" name="urgent" defaultChecked={selectedTemplate?.urgent ?? false} className="w-4 h-4 rounded accent-rose-500" />
                     <span className="text-sm font-semibold text-rose-600 flex items-center gap-1.5">
                       <Zap className="w-3.5 h-3.5" /> Mark as Urgent
                     </span>
