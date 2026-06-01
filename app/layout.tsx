@@ -5,9 +5,23 @@ import { Inter } from 'next/font/google'
 const inter = Inter({ subsets: ['latin'] })
 
 export const metadata: Metadata = {
-  title: 'Carelink — Healthcare Staffing',
-  description: 'Connect healthcare facilities with qualified workers instantly.',
+  metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL ?? 'https://carelinkaustralia.com.au'),
+  title: {
+    default: 'Carelink — Aged Care Staffing Australia',
+    template: '%s | Carelink',
+  },
+  description: 'Carelink helps Australian aged-care facilities fill shifts with document-checked RN, EN, and PCA workers.',
   manifest: '/manifest.json',
+  alternates: {
+    canonical: '/',
+  },
+  openGraph: {
+    title: 'Carelink — Aged Care Staffing Australia',
+    description: 'Compliance-ready aged-care staffing for facilities and flexible shifts for healthcare workers.',
+    url: '/',
+    siteName: 'Carelink',
+    type: 'website',
+  },
   appleWebApp: {
     capable: true,
     statusBarStyle: 'black-translucent',
