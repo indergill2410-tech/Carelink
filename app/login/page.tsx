@@ -361,9 +361,14 @@ function LoginContent() {
                   <div className="space-y-1.5">
                     <label className="text-xs font-semibold text-ink/60 uppercase tracking-wider">I am a…</label>
                     <select name="role" className={inputBase}>
-                      <option value="NURSE">Healthcare Worker (RN / EN / PCA)</option>
+                      <option value="NURSE">Registered Nurse (RN)</option>
+                      <option value="EN">Enrolled Nurse (EN)</option>
+                      <option value="PCA">Personal Care Assistant (PCA)</option>
                       <option value="FACILITY">Aged Care Facility Manager</option>
                     </select>
+                    <p className="text-[11px] text-ink/40 mt-1">
+                      Pick the role you want Carelink to match you against.
+                    </p>
                   </div>
                   <div className="space-y-1.5">
                     <label className="text-xs font-semibold text-ink/60 uppercase tracking-wider">

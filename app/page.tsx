@@ -19,13 +19,25 @@ export default function LandingPage() {
           </div>
           <div className="flex items-center gap-3">
             <Link
+              href="/workers"
+              className="hidden sm:inline-flex text-sm font-semibold text-white/60 hover:text-white transition-colors px-3 py-2"
+            >
+              Workers
+            </Link>
+            <Link
+              href="/for-facilities"
+              className="hidden sm:inline-flex text-sm font-semibold text-white/60 hover:text-white transition-colors px-3 py-2"
+            >
+              Facilities
+            </Link>
+            <Link
               href="/login"
               className="text-sm font-semibold text-white/60 hover:text-white transition-colors px-4 py-2"
             >
               Sign In
             </Link>
             <Link
-              href="/login"
+              href="/for-facilities"
               className="text-sm font-bold bg-teal text-ink px-4 py-2 rounded-xl hover:bg-teal/90 transition-colors"
             >
               Get Started
@@ -62,7 +74,7 @@ export default function LandingPage() {
 
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
             <Link
-              href="/login"
+              href="/for-facilities"
               className="flex items-center gap-2.5 bg-teal text-ink font-bold px-8 py-4 rounded-2xl text-base hover:bg-teal/90 transition-all hover:-translate-y-0.5 shadow-glow"
             >
               <Building2 className="w-5 h-5" />
@@ -70,7 +82,7 @@ export default function LandingPage() {
               <ArrowRight className="w-4 h-4" />
             </Link>
             <Link
-              href="/login"
+              href="/workers"
               className="flex items-center gap-2.5 bg-white/10 border border-white/20 text-white font-bold px-8 py-4 rounded-2xl text-base hover:bg-white/15 transition-all hover:-translate-y-0.5"
             >
               <Stethoscope className="w-5 h-5" />
@@ -126,7 +138,7 @@ export default function LandingPage() {
             ))}
           </ul>
           <Link
-            href="/login"
+            href="/for-facilities"
             className="inline-flex items-center gap-2 text-sm font-bold text-teal hover:text-teal/80 transition-colors"
           >
             Register your facility <ArrowRight className="w-4 h-4" />
@@ -159,7 +171,7 @@ export default function LandingPage() {
             ))}
           </ul>
           <Link
-            href="/login"
+            href="/workers"
             className="inline-flex items-center gap-2 text-sm font-bold text-teal hover:text-teal/80 transition-colors"
           >
             Find shifts near you <ArrowRight className="w-4 h-4" />
@@ -179,16 +191,16 @@ export default function LandingPage() {
           </p>
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4 pt-2">
             <Link
-              href="/login"
+              href="/for-facilities"
               className="flex items-center gap-2.5 bg-teal text-ink font-bold px-8 py-4 rounded-2xl text-base hover:bg-teal/90 transition-all hover:-translate-y-0.5 shadow-glow"
             >
-              Get started free <ArrowRight className="w-4 h-4" />
+              Need staff <ArrowRight className="w-4 h-4" />
             </Link>
             <Link
-              href="/login"
-              className="text-sm text-white/50 hover:text-white transition-colors font-medium"
+              href="/workers"
+              className="flex items-center gap-2.5 bg-white/10 border border-white/20 text-white font-bold px-8 py-4 rounded-2xl text-base hover:bg-white/15 transition-all hover:-translate-y-0.5"
             >
-              Or try a live demo →
+              Want shifts <ArrowRight className="w-4 h-4" />
             </Link>
           </div>
         </div>

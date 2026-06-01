@@ -22,6 +22,21 @@ export async function proxy(request: NextRequest) {
     request: { headers: request.headers },
   })
 
+  const pathname = request.nextUrl.pathname
+  const isDashboard = pathname.startsWith('/dashboard')
+  const isFacility = pathname.startsWith('/facility')
+  const isWorker = pathname.startsWith('/worker')
+  const isProtected = isDashboard || isFacility || isWorker
+
+  if (!isProtected) return response
+
+  if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) {
+    const url = request.nextUrl.clone()
+    url.pathname = '/login'
+    url.searchParams.set('error', 'Authentication is not configured.')
+    return withNoStore(NextResponse.redirect(url))
+  }
+
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
@@ -52,14 +67,6 @@ export async function proxy(request: NextRequest) {
   )
 
   const { data: { user } } = await supabase.auth.getUser()
-
-  const pathname = request.nextUrl.pathname
-  const isDashboard = pathname.startsWith('/dashboard')
-  const isFacility = pathname.startsWith('/facility')
-  const isWorker = pathname.startsWith('/worker')
-  const isProtected = isDashboard || isFacility || isWorker
-
-  if (!isProtected) return response
 
   if (!user) {
     const url = request.nextUrl.clone()
