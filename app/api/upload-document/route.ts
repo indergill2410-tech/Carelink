@@ -4,6 +4,7 @@ import { createServerClient } from '@supabase/ssr'
 import { prisma } from '@/lib/prisma'
 import { randomUUID } from 'crypto'
 import { checkRateLimit } from '@/lib/rate-limit'
+import { notifyAdminDocUploaded } from '@/lib/notifications'
 
 const ALLOWED_DOC_TYPES = [
   'POLICE_CHECK',
@@ -110,6 +111,16 @@ export async function POST(req: NextRequest) {
       updatedAt: new Date(),
     },
   })
+
+  // Notify admin of new document pending review (fire-and-forget)
+  const dbUser = await prisma.user.findUnique({ where: { id: user.id }, select: { name: true, email: true } })
+  if (dbUser) {
+    notifyAdminDocUploaded({
+      workerName: dbUser.name ?? user.email ?? 'Unknown',
+      workerEmail: dbUser.email,
+      docType,
+    }).catch(() => {})
+  }
 
   // Return a short-lived signed URL for immediate display
   const { data: signedData, error: signError } = await storageClient.storage

@@ -4,6 +4,7 @@ import { redirect } from 'next/navigation'
 import { createClient } from '@/utils/supabase/server'
 import { prisma } from '@/lib/prisma'
 import { LoginSchema, SignupSchema } from '@/lib/validations'
+import { notifyAdminNewWorker } from '@/lib/notifications'
 
 export async function login(formData: FormData) {
   const parsed = LoginSchema.safeParse({
@@ -92,6 +93,11 @@ export async function signup(formData: FormData) {
     if (!upsertOk) {
       console.error('[signup] DB upsert failed after retries:', lastErr)
       redirect('/login?error=' + encodeURIComponent('Account created but profile setup failed. Please sign in.'))
+    }
+
+    // Notify admin of new worker registration (fire-and-forget, non-blocking)
+    if (['NURSE', 'EN', 'PCA'].includes(dbRole)) {
+      notifyAdminNewWorker({ workerName: name, workerEmail: email, workerRole: dbRole }).catch(() => {})
     }
 
     // Email verification gate — redirect if email not yet confirmed

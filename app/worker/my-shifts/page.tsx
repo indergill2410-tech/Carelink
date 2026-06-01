@@ -9,6 +9,7 @@ import {
   MapPin, LogIn, LogOut, Star, Zap, AlertTriangle,
 } from 'lucide-react'
 import { LogoutButton } from '@/components/LogoutButton'
+import { notifyShiftCompleted, notifyWorkerShiftCancelledByWorker } from '@/lib/notifications'
 
 export const dynamic = 'force-dynamic'
 
@@ -83,10 +84,11 @@ export default async function MyShiftsPage({
     const { data: { user: authUser } } = await supabase.auth.getUser()
     if (!authUser) redirect('/login')
     try {
-      await prisma.shift.updateMany({
+      const updated = await prisma.shift.updateMany({
         where: { id: shiftId, workerId: authUser.id, status: 'CLOCKED_IN' },
         data: { status: 'COMPLETED', clockOutAt: new Date() },
       })
+      if (updated.count > 0) await notifyShiftCompleted(shiftId)
     } catch (err) {
       console.error('[clockOut] Prisma error:', err)
       return
@@ -104,10 +106,13 @@ export default async function MyShiftsPage({
     const { data: { user: authUser } } = await supabase.auth.getUser()
     if (!authUser) redirect('/login')
     try {
-      await prisma.shift.updateMany({
+      const updated = await prisma.shift.updateMany({
         where: { id: shiftId, workerId: authUser.id, status: 'MATCHED' },
         data: { status: 'CANCELLED' },
       })
+      if (updated.count > 0) {
+        await notifyWorkerShiftCancelledByWorker({ workerId: authUser.id, shiftId })
+      }
     } catch (err) {
       console.error('[cancelShift] Prisma error:', err)
       return

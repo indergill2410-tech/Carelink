@@ -14,7 +14,12 @@ import { StatusBadge, ComplianceBadge } from '@/components/StatusBadge'
 import { prisma } from '@/lib/prisma'
 import { createClient } from '@/utils/supabase/server'
 import { signOut } from '@/app/login/actions'
-import { createNotification } from '@/lib/notifications'
+import {
+  createNotification,
+  notifyDocReviewed,
+  notifyShiftCancelledByAdmin,
+  notifyShiftAssigned,
+} from '@/lib/notifications'
 import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
 import { Role } from '@prisma/client'
@@ -68,6 +73,9 @@ async function cancelShift(formData: FormData) {
 
   const shiftId = formData.get('shiftId') as string
   if (!shiftId) return
+
+  // Notify matched worker before cancelling
+  await notifyShiftCancelledByAdmin(shiftId)
   await prisma.shift.update({ where: { id: shiftId }, data: { status: 'CANCELLED' } })
   revalidatePath('/dashboard')
 }
@@ -112,32 +120,21 @@ async function reviewDocument(formData: FormData) {
   const doc = await prisma.complianceDocument.update({ where: { id: docId }, data: { status: action, reviewNote } })
   if (doc) {
     const required = ['POLICE_CHECK','WORKING_WITH_CHILDREN','FIRST_AID','IMMUNISATION','ID_PROOF']
-    const approved = await prisma.complianceDocument.findMany({
+    const approvedDocs = await prisma.complianceDocument.findMany({
       where: { userId: doc.userId, status: 'APPROVED', docType: { in: required } },
     })
-    const isNowCompliant = approved.length >= required.length
+    const isNowCompliant = approvedDocs.length >= required.length
     await prisma.user.update({
       where: { id: doc.userId },
       data: { complianceStatus: isNowCompliant ? 'GREEN' : 'RED' },
     })
-    const docLabel = doc.docType.replace(/_/g, ' ')
-    if (action === 'APPROVED') {
-      await createNotification(
-        doc.userId,
-        isNowCompliant ? '✅ Fully Compliant!' : '✅ Document Approved',
-        isNowCompliant
-          ? 'All required documents approved. You can now accept shifts.'
-          : `Your ${docLabel} has been approved.`,
-        '/worker/profile',
-      )
-    } else {
-      await createNotification(
-        doc.userId,
-        '⚠️ Document Rejected',
-        reviewNote ? `${docLabel}: ${reviewNote}` : `Your ${docLabel} was rejected. Please re-upload.`,
-        '/worker/profile',
-      )
-    }
+    await notifyDocReviewed({
+      userId: doc.userId,
+      docType: doc.docType,
+      status: action,
+      reviewNote,
+      isNowCompliant,
+    })
   }
   revalidatePath('/dashboard')
 }
@@ -161,15 +158,7 @@ async function assignWorker(formData: FormData) {
     data: { workerId, status: 'MATCHED' },
   })
 
-  const dateStr = shift.startTime.toLocaleDateString('en-AU', {
-    weekday: 'short', month: 'short', day: 'numeric', timeZone: 'Australia/Melbourne',
-  })
-  await createNotification(
-    workerId,
-    '📋 Shift Assigned',
-    `You have been assigned a ${shift.role} shift at ${shift.facility.name} on ${dateStr}.`,
-    '/worker/my-shifts',
-  )
+  await notifyShiftAssigned(workerId, shift.facility.name, shiftId)
   revalidatePath('/dashboard')
   revalidatePath('/facility')
   revalidatePath('/worker')
