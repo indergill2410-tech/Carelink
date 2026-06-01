@@ -3,9 +3,10 @@ import type { Metadata, Viewport } from 'next'
 import { Inter } from 'next/font/google'
 
 const inter = Inter({ subsets: ['latin'] })
+const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://carelinkaustralia.com.au'
 
 export const metadata: Metadata = {
-  metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL ?? 'https://carelinkaustralia.com.au'),
+  metadataBase: new URL(siteUrl),
   title: {
     default: 'Carelink — Aged Care Staffing Australia',
     template: '%s | Carelink',
