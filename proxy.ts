@@ -3,6 +3,13 @@ import { NextResponse, type NextRequest } from 'next/server'
 
 const WORKER_ROLES = new Set(['NURSE', 'EN', 'PCA'])
 
+function withNoStore(response: NextResponse): NextResponse {
+  response.headers.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate')
+  response.headers.set('Pragma', 'no-cache')
+  response.headers.set('Expires', '0')
+  return response
+}
+
 function getPortalForRole(role: string): string {
   if (role === 'ADMIN') return '/dashboard'
   if (role === 'FACILITY_ADMIN') return '/facility'
@@ -57,12 +64,13 @@ export async function proxy(request: NextRequest) {
   if (!user) {
     const url = request.nextUrl.clone()
     url.pathname = '/login'
-    return NextResponse.redirect(url)
+    return withNoStore(NextResponse.redirect(url))
   }
 
   // Try app_metadata first (set by admin API during provisioning or by the
-  // custom_access_token_hook). Fall back to a DB lookup.
-  let role: string | undefined = user.app_metadata?.role ?? user.user_metadata?.role
+  // custom_access_token_hook). Fall back to a DB lookup. Do not read
+  // user_metadata for authorization because it is user-editable in Supabase.
+  let role: string | undefined = user.app_metadata?.role
 
   if (!role) {
     // When the service role key is available use it to bypass RLS.
@@ -93,20 +101,20 @@ export async function proxy(request: NextRequest) {
 
   // /dashboard — ADMIN only
   if (isDashboard && resolvedRole !== 'ADMIN') {
-    return NextResponse.redirect(new URL(getPortalForRole(resolvedRole), request.url))
+    return withNoStore(NextResponse.redirect(new URL(getPortalForRole(resolvedRole), request.url)))
   }
 
   // /facility — ADMIN or FACILITY_ADMIN
   if (isFacility && resolvedRole !== 'ADMIN' && resolvedRole !== 'FACILITY_ADMIN') {
-    return NextResponse.redirect(new URL(getPortalForRole(resolvedRole), request.url))
+    return withNoStore(NextResponse.redirect(new URL(getPortalForRole(resolvedRole), request.url)))
   }
 
   // /worker — NURSE, EN, PCA
   if (isWorker && !WORKER_ROLES.has(resolvedRole)) {
-    return NextResponse.redirect(new URL(getPortalForRole(resolvedRole), request.url))
+    return withNoStore(NextResponse.redirect(new URL(getPortalForRole(resolvedRole), request.url)))
   }
 
-  return response
+  return withNoStore(response)
 }
 
 export const config = {
