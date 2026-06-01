@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/utils/supabase/server'
 import { prisma } from '@/lib/prisma'
+import { isValidE164Phone } from '@/lib/phone'
 
 export async function GET() {
   const supabase = await createClient()
@@ -49,6 +50,12 @@ export async function POST(req: NextRequest) {
 
   if (!name || name.length < 2 || name.length > 100) {
     return NextResponse.json({ error: 'Name must be 2–100 characters.' }, { status: 400 })
+  }
+
+  if (phone && !isValidE164Phone(phone)) {
+    return NextResponse.json({
+      error: 'Invalid phone number. Use E.164 format, e.g. +61412345678.',
+    }, { status: 400 })
   }
 
   const skills = skillsRaw

@@ -3,6 +3,7 @@
 import { redirect } from 'next/navigation'
 import { createClient } from '@/utils/supabase/server'
 import { prisma } from '@/lib/prisma'
+import { isValidE164Phone } from '@/lib/phone'
 import { LoginSchema, SignupSchema } from '@/lib/validations'
 
 export async function login(formData: FormData) {
@@ -48,8 +49,7 @@ export async function signup(formData: FormData) {
   const { email, password, name, role } = parsed.data
   const phoneRaw = (formData.get('phone') as string)?.trim() || undefined
   if (phoneRaw) {
-    const e164Regex = /^\+[1-9]\d{1,14}$/
-    if (!e164Regex.test(phoneRaw)) {
+    if (!isValidE164Phone(phoneRaw)) {
       redirect('/login?error=' + encodeURIComponent('Invalid phone number. Use E.164 format, e.g. +61412345678.'))
     }
   }
