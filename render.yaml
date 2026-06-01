@@ -25,3 +25,7 @@ services:
         sync: false
       - key: ENABLE_DEMO_ACCOUNTS
         sync: false
+      - key: RESEND_API_KEY
+        sync: false
+      - key: FROM_EMAIL
+        sync: false
