@@ -13,6 +13,7 @@ import { LogoutButton } from '@/components/LogoutButton'
 import { NotificationBell } from '@/components/NotificationBell'
 import { AcceptShiftSchema } from '@/lib/validations'
 import { notifyShiftAccepted } from '@/lib/notifications'
+import { getComplianceStatusForDocuments } from '@/lib/compliance'
 
 export const dynamic = 'force-dynamic'
 
@@ -35,7 +36,7 @@ async function getWorkerData() {
   const dbUser = await prisma.user.findUnique({ where: { id: user.id } })
   if (!dbUser) redirect('/login')
 
-  const [availableShifts, myActiveShifts, unreadCount] = await Promise.all([
+  const [availableShifts, myActiveShifts, unreadCount, documents] = await Promise.all([
     prisma.shift.findMany({
       where: { status: 'PENDING', workerId: null },
       include: { facility: { select: { id: true, name: true, address: true } } },
@@ -45,9 +46,18 @@ async function getWorkerData() {
       where: { workerId: user.id, status: { in: ['MATCHED', 'CLOCKED_IN'] } },
     }),
     prisma.notification.count({ where: { userId: user.id, read: false } }),
+    prisma.complianceDocument.findMany({ where: { userId: user.id } }),
   ])
 
-  return { user: dbUser, availableShifts, myActiveShifts, unreadCount }
+  const effectiveComplianceStatus = getComplianceStatusForDocuments(dbUser.role, documents)
+  const effectiveUser = effectiveComplianceStatus === dbUser.complianceStatus
+    ? dbUser
+    : await prisma.user.update({
+        where: { id: dbUser.id },
+        data: { complianceStatus: effectiveComplianceStatus },
+      })
+
+  return { user: effectiveUser, availableShifts, myActiveShifts, unreadCount }
 }
 
 export default async function WorkerPortal({ searchParams }: { searchParams: { error?: string; filter?: string } }) {
@@ -71,7 +81,12 @@ export default async function WorkerPortal({ searchParams }: { searchParams: { e
     const result = await prisma.$transaction(async (tx) => {
       const dbUser = await tx.user.findUnique({ where: { id: authUser.id } })
       if (!dbUser) return { error: 'user_not_found' as const }
-      if (dbUser.complianceStatus !== 'GREEN') return { error: 'compliance_required' as const }
+      const documents = await tx.complianceDocument.findMany({ where: { userId: authUser.id } })
+      const complianceStatus = getComplianceStatusForDocuments(dbUser.role, documents)
+      if (complianceStatus !== dbUser.complianceStatus) {
+        await tx.user.update({ where: { id: dbUser.id }, data: { complianceStatus } })
+      }
+      if (complianceStatus !== 'GREEN') return { error: 'compliance_required' as const }
 
       const shift = await tx.shift.findUnique({
         where: { id: parsed.data.shiftId },

@@ -7,19 +7,15 @@ import {
   AlertCircle, CheckCircle2, Upload, FileText,
   Loader2, XCircle, Clock, Shield,
 } from 'lucide-react'
+import {
+  COMPLIANCE_DOCUMENTS,
+  getComplianceProgress,
+  getEffectiveDocumentStatus,
+  getRequiredComplianceDocTypes,
+  type ComplianceDocStatus,
+} from '@/lib/compliance'
 
-type DocStatus = 'PENDING' | 'APPROVED' | 'REJECTED' | 'EXPIRED' | 'MISSING'
-
-const DOC_TYPES = [
-  { key: 'POLICE_CHECK',          label: 'Police Check',                  required: true  },
-  { key: 'WORKING_WITH_CHILDREN', label: 'Working With Children Check',   required: true  },
-  { key: 'FIRST_AID',             label: 'First Aid Certificate',         required: true  },
-  { key: 'IMMUNISATION',          label: 'Immunisation Record',           required: true  },
-  { key: 'NURSING_REGISTRATION',  label: 'AHPRA Registration',            required: false },
-  { key: 'ID_PROOF',              label: 'Photo ID',                      required: true  },
-]
-
-const REQUIRED_KEYS = DOC_TYPES.filter(d => d.required).map(d => d.key)
+type DocStatus = ComplianceDocStatus
 
 export type ProfileData = {
   user: {
@@ -62,9 +58,10 @@ export default function ProfileClient({ initialData }: { initialData: ProfileDat
 
   const { user, documents } = initialData
   const docMap = Object.fromEntries(documents.map(d => [d.docType, d]))
-
-  const approvedRequired = REQUIRED_KEYS.filter(k => docMap[k]?.status === 'APPROVED').length
-  const progressPct = Math.round((approvedRequired / REQUIRED_KEYS.length) * 100)
+  const requiredKeys = getRequiredComplianceDocTypes(user.role)
+  const progress = getComplianceProgress(user.role, documents)
+  const approvedRequired = progress.approved
+  const progressPct = progress.percent
   const isCompliant = user.complianceStatus === 'GREEN'
 
   async function handleProfileSave(e: React.FormEvent<HTMLFormElement>) {
@@ -96,7 +93,7 @@ export default function ProfileClient({ initialData }: { initialData: ProfileDat
     try {
       const res  = await fetch('/api/upload-document', { method: 'POST', body: fd })
       const json = await res.json() as { ok?: boolean; error?: string }
-      const label = DOC_TYPES.find(d => d.key === docType)?.label ?? docType
+      const label = COMPLIANCE_DOCUMENTS.find(d => d.key === docType)?.label ?? docType
       setMessage(json.ok
         ? { type: 'success', text: `${label} uploaded. Awaiting review.` }
         : { type: 'error',   text: json.error ?? 'Upload failed.' }
@@ -138,7 +135,7 @@ export default function ProfileClient({ initialData }: { initialData: ProfileDat
                 {isCompliant ? 'Fully Compliant' : 'Documents Required'}
               </p>
               <p className="text-xs text-ink/45 mt-0.5">
-                {approvedRequired}/{REQUIRED_KEYS.length} required documents approved
+                {approvedRequired}/{progress.total} required documents approved
               </p>
             </div>
           </div>
@@ -223,17 +220,18 @@ export default function ProfileClient({ initialData }: { initialData: ProfileDat
             <p className="font-bold text-ink text-sm">Compliance Documents</p>
           </div>
           <span className="text-[11px] font-semibold text-ink/40 bg-surface-2 px-2 py-0.5 rounded-full">
-            {approvedRequired}/{REQUIRED_KEYS.length} done
+            {approvedRequired}/{progress.total} done
           </span>
         </div>
 
         <div className="divide-y divide-surface-1">
-          {DOC_TYPES.map(doc => {
+          {COMPLIANCE_DOCUMENTS.map(doc => {
             const existing   = docMap[doc.key]
-            const status: DocStatus = existing?.status ?? 'MISSING'
+            const status: DocStatus = getEffectiveDocumentStatus(existing)
             const cfg        = DOC_STATUS_CONFIG[status]
             const StatusIcon = cfg.icon
             const isUploading = uploading === doc.key
+            const isRequired = requiredKeys.includes(doc.key)
 
             return (
               <div key={doc.key} className={`p-4 ${cfg.bg}`}>
@@ -244,9 +242,14 @@ export default function ProfileClient({ initialData }: { initialData: ProfileDat
                       <p className="font-semibold text-ink text-sm leading-tight">
                         {doc.label}
                       </p>
-                      {doc.required && status === 'MISSING' && (
+                      {isRequired && status === 'MISSING' && (
                         <span className="text-[9px] font-bold text-rose-500 bg-rose-50 border border-rose-200 px-1.5 py-0.5 rounded-full uppercase">
                           Required
+                        </span>
+                      )}
+                      {!isRequired && (
+                        <span className="text-[9px] font-bold text-ink/35 bg-surface-1 border border-surface-2 px-1.5 py-0.5 rounded-full uppercase">
+                          Optional
                         </span>
                       )}
                     </div>
