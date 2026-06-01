@@ -14,7 +14,7 @@ import { StatusBadge, ComplianceBadge } from '@/components/StatusBadge'
 import { prisma } from '@/lib/prisma'
 import { createClient } from '@/utils/supabase/server'
 import { signOut } from '@/app/login/actions'
-import { createNotification } from '@/lib/notifications'
+import { createNotification, notifyFacilityShiftFilled, notifyShiftCancelled } from '@/lib/notifications'
 import { getComplianceStatusForDocuments } from '@/lib/compliance'
 import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
@@ -69,8 +69,18 @@ async function cancelShift(formData: FormData) {
 
   const shiftId = formData.get('shiftId') as string
   if (!shiftId) return
+  const shift = await prisma.shift.findUnique({
+    where: { id: shiftId },
+    include: { facility: { select: { name: true } } },
+  })
+  if (!shift) return
   await prisma.shift.update({ where: { id: shiftId }, data: { status: 'CANCELLED' } })
+  if (shift.workerId && ['MATCHED', 'CLOCKED_IN'].includes(shift.status)) {
+    await notifyShiftCancelled(shift.workerId, shift.facility.name, shift.id)
+  }
   revalidatePath('/dashboard')
+  revalidatePath('/facility')
+  revalidatePath('/worker/my-shifts')
 }
 
 async function toggleCompliance(formData: FormData) {
@@ -175,9 +185,16 @@ async function assignWorker(formData: FormData) {
     `You have been assigned a ${shift.role} shift at ${shift.facility.name} on ${dateStr}.`,
     '/worker/my-shifts',
   )
+  await notifyFacilityShiftFilled(
+    shift.facility.id,
+    worker.name ?? worker.email,
+    shift.role,
+    shift.id,
+  )
   revalidatePath('/dashboard')
   revalidatePath('/facility')
   revalidatePath('/worker')
+  revalidatePath('/worker/my-shifts')
 }
 
 // ─── Data ─────────────────────────────────────────────────────────────────

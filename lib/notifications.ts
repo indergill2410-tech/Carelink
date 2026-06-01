@@ -37,15 +37,38 @@ export async function notifyShiftAccepted(workerId: string, facilityName: string
     workerId,
     'Shift Confirmed',
     `You've been matched for a shift at ${facilityName}.`,
-    `/worker/my-shifts`,
+    `/worker/my-shifts?shift=${shiftId}`,
   )
 }
 
-export async function notifyShiftCancelled(workerId: string, facilityName: string) {
+export async function notifyFacilityShiftFilled(
+  facilityId: string,
+  workerName: string,
+  role: string,
+  shiftId: string,
+) {
+  const managers = await prisma.user.findMany({
+    where: {
+      facilityId,
+      role: 'FACILITY_ADMIN',
+      isActive: true,
+    },
+    select: { id: true },
+  })
+
+  await Promise.all(managers.map(manager => createNotification(
+    manager.id,
+    'Shift Filled',
+    `${workerName} accepted the ${role} shift.`,
+    `/facility?tab=roster&shift=${shiftId}`,
+  )))
+}
+
+export async function notifyShiftCancelled(workerId: string, facilityName: string, shiftId?: string) {
   await createNotification(
     workerId,
     'Shift Cancelled',
     `Your shift at ${facilityName} has been cancelled.`,
-    `/worker/my-shifts`,
+    shiftId ? `/worker/my-shifts?shift=${shiftId}` : '/worker/my-shifts',
   )
 }
