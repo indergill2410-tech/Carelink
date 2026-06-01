@@ -1,4 +1,5 @@
 import { prisma } from './prisma'
+import { sendEmail } from './email'
 
 export async function createNotification(
   userId: string,
@@ -6,9 +7,29 @@ export async function createNotification(
   body: string,
   link?: string,
 ) {
-  await prisma.notification.create({
-    data: { userId, title, body, link },
-  })
+  const [notification, user] = await Promise.all([
+    prisma.notification.create({
+      data: { userId, title, body, link },
+    }),
+    prisma.user.findUnique({
+      where: { id: userId },
+      select: { email: true },
+    }),
+  ])
+
+  if (user?.email) {
+    const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://carelinkaustralia.com.au'
+    const result = await sendEmail({
+      to: user.email,
+      subject: title,
+      text: `${body}${link ? `\n\nOpen Carelink: ${siteUrl}${link}` : ''}`,
+    })
+    if (!result.sent) {
+      console.warn('[notifications] Email not sent:', result.error)
+    }
+  }
+
+  return notification
 }
 
 export async function notifyShiftAccepted(workerId: string, facilityName: string, shiftId: string) {
