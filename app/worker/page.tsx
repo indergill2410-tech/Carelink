@@ -27,6 +27,7 @@ const ROLE_BG: Record<string, string> = {
   EN:    'bg-violet-50 text-violet-700 border-violet-200',
   PCA:   'bg-teal/10  text-teal      border-teal/20',
 }
+const WORKER_ROLES = ['NURSE', 'EN', 'PCA'] as const
 
 async function getWorkerData() {
   const supabase = await createClient()
@@ -60,14 +61,42 @@ async function getWorkerData() {
   return { user: effectiveUser, availableShifts, myActiveShifts, unreadCount }
 }
 
-export default async function WorkerPortal({ searchParams }: { searchParams: { error?: string; filter?: string } }) {
+export default async function WorkerPortal({
+  searchParams,
+}: {
+  searchParams: { error?: string; filter?: string; role?: string; date?: string; minRate?: string; confirm?: string }
+}) {
   const { user, availableShifts, myActiveShifts } = await getWorkerData()
   const errorMessage = searchParams.error
   const filter = searchParams.filter ?? 'all'
+  const roleFilter = searchParams.role === 'ALL' || WORKER_ROLES.includes(searchParams.role as never)
+    ? searchParams.role!
+    : user.role
+  const dateFilter = searchParams.date ?? ''
+  const minRate = searchParams.minRate ? Number(searchParams.minRate) : NaN
 
   const urgentCount = availableShifts.filter(s => s.urgent).length
-  const filteredShifts = filter === 'urgent' ? availableShifts.filter(s => s.urgent) : availableShifts
+  const filteredShifts = availableShifts.filter(s => {
+    if (filter === 'urgent' && !s.urgent) return false
+    if (roleFilter !== 'ALL' && s.role !== roleFilter) return false
+    if (dateFilter && s.startTime.toISOString().slice(0, 10) !== dateFilter) return false
+    if (!Number.isNaN(minRate) && s.hourlyRate < minRate) return false
+    return true
+  })
+  const confirmShift = searchParams.confirm
+    ? availableShifts.find(s => s.id === searchParams.confirm)
+    : null
   const isCompliant = user.complianceStatus === 'GREEN'
+
+  function feedHref(next: Record<string, string | undefined>) {
+    const params = new URLSearchParams()
+    params.set('filter', next.filter ?? filter)
+    params.set('role', next.role ?? roleFilter)
+    if (next.date ?? dateFilter) params.set('date', next.date ?? dateFilter)
+    if (next.minRate ?? searchParams.minRate) params.set('minRate', next.minRate ?? searchParams.minRate!)
+    if (next.confirm) params.set('confirm', next.confirm)
+    return `/worker?${params.toString()}`
+  }
 
   async function acceptShift(formData: FormData) {
     'use server'
@@ -213,6 +242,32 @@ export default async function WorkerPortal({ searchParams }: { searchParams: { e
           ))}
         </div>
 
+        {/* Search filters */}
+        <form action="/worker" className="bg-white rounded-2xl border border-surface-3 shadow-card p-3 grid grid-cols-2 gap-3">
+          <input type="hidden" name="filter" value={filter} />
+          <div>
+            <label className="block text-[10px] font-bold text-ink/35 uppercase tracking-wider mb-1">Role</label>
+            <select name="role" defaultValue={roleFilter} className="h-10 w-full rounded-xl border border-surface-3 bg-surface-1 px-3 text-xs font-semibold text-ink focus:outline-none focus:border-teal">
+              <option value="ALL">All roles</option>
+              <option value="NURSE">RN</option>
+              <option value="EN">EN</option>
+              <option value="PCA">PCA</option>
+            </select>
+          </div>
+          <div>
+            <label className="block text-[10px] font-bold text-ink/35 uppercase tracking-wider mb-1">Date</label>
+            <input name="date" type="date" defaultValue={dateFilter} className="h-10 w-full rounded-xl border border-surface-3 bg-surface-1 px-3 text-xs font-semibold text-ink focus:outline-none focus:border-teal" />
+          </div>
+          <div>
+            <label className="block text-[10px] font-bold text-ink/35 uppercase tracking-wider mb-1">Min rate</label>
+            <input name="minRate" type="number" min="0" step="1" defaultValue={searchParams.minRate ?? ''} placeholder="$ / hr" className="h-10 w-full rounded-xl border border-surface-3 bg-surface-1 px-3 text-xs font-semibold text-ink focus:outline-none focus:border-teal" />
+          </div>
+          <div className="flex items-end gap-2">
+            <Button type="submit" className="h-10 flex-1 text-xs font-bold">Apply</Button>
+            <a href="/worker" className="h-10 px-3 rounded-xl border border-surface-3 bg-white text-xs font-bold text-ink/50 flex items-center justify-center">Reset</a>
+          </div>
+        </form>
+
         {/* Section heading */}
         <div className="flex items-center justify-between">
           <h2 className="font-bold text-ink text-base tracking-tight">Available Near You</h2>
@@ -229,7 +284,7 @@ export default async function WorkerPortal({ searchParams }: { searchParams: { e
             </div>
             <p className="font-bold text-ink text-sm">No shifts available right now</p>
             <p className="text-ink/40 text-xs mt-1 text-center px-8">
-              All shifts have been claimed. Check back soon.
+              Try changing filters or check back soon.
             </p>
           </div>
         ) : (
@@ -308,24 +363,24 @@ export default async function WorkerPortal({ searchParams }: { searchParams: { e
                     )}
 
                     {/* CTA */}
-                    <form action={acceptShift} className="mt-4">
-                      <input type="hidden" name="shiftId" value={shift.id} />
-                      <Button
-                        type="submit"
-                        className={`w-full h-12 text-base font-bold rounded-xl gap-2 ${
-                          shift.urgent
-                            ? 'bg-gradient-to-r from-rose-500 to-rose-600 shadow-glow-rose hover:shadow-glow-rose'
-                            : ''
-                        }`}
-                        disabled={!isCompliant}
-                      >
-                        {isCompliant ? (
-                          <><span>Accept Shift</span><ArrowRight className="w-4 h-4" /></>
-                        ) : (
-                          'Complete Compliance First'
-                        )}
-                      </Button>
-                    </form>
+                    <div className="mt-4">
+                      {isCompliant ? (
+                        <Button
+                          asChild
+                          className={`w-full h-12 text-base font-bold rounded-xl gap-2 ${
+                            shift.urgent
+                              ? 'bg-gradient-to-r from-rose-500 to-rose-600 shadow-glow-rose hover:shadow-glow-rose'
+                              : ''
+                          }`}
+                        >
+                          <a href={feedHref({ confirm: shift.id })}><span>Review & Accept</span><ArrowRight className="w-4 h-4" /></a>
+                        </Button>
+                      ) : (
+                        <Button type="button" className="w-full h-12 text-base font-bold rounded-xl" disabled>
+                          Complete Compliance First
+                        </Button>
+                      )}
+                    </div>
                   </div>
                 </div>
               )
@@ -333,6 +388,53 @@ export default async function WorkerPortal({ searchParams }: { searchParams: { e
           </div>
         )}
       </main>
+
+      {confirmShift && (
+        <div className="fixed inset-0 z-[60] bg-ink/60 backdrop-blur-sm flex items-end sm:items-center justify-center px-4 py-5">
+          <div className="w-full max-w-md bg-white rounded-3xl shadow-modal border border-surface-2 overflow-hidden animate-fade-in-up">
+            <div className={`h-1.5 bg-gradient-to-r ${confirmShift.urgent ? 'from-rose-500 to-rose-600' : ROLE_GRADIENT[confirmShift.role] ?? 'from-teal to-electric-dim'}`} />
+            <div className="p-5 space-y-4">
+              <div>
+                <p className="text-label text-ink/40 mb-1">Confirm shift</p>
+                <h2 className="text-xl font-black text-ink">{confirmShift.facility.name}</h2>
+                <p className="text-sm text-ink/45 mt-1">{confirmShift.facility.address}</p>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="rounded-2xl bg-surface-1 border border-surface-2 p-3">
+                  <p className="text-[10px] font-bold text-ink/35 uppercase tracking-wider">Role</p>
+                  <p className="font-black text-ink mt-1">{confirmShift.role}</p>
+                </div>
+                <div className="rounded-2xl bg-surface-1 border border-surface-2 p-3">
+                  <p className="text-[10px] font-bold text-ink/35 uppercase tracking-wider">Rate</p>
+                  <p className="font-black text-ink mt-1">${confirmShift.hourlyRate.toFixed(0)}/hr</p>
+                </div>
+                <div className="col-span-2 rounded-2xl bg-surface-1 border border-surface-2 p-3">
+                  <p className="text-[10px] font-bold text-ink/35 uppercase tracking-wider">Time</p>
+                  <p className="font-bold text-ink mt-1">
+                    {confirmShift.startTime.toLocaleDateString('en-AU', { weekday: 'long', month: 'short', day: 'numeric', timeZone: 'Australia/Melbourne' })}
+                    {' · '}
+                    {confirmShift.startTime.toLocaleTimeString('en-AU', { hour: '2-digit', minute: '2-digit', timeZone: 'Australia/Melbourne' })}
+                    {' – '}
+                    {confirmShift.endTime.toLocaleTimeString('en-AU', { hour: '2-digit', minute: '2-digit', timeZone: 'Australia/Melbourne' })}
+                  </p>
+                </div>
+              </div>
+              {confirmShift.notes && (
+                <p className="text-sm text-ink/55 bg-amber-50 border border-amber-100 rounded-2xl p-3">{confirmShift.notes}</p>
+              )}
+              <div className="flex gap-3 pt-1">
+                <a href={feedHref({ confirm: undefined })} className="h-12 flex-1 rounded-xl border border-surface-3 text-ink/55 font-bold flex items-center justify-center">
+                  Cancel
+                </a>
+                <form action={acceptShift} className="flex-1">
+                  <input type="hidden" name="shiftId" value={confirmShift.id} />
+                  <Button type="submit" className="w-full h-12 font-black">Confirm acceptance</Button>
+                </form>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ── Bottom Navigation ───────────────────────────────────────────── */}
       <nav className="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-2xl glass-light border-t border-surface-3 flex justify-around pb-safe">
