@@ -76,11 +76,11 @@ export default function WorkerLandingPage() {
               <p className="text-[12px] text-white/35 mt-3 ml-1">Takes 5 minutes. No credit card. No lock-in.</p>
             </div>
 
-            {/* Compliance reassurance */}
+            {/* Compliance & pay reassurance */}
             <div className="flex flex-wrap items-center gap-5 border-t border-white/[0.07] pt-6">
               {[
                 { icon: <Shield className="w-3.5 h-3.5" />, label: 'AHPRA verified' },
-                { icon: <CheckCircle2 className="w-3.5 h-3.5" />, label: 'Police check stored' },
+                { icon: <CheckCircle2 className="w-3.5 h-3.5" />, label: 'Award rates always apply' },
                 { icon: <Zap className="w-3.5 h-3.5" />, label: 'Aged Care Act 2024' },
               ].map(t => (
                 <div key={t.label} className="flex items-center gap-1.5 text-teal">
@@ -188,7 +188,7 @@ export default function WorkerLandingPage() {
                 items: [
                   'Profile reviewed same business day',
                   'Shifts matched to your availability',
-                  'Accept in one tap — no phone calls',
+                  'Award rates apply — minimum guaranteed',
                 ],
                 note: 'Most workers book their first shift within 24 hrs.',
               },
@@ -267,15 +267,19 @@ export default function WorkerLandingPage() {
       <section className="border-y border-[#f0f0f4]">
         <div className="max-w-6xl mx-auto grid md:grid-cols-3 divide-y md:divide-y-0 md:divide-x divide-[#f0f0f4]">
           {[
-            { name: 'Registered Nurses', tag: 'RN', desc: 'AHPRA-registered. Hospital or aged care background.', gradient: 'bg-gradient-to-br from-sky-400 to-sky-600' },
-            { name: 'Enrolled Nurses', tag: 'EN', desc: 'Division 2 nurses. Certificate IV and above.', gradient: 'bg-gradient-to-br from-violet-400 to-violet-600' },
-            { name: 'Personal Care Assistants', tag: 'PCA', desc: 'Cert III or higher. Aged care or disability experience.', gradient: 'bg-gradient-to-br from-amber-400 to-amber-600' },
+            { name: 'Registered Nurses', tag: 'RN', desc: 'AHPRA-registered. Hospital or aged care background.', award: 'Nurses Award 2020', gradient: 'bg-gradient-to-br from-sky-400 to-sky-600' },
+            { name: 'Enrolled Nurses', tag: 'EN', desc: 'Division 2 nurses. Certificate IV and above.', award: 'Nurses Award 2020', gradient: 'bg-gradient-to-br from-violet-400 to-violet-600' },
+            { name: 'Personal Care Assistants', tag: 'PCA', desc: 'Cert III or higher. Aged care or disability experience.', award: 'SCHADS Award', gradient: 'bg-gradient-to-br from-amber-400 to-amber-600' },
           ].map(role => (
             <div key={role.name} className="px-8 py-10 flex flex-col items-center text-center gap-3">
               <div className={`w-12 h-12 rounded-xl ${role.gradient} flex items-center justify-center font-black text-white text-[14px]`}>{role.tag}</div>
               <div className="text-[20px] font-black text-[#0d0d14] tracking-tight">{role.name}</div>
               <div className="text-[13px] text-[#aaa] leading-[1.5]">{role.desc}</div>
-              <div className="flex items-center gap-1.5 mb-1">
+              <div className="inline-flex items-center gap-1.5 bg-teal/8 border border-teal/15 px-2.5 py-1 rounded-full">
+                <CheckCircle2 className="w-3 h-3 text-teal shrink-0" />
+                <span className="text-[11px] font-extrabold text-teal">{role.award} applies</span>
+              </div>
+              <div className="flex items-center gap-1.5">
                 <span className="w-1.5 h-1.5 bg-teal rounded-full animate-pulse-dot" />
                 <span className="text-[12px] font-bold text-teal">Shifts available now</span>
               </div>
@@ -311,7 +315,7 @@ export default function WorkerLandingPage() {
             <UserCheck className="w-5 h-5" />
             Register with us — free
           </Link>
-          <p className="text-[11px] text-white/25 mt-4">AHPRA · Police check · Aged Care Act 2024 compliant</p>
+          <p className="text-[11px] text-white/25 mt-4">AHPRA · Police check · Award rates apply · Aged Care Act 2024</p>
         </div>
       </section>
 
@@ -424,7 +428,7 @@ export default function WorkerLandingPage() {
             <UserCheck className="w-5 h-5" />
             Register with us — free
           </Link>
-          <p className="text-[12px] text-white/25 mt-5">No credit card · No lock-in · AHPRA · Police check · Aged Care Act 2024</p>
+          <p className="text-[12px] text-white/25 mt-5">No credit card · No lock-in · Award rates guaranteed · AHPRA · Aged Care Act 2024</p>
         </div>
       </section>
 
