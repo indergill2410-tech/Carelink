@@ -30,8 +30,30 @@ jobs:
             echo "configured=false" >> "$GITHUB_OUTPUT"
             echo "::warning::Skipping Prisma migrations because DATABASE_URL or DIRECT_URL is not configured."
           fi
-      - run: npx prisma migrate deploy
+      - name: Deploy Prisma migrations
         if: steps.migration_secrets.outputs.configured == 'true'
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
           DIRECT_URL: ${{ secrets.DIRECT_URL }}
+        run: |
+          set +e
+          npx prisma migrate deploy 2>&1 | tee migrate-deploy.log
+          status=${PIPESTATUS[0]}
+          set -e
+
+          if [ "$status" -eq 0 ]; then
+            exit 0
+          fi
+
+          if ! grep -q "P3005" migrate-deploy.log; then
+            exit "$status"
+          fi
+
+          echo "::warning::Database is non-empty without Prisma migration history. Baselining existing migrations, then rerunning deploy."
+          for migration in prisma/migrations/*; do
+            if [ -d "$migration" ]; then
+              npx prisma migrate resolve --applied "$(basename "$migration")"
+            fi
+          done
+
+          npx prisma migrate deploy
