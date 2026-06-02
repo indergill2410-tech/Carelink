@@ -11,6 +11,7 @@ import { revalidatePath } from 'next/cache'
 import { signOut } from '@/app/login/actions'
 import { Role } from '@prisma/client'
 import { fromZonedTime } from 'date-fns-tz'
+import { notifyShiftCancelled } from '@/lib/notifications'
 
 const TZ = 'Australia/Melbourne'
 
@@ -109,7 +110,12 @@ export default async function FacilityPortal({
     const shift = await prisma.shift.findUnique({ where: { id: shiftId } })
     if (!shift || shift.facilityId !== facility.id) return
     await prisma.shift.update({ where: { id: shiftId }, data: { status: 'CANCELLED' } })
+    if (shift.workerId && ['MATCHED', 'CLOCKED_IN'].includes(shift.status)) {
+      await notifyShiftCancelled(shift.workerId, facility.name, shift.id)
+    }
     revalidatePath('/facility')
+    revalidatePath('/dashboard')
+    revalidatePath('/worker/my-shifts')
   }
 
   async function requestShift(formData: FormData) {

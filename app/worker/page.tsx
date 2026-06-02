@@ -12,7 +12,7 @@ import { revalidatePath } from 'next/cache'
 import { LogoutButton } from '@/components/LogoutButton'
 import { NotificationBell } from '@/components/NotificationBell'
 import { AcceptShiftSchema } from '@/lib/validations'
-import { notifyShiftAccepted } from '@/lib/notifications'
+import { notifyFacilityShiftFilled, notifyShiftAccepted } from '@/lib/notifications'
 import { getComplianceStatusForDocuments } from '@/lib/compliance'
 
 export const dynamic = 'force-dynamic'
@@ -131,13 +131,24 @@ export default async function WorkerPortal({
       })
       if (updated.count === 0) return { error: 'shift_already_taken' as const }
 
-      return { ok: true as const, facilityName: shift.facility.name, dbUser }
+      return {
+        ok: true as const,
+        facilityId: shift.facility.id,
+        facilityName: shift.facility.name,
+        role: shift.role,
+        workerName: dbUser.name ?? dbUser.email,
+        dbUser,
+      }
     })
 
     if ('error' in result) redirect('/worker?error=' + result.error)
 
-    await notifyShiftAccepted(result.dbUser.id, result.facilityName, parsed.data.shiftId)
+    await Promise.all([
+      notifyShiftAccepted(result.dbUser.id, result.facilityName, parsed.data.shiftId),
+      notifyFacilityShiftFilled(result.facilityId, result.workerName, result.role, parsed.data.shiftId),
+    ])
     revalidatePath('/worker')
+    revalidatePath('/worker/my-shifts')
     revalidatePath('/dashboard')
     revalidatePath('/facility')
   }
