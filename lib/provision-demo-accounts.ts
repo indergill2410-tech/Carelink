@@ -65,7 +65,7 @@ async function ensureAccount(
 ): Promise<string | null> {
   // sb_publishable_ keys enforce allowed-hosts against the Origin header.
   // Inject NEXT_PUBLIC_SITE_URL so server-side calls pass the check.
-  const siteOrigin = process.env.NEXT_PUBLIC_SITE_URL ?? 'http://localhost:3000'
+  const siteOrigin = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'
   const clientOpts = {
     auth: { autoRefreshToken: false, persistSession: false },
     global: { headers: { origin: siteOrigin } },

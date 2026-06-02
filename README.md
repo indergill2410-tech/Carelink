@@ -4,7 +4,7 @@ Healthcare staffing platform connecting aged care facilities with nurses, enroll
 
 ## Architecture
 
-- **Frontend/Backend**: Next.js 14 (App Router, React Server Components, Server Actions)
+- **Frontend/Backend**: Next.js 16 (App Router, React Server Components, Server Actions)
 - **Database**: PostgreSQL via [Supabase](https://supabase.com)
 - **ORM**: Prisma
 - **Auth**: Supabase Auth with SSR
@@ -15,7 +15,7 @@ Healthcare staffing platform connecting aged care facilities with nurses, enroll
 | Portal | Route | Role |
 |---|---|---|
 | Admin Dispatch | `/dashboard` | `ADMIN` — global shift overview |
-| Facility Portal | `/facility` | `ADMIN` — facility-scoped shift requests |
+| Facility Portal | `/facility` | `ADMIN`, `FACILITY_ADMIN` — facility-scoped shift requests |
 | Worker App | `/worker` | `NURSE`, `EN`, `PCA` — mobile shift feed |
 
 ## Prerequisites
@@ -52,6 +52,8 @@ Required variables include:
 Optional variables:
 - `DEMO_ACCOUNT_PASSWORD`
 - `ENABLE_DEMO_ACCOUNTS`
+- `RESEND_API_KEY`
+- `FROM_EMAIL`
 
 ### 3. Generate Prisma client
 
@@ -82,12 +84,12 @@ App default URL:
 
 ## Authentication
 
-Carelink uses Supabase Auth with SSR support. Protected routes are enforced in `middleware.ts` using role-based access control.
+Carelink uses Supabase Auth with SSR support. Protected routes are enforced in `proxy.ts` using role-based access control.
 
 ### Role access rules
 
 - `ADMIN` can access `/dashboard`
-- `ADMIN` can access `/facility`
+- `ADMIN` and `FACILITY_ADMIN` can access `/facility`
 - `NURSE`, `EN`, and `PCA` can access `/worker`
 
 ## Supabase JWT role hook
@@ -104,7 +106,7 @@ This allows middleware to read the role claim without making an extra database q
 ## CI/CD
 
 The repository includes GitHub Actions workflows for:
-- Type checking and linting
+- Type checking, tests, and linting
 - Production build validation
 - Prisma migration deployment on schema changes
 
@@ -115,7 +117,26 @@ Set these repository secrets before enabling the workflows:
 - `DIRECT_URL`
 - `NEXT_PUBLIC_SUPABASE_URL`
 - `NEXT_PUBLIC_SUPABASE_ANON_KEY`
+- `SUPABASE_SERVICE_ROLE_KEY`
 - `DEMO_ACCOUNT_PASSWORD`
+- `NEXT_PUBLIC_SITE_URL`
+
+### Production service environment
+
+Render reads required environment variable names from `render.yaml`; values remain external and are never committed. Email notifications require:
+- `RESEND_API_KEY`
+- `FROM_EMAIL`
+
+The public health check at `/api/health` reports non-secret readiness, including whether email is configured.
+
+### Supabase Storage
+
+Compliance documents use a private Supabase Storage bucket:
+- Bucket: `compliance-docs`
+- Maximum file size: 10MB
+- Allowed MIME types: `application/pdf`, `image/jpeg`, `image/png`, `image/webp`
+
+Storage objects are written under `<userId>/<docType>_<uuid>.<ext>`. RLS policies allow workers to manage only their own folder while admins can read/manage all compliance documents. The canonical setup lives in `prisma/migrations/20260602000000_storage_compliance_bucket_policies/migration.sql`.
 
 ## Security
 
@@ -132,5 +153,7 @@ The app includes HTTP security headers in `next.config.js`, including:
 npm run dev
 npm run build
 npm run start
+npm run typecheck
+npm run test
 npm run lint
 ```

@@ -9,13 +9,14 @@ import ProfileClient from './ProfileClient'
 export const dynamic = 'force-dynamic'
 
 async function getSignedDocUrl(path: string): Promise<string | null> {
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
   const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
-  if (!serviceKey) return null
+  if (!supabaseUrl || !serviceKey) return null
   const storageClient = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    supabaseUrl,
     serviceKey,
     {
-      global: { headers: { origin: process.env.NEXT_PUBLIC_SITE_URL ?? 'http://localhost:3000' } },
+      global: { headers: { origin: process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000' } },
       cookies: { get: () => undefined, set: () => {}, remove: () => {} },
     },
   )

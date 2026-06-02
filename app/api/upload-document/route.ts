@@ -60,12 +60,17 @@ export async function POST(req: NextRequest) {
   const ext = MIME_TO_EXT[file.type] ?? 'bin'
   const path = `${user.id}/${docType}_${randomUUID()}.${ext}`
 
-  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
+  if (!supabaseUrl || !serviceKey) {
+    return NextResponse.json({ error: 'Document storage is not configured' }, { status: 503 })
+  }
+
   const storageClient = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    supabaseUrl,
     serviceKey,
     {
-      global: { headers: { origin: process.env.NEXT_PUBLIC_SITE_URL ?? 'http://localhost:3000' } },
+      global: { headers: { origin: process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000' } },
       cookies: { get: () => undefined, set: () => {}, remove: () => {} },
     },
   )

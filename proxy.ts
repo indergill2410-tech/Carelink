@@ -43,7 +43,7 @@ export async function proxy(request: NextRequest) {
     {
       global: {
         headers: {
-          origin: process.env.NEXT_PUBLIC_SITE_URL ?? request.nextUrl.origin,
+          origin: process.env.NEXT_PUBLIC_SITE_URL || request.nextUrl.origin,
         },
       },
       cookies: {
@@ -90,7 +90,7 @@ export async function proxy(request: NextRequest) {
         process.env.NEXT_PUBLIC_SUPABASE_URL!,
         serviceRoleKey,
         {
-          global: { headers: { origin: process.env.NEXT_PUBLIC_SITE_URL ?? request.nextUrl.origin } },
+          global: { headers: { origin: process.env.NEXT_PUBLIC_SITE_URL || request.nextUrl.origin } },
           cookies: { get: () => undefined, set: () => {}, remove: () => {} },
         }
       )
