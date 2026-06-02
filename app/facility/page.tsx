@@ -3,9 +3,11 @@ import { createClient } from '@/utils/supabase/server'
 import { prisma } from '@/lib/prisma'
 import { Button } from '@/components/ui/button'
 import { StatusBadge } from '@/components/StatusBadge'
+import { NotificationBell } from '@/components/NotificationBell'
 import {
   Building2, Clock, CalendarPlus, AlertTriangle, CheckCircle2,
   Users, TrendingUp, Activity, Zap, DollarSign,
+  Mail, Phone,
 } from 'lucide-react'
 import { revalidatePath } from 'next/cache'
 import { signOut } from '@/app/login/actions'
@@ -68,7 +70,7 @@ async function getFacilityData() {
 
   const shifts = await prisma.shift.findMany({
     where: { facilityId: facility.id },
-    include: { worker: { select: { id: true, name: true, email: true } } },
+    include: { worker: { select: { id: true, name: true, email: true, phone: true } } },
     orderBy: { startTime: 'desc' },
     take: 50,
   })
@@ -212,6 +214,7 @@ export default async function FacilityPortal({
                 </div>
               ))}
             </div>
+            <NotificationBell tone="light" />
             <form action={signOut}>
               <Button type="submit" variant="outline" size="sm" className="text-xs h-8">Sign Out</Button>
             </form>
@@ -438,10 +441,24 @@ export default async function FacilityPortal({
                             <span className="font-mono">${shift.hourlyRate.toFixed(0)}/hr</span>
                           </p>
                           {shift.worker ? (
-                            <p className="text-xs text-teal font-medium mt-0.5 flex items-center gap-1">
-                              <CheckCircle2 className="w-3 h-3" />
-                              {shift.worker.name ?? shift.worker.email}
-                            </p>
+                            <div className="mt-0.5 space-y-1">
+                              <p className="text-xs text-teal font-medium flex items-center gap-1">
+                                <CheckCircle2 className="w-3 h-3" />
+                                {shift.worker.name ?? shift.worker.email}
+                              </p>
+                              <div className="flex items-center gap-2 text-[11px] text-ink/40">
+                                <a href={`mailto:${shift.worker.email}`} className="inline-flex items-center gap-1 hover:text-teal">
+                                  <Mail className="w-3 h-3" />
+                                  Email
+                                </a>
+                                {shift.worker.phone && (
+                                  <a href={`tel:${shift.worker.phone}`} className="inline-flex items-center gap-1 hover:text-teal">
+                                    <Phone className="w-3 h-3" />
+                                    Phone
+                                  </a>
+                                )}
+                              </div>
+                            </div>
                           ) : (
                             <p className="text-xs text-ink/35 mt-0.5">Awaiting worker</p>
                           )}
@@ -519,6 +536,20 @@ export default async function FacilityPortal({
                               hour: '2-digit', minute: '2-digit', timeZone: 'Australia/Melbourne',
                             })}
                           </p>
+                        )}
+                        {shift.worker && (
+                          <div className="mt-1 flex items-center gap-2 text-[11px] text-ink/40">
+                            <a href={`mailto:${shift.worker.email}`} className="inline-flex items-center gap-1 hover:text-teal">
+                              <Mail className="w-3 h-3" />
+                              Email
+                            </a>
+                            {shift.worker.phone && (
+                              <a href={`tel:${shift.worker.phone}`} className="inline-flex items-center gap-1 hover:text-teal">
+                                <Phone className="w-3 h-3" />
+                                Phone
+                              </a>
+                            )}
+                          </div>
                         )}
                       </div>
                       <StatusBadge status={shift.status} showDot />

@@ -14,6 +14,7 @@ import { NotificationBell } from '@/components/NotificationBell'
 import { AcceptShiftSchema } from '@/lib/validations'
 import { notifyFacilityShiftFilled, notifyShiftAccepted } from '@/lib/notifications'
 import { getComplianceStatusForDocuments } from '@/lib/compliance'
+import { hasAvailability, isShiftAllowedByAvailability } from '@/lib/availability'
 
 export const dynamic = 'force-dynamic'
 
@@ -28,6 +29,17 @@ const ROLE_BG: Record<string, string> = {
   PCA:   'bg-teal/10  text-teal      border-teal/20',
 }
 const WORKER_ROLES = ['NURSE', 'EN', 'PCA'] as const
+
+function melbourneDateKey(date: Date) {
+  const parts = new Intl.DateTimeFormat('en-AU', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+    timeZone: 'Australia/Melbourne',
+  }).formatToParts(date)
+  const byType = Object.fromEntries(parts.map(part => [part.type, part.value]))
+  return `${byType.year}-${byType.month}-${byType.day}`
+}
 
 async function getWorkerData() {
   const supabase = await createClient()
@@ -74,17 +86,21 @@ export default async function WorkerPortal({
     : user.role
   const dateFilter = searchParams.date ?? ''
   const minRate = searchParams.minRate ? Number(searchParams.minRate) : NaN
+  const availabilityActive = hasAvailability(user.availability)
+  const availabilityMatchedShifts = availableShifts.filter(s =>
+    isShiftAllowedByAvailability(user.availability, s.startTime),
+  )
 
-  const urgentCount = availableShifts.filter(s => s.urgent).length
-  const filteredShifts = availableShifts.filter(s => {
+  const urgentCount = availabilityMatchedShifts.filter(s => s.urgent).length
+  const filteredShifts = availabilityMatchedShifts.filter(s => {
     if (filter === 'urgent' && !s.urgent) return false
     if (roleFilter !== 'ALL' && s.role !== roleFilter) return false
-    if (dateFilter && s.startTime.toISOString().slice(0, 10) !== dateFilter) return false
+    if (dateFilter && melbourneDateKey(s.startTime) !== dateFilter) return false
     if (!Number.isNaN(minRate) && s.hourlyRate < minRate) return false
     return true
   })
   const confirmShift = searchParams.confirm
-    ? availableShifts.find(s => s.id === searchParams.confirm)
+    ? availabilityMatchedShifts.find(s => s.id === searchParams.confirm)
     : null
   const isCompliant = user.complianceStatus === 'GREEN'
 
@@ -124,6 +140,9 @@ export default async function WorkerPortal({
       if (!shift || shift.status !== 'PENDING' || shift.workerId !== null)
         return { error: 'shift_already_taken' as const }
       if (dbUser.role !== shift.role) return { error: 'role_mismatch' as const }
+      if (!isShiftAllowedByAvailability(dbUser.availability, shift.startTime)) {
+        return { error: 'availability_mismatch' as const }
+      }
 
       const updated = await tx.shift.updateMany({
         where: { id: parsed.data.shiftId, workerId: null, status: 'PENDING' },
@@ -224,14 +243,15 @@ export default async function WorkerPortal({
             <AlertTriangle className="w-4 h-4 shrink-0" />
             {errorMessage === 'compliance_required' ? 'Complete your compliance documents first.' :
              errorMessage === 'shift_already_taken' ? 'That shift was just taken by another worker.' :
+             errorMessage === 'availability_mismatch' ? 'That shift is outside your saved availability.' :
              decodeURIComponent(errorMessage)}
           </div>
         )}
 
         {/* Filter pills */}
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
           {[
-            { id: 'all', label: `All shifts`, count: availableShifts.length },
+            { id: 'all', label: `All shifts`, count: availabilityMatchedShifts.length },
             { id: 'urgent', label: 'Urgent', count: urgentCount },
           ].map(f => (
             <a
@@ -251,6 +271,15 @@ export default async function WorkerPortal({
               </span>
             </a>
           ))}
+          {availabilityActive && (
+            <a
+              href="/worker/profile"
+              className="sm:ml-auto flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold bg-teal/10 text-teal border border-teal/20"
+            >
+              <Clock className="w-3 h-3" />
+              Availability active
+            </a>
+          )}
         </div>
 
         {/* Search filters */}

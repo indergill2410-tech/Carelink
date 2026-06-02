@@ -3,6 +3,7 @@ import { createClient } from '@/utils/supabase/server'
 import { prisma } from '@/lib/prisma'
 import { CalendarCheck, Clock, Wallet, UserCircle, TrendingUp, Building2 } from 'lucide-react'
 import { LogoutButton } from '@/components/LogoutButton'
+import { NotificationBell } from '@/components/NotificationBell'
 
 export const dynamic = 'force-dynamic'
 
@@ -16,7 +17,10 @@ export default async function PayPage() {
 
   const completedShifts = await prisma.shift.findMany({
     where: { workerId: user.id, status: 'COMPLETED' },
-    include: { facility: { select: { id: true, name: true } } },
+    include: {
+      facility: { select: { id: true, name: true } },
+      timesheet: { select: { status: true } },
+    },
     orderBy: { startTime: 'desc' },
   })
 
@@ -63,7 +67,10 @@ export default async function PayPage() {
             <p className="text-[11px] font-semibold text-teal/80 uppercase tracking-widest mb-0.5">Pay Summary</p>
             <h1 className="font-black text-white text-xl tracking-tight">{dbUser.name ?? 'Worker'}</h1>
           </div>
-          <LogoutButton />
+          <div className="flex items-center gap-1.5">
+            <NotificationBell />
+            <LogoutButton />
+          </div>
         </div>
 
         {/* Total earnings hero */}
@@ -183,6 +190,11 @@ export default async function PayPage() {
                           })}
                         </p>
                       )}
+                      <p className="text-[10px] text-ink/35 font-bold uppercase tracking-wider mt-1">
+                        {shift.timesheet?.status
+                          ? shift.timesheet.status.replace(/_/g, ' ')
+                          : 'Pending approval'}
+                      </p>
                     </div>
 
                     {/* Earnings */}

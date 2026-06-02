@@ -11,11 +11,13 @@ const parseShiftTime = (s: string) => fromZonedTime(s, TZ)
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { StatusBadge, ComplianceBadge } from '@/components/StatusBadge'
+import { NotificationBell } from '@/components/NotificationBell'
 import { prisma } from '@/lib/prisma'
 import { createClient } from '@/utils/supabase/server'
 import { signOut } from '@/app/login/actions'
 import { createNotification, notifyFacilityShiftFilled, notifyShiftCancelled } from '@/lib/notifications'
 import { getComplianceStatusForDocuments } from '@/lib/compliance'
+import { isShiftAllowedByAvailability } from '@/lib/availability'
 import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
 import { Role } from '@prisma/client'
@@ -155,6 +157,7 @@ async function reviewDocument(formData: FormData) {
     }
   }
   revalidatePath('/dashboard')
+  revalidatePath('/worker/profile')
 }
 
 async function assignWorker(formData: FormData) {
@@ -171,6 +174,7 @@ async function assignWorker(formData: FormData) {
   ])
   if (!shift || shift.status !== 'PENDING' || !worker) return
   if (!worker.isActive || worker.complianceStatus !== 'GREEN' || worker.role !== shift.role) return
+  if (!isShiftAllowedByAvailability(worker.availability, shift.startTime)) return
   await prisma.shift.update({
     where: { id: shiftId },
     data: { workerId, status: 'MATCHED' },
@@ -197,6 +201,85 @@ async function assignWorker(formData: FormData) {
   revalidatePath('/worker/my-shifts')
 }
 
+async function approveTimesheet(formData: FormData) {
+  'use server'
+  if (!await requireAdmin()) return
+
+  const timesheetId = (formData.get('timesheetId') as string) || null
+  const shiftId = (formData.get('shiftId') as string) || null
+  if (!timesheetId && !shiftId) return
+
+  const existing = timesheetId
+    ? await prisma.timesheet.findUnique({
+        where: { id: timesheetId },
+        include: {
+          shift: {
+            select: {
+              id: true,
+              workerId: true,
+              facility: { select: { name: true } },
+            },
+          },
+        },
+      })
+    : null
+  if (existing && existing.status !== 'PENDING_APPROVAL') return
+
+  const fallbackShift = !existing && shiftId
+    ? await prisma.shift.findFirst({
+        where: { id: shiftId, status: 'COMPLETED' },
+        select: { id: true, clockInAt: true, clockOutAt: true },
+      })
+    : null
+  if (!existing && !fallbackShift) return
+
+  const timesheet = existing
+    ? await prisma.timesheet.update({
+        where: { id: existing.id },
+        data: { status: 'APPROVED' },
+        include: {
+          shift: {
+            select: {
+              id: true,
+              workerId: true,
+              facility: { select: { name: true } },
+            },
+          },
+        },
+      })
+    : await prisma.timesheet.upsert({
+        where: { shiftId: fallbackShift!.id },
+        create: {
+          shiftId: fallbackShift!.id,
+          status: 'APPROVED',
+          clockIn: fallbackShift!.clockInAt,
+          clockOut: fallbackShift!.clockOutAt,
+        },
+        update: { status: 'APPROVED' },
+        include: {
+          shift: {
+            select: {
+              id: true,
+              workerId: true,
+              facility: { select: { name: true } },
+            },
+          },
+        },
+      })
+
+  if (timesheet.shift.workerId) {
+    await createNotification(
+      timesheet.shift.workerId,
+      'Timesheet Approved',
+      `Your timesheet for ${timesheet.shift.facility.name} has been approved.`,
+      `/worker/pay?shift=${timesheet.shift.id}`,
+    )
+  }
+
+  revalidatePath('/dashboard')
+  revalidatePath('/worker/pay')
+}
+
 // ─── Data ─────────────────────────────────────────────────────────────────
 
 async function getDashboardData() {
@@ -205,6 +288,7 @@ async function getDashboardData() {
       include: {
         facility: { select: { id: true, name: true, address: true } },
         worker:   { select: { id: true, name: true, email: true, role: true } },
+        timesheet: { select: { id: true, status: true, clockIn: true, clockOut: true } },
       },
       orderBy: { startTime: 'desc' },
       take: 100,
@@ -216,7 +300,7 @@ async function getDashboardData() {
         id: true, name: true, role: true,
         complianceStatus: true, isActive: true,
         rating: true, facilityId: true, email: true,
-        phone: true, skills: true, createdAt: true,
+        phone: true, skills: true, availability: true, createdAt: true,
       },
     }),
     prisma.facility.findMany({ orderBy: { name: 'asc' } }),
@@ -232,6 +316,7 @@ async function getDashboardData() {
   const activeShifts    = shifts.filter(s => ['MATCHED','CLOCKED_IN'].includes(s.status))
   const unfilledShifts  = shifts.filter(s => s.status === 'PENDING')
   const completedShifts = shifts.filter(s => s.status === 'COMPLETED')
+  const pendingTimesheets = completedShifts.filter(s => !s.timesheet || s.timesheet.status === 'PENDING_APPROVAL')
   const complianceAlerts = workers.filter(w => w.complianceStatus !== 'GREEN')
 
   const totalRevenue = completedShifts.reduce((sum, s) => {
@@ -247,7 +332,7 @@ async function getDashboardData() {
   }
   const monthlyData = Object.entries(monthlyMap).slice(-6).reverse()
 
-  return { shifts, workers, activeShifts, unfilledShifts, completedShifts, complianceAlerts, facilities: facilitiesList, totalRevenue, monthlyData, pendingDocs, compliantWorkers }
+  return { shifts, workers, activeShifts, unfilledShifts, completedShifts, pendingTimesheets, complianceAlerts, facilities: facilitiesList, totalRevenue, monthlyData, pendingDocs, compliantWorkers }
 }
 
 // ─── Tab Components ───────────────────────────────────────────────────────
@@ -313,41 +398,47 @@ function OverviewTab({ data }: { data: Awaited<ReturnType<typeof getDashboardDat
             </CardTitle>
           </CardHeader>
           <CardContent className="p-4 space-y-3">
-            {data.unfilledShifts.slice(0, 4).map(s => (
-              <div key={s.id} className="p-3.5 bg-amber-50 border border-amber-100 rounded-xl space-y-2.5">
-                <div className="flex items-center gap-2">
-                  {s.urgent && (
-                    <span className="bg-rose-500 text-white text-[9px] font-black px-1.5 py-0.5 rounded-full shrink-0">URGENT</span>
+            {data.unfilledShifts.slice(0, 4).map(s => {
+              const eligibleWorkers = data.compliantWorkers.filter(w =>
+                w.role === s.role && isShiftAllowedByAvailability(w.availability, s.startTime),
+              )
+
+              return (
+                <div key={s.id} className="p-3.5 bg-amber-50 border border-amber-100 rounded-xl space-y-2.5">
+                  <div className="flex items-center gap-2">
+                    {s.urgent && (
+                      <span className="bg-rose-500 text-white text-[9px] font-black px-1.5 py-0.5 rounded-full shrink-0">URGENT</span>
+                    )}
+                    <p className="font-bold text-ink text-sm truncate flex-1">{s.role} · {s.facility.name}</p>
+                  </div>
+                  <p className="text-xs text-ink/50 font-mono">
+                    {s.startTime.toLocaleDateString('en-AU', { weekday: 'short', month: 'short', day: 'numeric', timeZone: 'Australia/Melbourne' })}
+                    {' · '}
+                    {s.startTime.toLocaleTimeString('en-AU', { hour: '2-digit', minute: '2-digit', timeZone: 'Australia/Melbourne' })}–{s.endTime.toLocaleTimeString('en-AU', { hour: '2-digit', minute: '2-digit', timeZone: 'Australia/Melbourne' })}
+                  </p>
+                  {eligibleWorkers.length > 0 ? (
+                    <form action={assignWorker} className="flex gap-2">
+                      <input type="hidden" name="shiftId" value={s.id} />
+                      <select name="workerId" className="flex-1 h-8 rounded-lg border border-surface-3 bg-white px-2 text-xs text-ink focus:outline-none focus:border-teal transition-all" required>
+                        <option value="">Assign worker…</option>
+                        {eligibleWorkers.map(w => (
+                          <option key={w.id} value={w.id}>{w.name ?? w.email}</option>
+                        ))}
+                      </select>
+                      <Button size="sm" type="submit" className="h-8 px-3 text-xs shrink-0">Assign</Button>
+                    </form>
+                  ) : (
+                    <p className="text-xs text-ink/40 italic">No eligible workers available</p>
                   )}
-                  <p className="font-bold text-ink text-sm truncate flex-1">{s.role} · {s.facility.name}</p>
-                </div>
-                <p className="text-xs text-ink/50 font-mono">
-                  {s.startTime.toLocaleDateString('en-AU', { weekday: 'short', month: 'short', day: 'numeric', timeZone: 'Australia/Melbourne' })}
-                  {' · '}
-                  {s.startTime.toLocaleTimeString('en-AU', { hour: '2-digit', minute: '2-digit', timeZone: 'Australia/Melbourne' })}–{s.endTime.toLocaleTimeString('en-AU', { hour: '2-digit', minute: '2-digit', timeZone: 'Australia/Melbourne' })}
-                </p>
-                {data.compliantWorkers.length > 0 ? (
-                  <form action={assignWorker} className="flex gap-2">
+                  <form action={cancelShift}>
                     <input type="hidden" name="shiftId" value={s.id} />
-                    <select name="workerId" className="flex-1 h-8 rounded-lg border border-surface-3 bg-white px-2 text-xs text-ink focus:outline-none focus:border-teal transition-all" required>
-                      <option value="">Assign worker…</option>
-                      {data.compliantWorkers.map(w => (
-                        <option key={w.id} value={w.id}>{w.name ?? w.email} ({w.role})</option>
-                      ))}
-                    </select>
-                    <Button size="sm" type="submit" className="h-8 px-3 text-xs shrink-0">Assign</Button>
+                    <Button size="sm" variant="outline" className="w-full text-xs h-7 text-rose-600 border-rose-200 hover:bg-rose-50" type="submit">
+                      Cancel Shift
+                    </Button>
                   </form>
-                ) : (
-                  <p className="text-xs text-ink/40 italic">No compliant workers available</p>
-                )}
-                <form action={cancelShift}>
-                  <input type="hidden" name="shiftId" value={s.id} />
-                  <Button size="sm" variant="outline" className="w-full text-xs h-7 text-rose-600 border-rose-200 hover:bg-rose-50" type="submit">
-                    Cancel Shift
-                  </Button>
-                </form>
-              </div>
-            ))}
+                </div>
+              )
+            })}
             {data.complianceAlerts.slice(0, 2).map(w => (
               <div key={w.id} className="p-3.5 bg-rose-50 border border-rose-100 rounded-xl">
                 <p className="font-bold text-ink text-sm">Compliance Issue</p>
@@ -365,6 +456,49 @@ function OverviewTab({ data }: { data: Awaited<ReturnType<typeof getDashboardDat
                 <CheckCircle className="w-8 h-8 text-emerald-400 mx-auto mb-2" />
                 <p className="text-sm font-semibold text-ink/60">All clear</p>
               </div>
+            )}
+          </CardContent>
+        </Card>
+
+        <Card className="hover:shadow-card-hover transition-shadow duration-300">
+          <CardHeader className="border-b border-surface-2">
+            <CardTitle className="flex items-center gap-2 text-sm">
+              <FileCheck className="w-4 h-4 text-emerald-600" /> Timesheets
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="p-4 space-y-3">
+            {data.pendingTimesheets.length === 0 ? (
+              <div className="text-center py-5">
+                <CheckCircle className="w-7 h-7 text-emerald-400 mx-auto mb-2" />
+                <p className="text-sm font-semibold text-ink/55">No pending approvals</p>
+              </div>
+            ) : (
+              data.pendingTimesheets.slice(0, 4).map(s => {
+                const clockIn = s.timesheet?.clockIn ?? s.clockInAt
+                const clockOut = s.timesheet?.clockOut ?? s.clockOutAt
+
+                return (
+                  <div key={s.id} className="p-3.5 bg-emerald-50 border border-emerald-100 rounded-xl space-y-2.5">
+                    <div>
+                      <p className="font-bold text-ink text-sm truncate">
+                        {s.worker?.name ?? s.worker?.email ?? 'Worker'} · {s.facility.name}
+                      </p>
+                      <p className="text-xs text-ink/45 font-mono mt-0.5">
+                        {s.startTime.toLocaleDateString('en-AU', { weekday: 'short', month: 'short', day: 'numeric', timeZone: 'Australia/Melbourne' })}
+                        {' · '}
+                        {clockIn?.toLocaleTimeString('en-AU', { hour: '2-digit', minute: '2-digit', timeZone: 'Australia/Melbourne' }) ?? 'No clock in'}
+                        {' - '}
+                        {clockOut?.toLocaleTimeString('en-AU', { hour: '2-digit', minute: '2-digit', timeZone: 'Australia/Melbourne' }) ?? 'No clock out'}
+                      </p>
+                    </div>
+                    <form action={approveTimesheet}>
+                      <input type="hidden" name="shiftId" value={s.id} />
+                      {s.timesheet && <input type="hidden" name="timesheetId" value={s.timesheet.id} />}
+                      <Button size="sm" type="submit" className="w-full h-8 text-xs">Approve Timesheet</Button>
+                    </form>
+                  </div>
+                )
+              })
             )}
           </CardContent>
         </Card>
@@ -878,11 +1012,14 @@ export default async function Dashboard({
             <p className="text-label text-ink/40">{tabs.find(t => t.id === activeTab)?.label}</p>
             <h2 className="text-2xl font-black tracking-tight text-ink leading-tight">Global Dispatch</h2>
           </div>
-          <a href="/dashboard?broadcast=1">
-            <Button className="gap-2 shadow-btn">
-              <Zap className="w-4 h-4" /> Broadcast Shift
-            </Button>
-          </a>
+          <div className="flex items-center gap-2">
+            <NotificationBell tone="light" />
+            <a href="/dashboard?broadcast=1">
+              <Button className="gap-2 shadow-btn">
+                <Zap className="w-4 h-4" /> Broadcast Shift
+              </Button>
+            </a>
+          </div>
         </div>
 
         <div className="p-8 space-y-6">

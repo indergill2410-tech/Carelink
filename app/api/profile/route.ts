@@ -1,7 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
+import type { Prisma } from '@prisma/client'
 import { createClient } from '@/utils/supabase/server'
 import { prisma } from '@/lib/prisma'
 import { isValidE164Phone } from '@/lib/phone'
+import { availabilityFromFormData, normalizeAvailability } from '@/lib/availability'
 
 export async function GET() {
   const supabase = await createClient()
@@ -28,6 +30,7 @@ export async function GET() {
       phone: dbUser.phone,
       skills: dbUser.skills,
       rating: dbUser.rating,
+      availability: normalizeAvailability(dbUser.availability),
     },
     documents: documents.map(d => ({
       docType: d.docType,
@@ -47,6 +50,7 @@ export async function POST(req: NextRequest) {
   const name = (formData.get('name') as string)?.trim()
   const phone = (formData.get('phone') as string)?.trim() || null
   const skillsRaw = (formData.get('skills') as string)?.trim() || ''
+  const availability = availabilityFromFormData(formData)
 
   if (!name || name.length < 2 || name.length > 100) {
     return NextResponse.json({ error: 'Name must be 2–100 characters.' }, { status: 400 })
@@ -64,7 +68,7 @@ export async function POST(req: NextRequest) {
 
   await prisma.user.update({
     where: { id: user.id },
-    data: { name, phone, skills },
+    data: { name, phone, skills, availability: availability as Prisma.InputJsonValue },
   })
 
   return NextResponse.json({ ok: true })

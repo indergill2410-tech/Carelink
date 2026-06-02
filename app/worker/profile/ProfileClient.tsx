@@ -14,6 +14,11 @@ import {
   getRequiredComplianceDocTypes,
   type ComplianceDocStatus,
 } from '@/lib/compliance'
+import {
+  AVAILABILITY_DAYS,
+  AVAILABILITY_PERIODS,
+  type WorkerAvailability,
+} from '@/lib/availability'
 
 type DocStatus = ComplianceDocStatus
 
@@ -27,6 +32,7 @@ export type ProfileData = {
     phone: string | null
     skills: string[]
     rating: number | null
+    availability: WorkerAvailability
   }
   documents: {
     docType: string
@@ -55,6 +61,7 @@ export default function ProfileClient({ initialData }: { initialData: ProfileDat
   const [uploading, setUploading]   = useState<string | null>(null)
   const [message, setMessage]       = useState<{ type: 'success' | 'error'; text: string } | null>(null)
   const fileRefs      = useRef<Record<string, HTMLInputElement | null>>({})
+  const expiryRefs    = useRef<Record<string, HTMLInputElement | null>>({})
 
   const { user, documents } = initialData
   const docMap = Object.fromEntries(documents.map(d => [d.docType, d]))
@@ -90,6 +97,8 @@ export default function ProfileClient({ initialData }: { initialData: ProfileDat
     const fd = new FormData()
     fd.set('file', input.files[0])
     fd.set('docType', docType)
+    const expiresAt = expiryRefs.current[docType]?.value
+    if (expiresAt) fd.set('expiresAt', expiresAt)
     try {
       const res  = await fetch('/api/upload-document', { method: 'POST', body: fd })
       const json = await res.json() as { ok?: boolean; error?: string }
@@ -204,6 +213,46 @@ export default function ProfileClient({ initialData }: { initialData: ProfileDat
                 placeholder="Wound care, Medication administration"
               />
             </div>
+
+            <div>
+              <div className="flex items-center justify-between gap-3 mb-2">
+                <label className={labelCls}>Weekly Availability</label>
+                <span className="text-[10px] font-semibold text-ink/35 uppercase tracking-wider">
+                  Melbourne time
+                </span>
+              </div>
+              <div className="rounded-2xl border border-surface-2 bg-surface-1 p-3 space-y-2">
+                <div className="grid grid-cols-[42px_repeat(3,minmax(0,1fr))] gap-1.5">
+                  <div />
+                  {AVAILABILITY_PERIODS.map(period => (
+                    <div key={period.key} className="text-center text-[10px] font-bold text-ink/35 uppercase">
+                      {period.label}
+                    </div>
+                  ))}
+                </div>
+                {AVAILABILITY_DAYS.map(day => (
+                  <div key={day.key} className="grid grid-cols-[42px_repeat(3,minmax(0,1fr))] gap-1.5 items-center">
+                    <div className="text-[11px] font-black text-ink/55 uppercase">{day.label}</div>
+                    {AVAILABILITY_PERIODS.map(period => {
+                      const fieldName = `availability.${day.key}.${period.key}`
+                      return (
+                        <label key={fieldName} className="cursor-pointer">
+                          <input
+                            type="checkbox"
+                            name={fieldName}
+                            defaultChecked={user.availability[day.key][period.key]}
+                            className="peer sr-only"
+                          />
+                          <span className="flex h-9 items-center justify-center rounded-xl border border-surface-3 bg-white text-[11px] font-bold text-ink/40 transition-all peer-checked:border-teal peer-checked:bg-teal peer-checked:text-white peer-focus-visible:shadow-focus">
+                            {period.label}
+                          </span>
+                        </label>
+                      )
+                    })}
+                  </div>
+                ))}
+              </div>
+            </div>
             <Button type="submit" className="w-full h-11 font-bold" disabled={saving}>
               {saving && <Loader2 className="w-4 h-4 animate-spin mr-2" />}
               Save Changes
@@ -264,6 +313,20 @@ export default function ProfileClient({ initialData }: { initialData: ProfileDat
 
                     {status !== 'APPROVED' && (
                       <div className="mt-2.5">
+                        {doc.expires && (
+                          <div className="mb-2 max-w-[220px]">
+                            <label className="block text-[10px] font-bold text-ink/35 uppercase tracking-wider mb-1">
+                              Expiry date
+                            </label>
+                            <input
+                              type="date"
+                              aria-label={`${doc.label} expiry date`}
+                              ref={el => { expiryRefs.current[doc.key] = el }}
+                              defaultValue={existing?.expiresAt ? existing.expiresAt.slice(0, 10) : ''}
+                              className="h-9 w-full rounded-lg border border-surface-3 bg-white px-3 text-xs font-semibold text-ink focus:border-teal focus:shadow-focus focus:outline-none"
+                            />
+                          </div>
+                        )}
                         <input
                           type="file"
                           accept=".pdf,.jpg,.jpeg,.png,.webp"

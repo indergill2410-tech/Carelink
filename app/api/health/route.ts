@@ -1,12 +1,13 @@
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
-import { getEmailReadiness } from '@/lib/service-readiness'
+import { getEmailReadiness, getStorageReadiness } from '@/lib/service-readiness'
 
 export const dynamic = 'force-dynamic'
 
 export async function GET() {
   const services = {
     email: getEmailReadiness(),
+    storage: getStorageReadiness(),
   }
 
   try {

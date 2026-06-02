@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { getEmailReadiness } from '@/lib/service-readiness'
+import { getEmailReadiness, getStorageReadiness } from '@/lib/service-readiness'
 
 describe('getEmailReadiness', () => {
   it('reports configured when Resend has an API key', () => {
@@ -20,6 +20,30 @@ describe('getEmailReadiness', () => {
       provider: 'resend',
       status: 'missing_config',
       from: 'default',
+    })
+  })
+})
+
+describe('getStorageReadiness', () => {
+  it('reports configured when Supabase storage env is present', () => {
+    expect(getStorageReadiness({
+      NEXT_PUBLIC_SUPABASE_URL: 'https://example.supabase.co',
+      SUPABASE_SERVICE_ROLE_KEY: 'sb_secret_test',
+    })).toEqual({
+      provider: 'supabase-storage',
+      bucket: 'compliance-docs',
+      status: 'configured',
+    })
+  })
+
+  it('reports missing config without exposing the service role key', () => {
+    expect(getStorageReadiness({
+      NEXT_PUBLIC_SUPABASE_URL: 'https://example.supabase.co',
+      SUPABASE_SERVICE_ROLE_KEY: '',
+    })).toEqual({
+      provider: 'supabase-storage',
+      bucket: 'compliance-docs',
+      status: 'missing_config',
     })
   })
 })
