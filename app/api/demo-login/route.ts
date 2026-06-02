@@ -2,19 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/utils/supabase/server'
 import { provisionOneDemoAccount } from '@/lib/provision-demo-accounts'
 import { checkRateLimit, getClientIp } from '@/lib/rate-limit'
-
-type DemoConfig = {
-  email: string
-  destination: string
-}
-
-const DEMO_CONFIGS: Record<string, DemoConfig> = {
-  ADMIN:    { email: 'admin@demo.carelink.app',    destination: '/dashboard' },
-  FACILITY: { email: 'facility@demo.carelink.app', destination: '/facility'  },
-  NURSE:    { email: 'nurse@demo.carelink.app',    destination: '/worker'    },
-  EN:       { email: 'en@demo.carelink.app',       destination: '/worker'    },
-  PCA:      { email: 'pca@demo.carelink.app',      destination: '/worker'    },
-}
+import { DEMO_LOGIN_CONFIGS } from '@/lib/demo-roles'
 
 // POST — returns JSON so the client can handle navigation and timeouts.
 export async function POST(req: NextRequest) {
@@ -29,7 +17,7 @@ export async function POST(req: NextRequest) {
 
   const body = await req.formData()
   const role = (body.get('role') as string) ?? ''
-  const config = DEMO_CONFIGS[role]
+  const config = DEMO_LOGIN_CONFIGS[role as keyof typeof DEMO_LOGIN_CONFIGS]
   if (!config) return NextResponse.json({ error: 'Invalid demo role' }, { status: 400 })
 
   const demoPassword = process.env.DEMO_ACCOUNT_PASSWORD
