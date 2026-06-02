@@ -18,9 +18,10 @@ import { signOut } from '@/app/login/actions'
 import { createNotification, notifyFacilityShiftFilled, notifyShiftCancelled } from '@/lib/notifications'
 import { getComplianceStatusForDocuments } from '@/lib/compliance'
 import { isShiftAllowedByAvailability } from '@/lib/availability'
+import { canCancelShift, shouldNotifyWorkerAboutCancellation } from '@/lib/shift-lifecycle'
 import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
-import { Role } from '@prisma/client'
+import { Role, UserStatus } from '@prisma/client'
 
 export const dynamic = 'force-dynamic'
 
@@ -76,8 +77,9 @@ async function cancelShift(formData: FormData) {
     include: { facility: { select: { name: true } } },
   })
   if (!shift) return
+  if (!canCancelShift(shift.status)) return
   await prisma.shift.update({ where: { id: shiftId }, data: { status: 'CANCELLED' } })
-  if (shift.workerId && ['MATCHED', 'CLOCKED_IN'].includes(shift.status)) {
+  if (shouldNotifyWorkerAboutCancellation(shift.status, shift.workerId) && shift.workerId) {
     await notifyShiftCancelled(shift.workerId, shift.facility.name, shift.id)
   }
   revalidatePath('/dashboard')
@@ -111,6 +113,92 @@ async function toggleWorkerActive(formData: FormData) {
     UPDATE "User" SET "isActive" = NOT "isActive" WHERE id = ${workerId}
   `
   revalidatePath('/dashboard')
+}
+
+async function updateWorkerProfile(formData: FormData) {
+  'use server'
+  if (!await requireAdmin()) return
+
+  const workerId = formData.get('workerId') as string
+  const name = ((formData.get('name') as string) || '').trim() || null
+  const phone = ((formData.get('phone') as string) || '').trim() || null
+  const role = formData.get('role') as string
+  const status = formData.get('status') as string
+  const complianceStatus = formData.get('complianceStatus') as string
+  const VALID_ROLES = ['NURSE', 'EN', 'PCA'] as const
+  const VALID_STATUSES = ['ACTIVE', 'PENDING', 'BLOCKED'] as const
+  const VALID_COMPLIANCE = ['GREEN', 'AMBER', 'RED'] as const
+
+  if (!workerId || !VALID_ROLES.includes(role as typeof VALID_ROLES[number])) return
+  if (!VALID_STATUSES.includes(status as typeof VALID_STATUSES[number])) return
+  if (!VALID_COMPLIANCE.includes(complianceStatus as typeof VALID_COMPLIANCE[number])) return
+
+  await prisma.user.update({
+    where: { id: workerId },
+    data: {
+      name,
+      phone,
+      role: role as Role,
+      status: status as UserStatus,
+      complianceStatus,
+    },
+  })
+
+  revalidatePath('/dashboard')
+  revalidatePath('/worker')
+  revalidatePath('/worker/profile')
+}
+
+async function saveFacility(formData: FormData) {
+  'use server'
+  if (!await requireAdmin()) return
+
+  const facilityId = ((formData.get('facilityId') as string) || '').trim()
+  const name = ((formData.get('name') as string) || '').trim()
+  const address = ((formData.get('address') as string) || '').trim()
+  const phone = ((formData.get('phone') as string) || '').trim() || null
+  const email = ((formData.get('email') as string) || '').trim() || null
+  const defaultRateRaw = ((formData.get('defaultRate') as string) || '').trim()
+  const defaultRate = defaultRateRaw ? Number(defaultRateRaw) : null
+
+  if (!name || !address) return
+  if (defaultRate !== null && (!Number.isFinite(defaultRate) || defaultRate < 0 || defaultRate > 500)) return
+
+  const data = { name, address, phone, email, defaultRate }
+  if (facilityId) {
+    await prisma.facility.update({ where: { id: facilityId }, data })
+  } else {
+    await prisma.facility.create({ data })
+  }
+
+  revalidatePath('/dashboard')
+  revalidatePath('/facility')
+}
+
+async function assignFacilityManager(formData: FormData) {
+  'use server'
+  if (!await requireAdmin()) return
+
+  const facilityId = formData.get('facilityId') as string
+  const managerId = formData.get('managerId') as string
+  if (!facilityId || !managerId) return
+
+  const [facility, manager] = await Promise.all([
+    prisma.facility.findUnique({ where: { id: facilityId }, select: { id: true, name: true } }),
+    prisma.user.findUnique({ where: { id: managerId }, select: { id: true, role: true } }),
+  ])
+  if (!facility || !manager || manager.role !== 'FACILITY_ADMIN') return
+
+  await prisma.user.update({ where: { id: managerId }, data: { facilityId } })
+  await createNotification(
+    managerId,
+    'Facility Assigned',
+    `You have been assigned to manage ${facility.name}.`,
+    '/facility',
+  )
+
+  revalidatePath('/dashboard')
+  revalidatePath('/facility')
 }
 
 async function reviewDocument(formData: FormData) {
@@ -283,7 +371,7 @@ async function approveTimesheet(formData: FormData) {
 // ─── Data ─────────────────────────────────────────────────────────────────
 
 async function getDashboardData() {
-  const [shifts, workers, facilitiesList, pendingDocs] = await Promise.all([
+  const [shifts, workers, facilitiesList, facilityManagers, pendingDocs] = await Promise.all([
     prisma.shift.findMany({
       include: {
         facility: { select: { id: true, name: true, address: true } },
@@ -299,11 +387,24 @@ async function getDashboardData() {
       select: {
         id: true, name: true, role: true,
         complianceStatus: true, isActive: true,
-        rating: true, facilityId: true, email: true,
+        rating: true, facilityId: true, email: true, status: true,
         phone: true, skills: true, availability: true, createdAt: true,
       },
     }),
-    prisma.facility.findMany({ orderBy: { name: 'asc' } }),
+    prisma.facility.findMany({
+      orderBy: { name: 'asc' },
+      include: {
+        managers: {
+          select: { id: true, name: true, email: true, isActive: true },
+          orderBy: { name: 'asc' },
+        },
+      },
+    }),
+    prisma.user.findMany({
+      where: { role: 'FACILITY_ADMIN' },
+      orderBy: { name: 'asc' },
+      select: { id: true, name: true, email: true, facilityId: true, isActive: true },
+    }),
     prisma.complianceDocument.findMany({
       where: { status: 'PENDING' },
       include: { user: { select: { id: true, name: true, email: true, role: true } } },
@@ -332,7 +433,7 @@ async function getDashboardData() {
   }
   const monthlyData = Object.entries(monthlyMap).slice(-6).reverse()
 
-  return { shifts, workers, activeShifts, unfilledShifts, completedShifts, pendingTimesheets, complianceAlerts, facilities: facilitiesList, totalRevenue, monthlyData, pendingDocs, compliantWorkers }
+  return { shifts, workers, activeShifts, unfilledShifts, completedShifts, pendingTimesheets, complianceAlerts, facilities: facilitiesList, facilityManagers, totalRevenue, monthlyData, pendingDocs, compliantWorkers }
 }
 
 // ─── Tab Components ───────────────────────────────────────────────────────
@@ -616,18 +717,23 @@ function ComplianceTab({ data }: { data: Awaited<ReturnType<typeof getDashboardD
 function WorkforceTab({ data }: { data: Awaited<ReturnType<typeof getDashboardData>> }) {
   const { workers } = data
   const byRole = { NURSE: workers.filter(w => w.role === 'NURSE'), EN: workers.filter(w => w.role === 'EN'), PCA: workers.filter(w => w.role === 'PCA') }
+  const roleCards = [
+    { role: 'NURSE' as const, label: 'Registered Nurses', bg: 'bg-sky-100', icon: 'text-sky-600' },
+    { role: 'EN' as const, label: 'Enrolled Nurses', bg: 'bg-violet-100', icon: 'text-violet-600' },
+    { role: 'PCA' as const, label: 'PCAs', bg: 'bg-teal/10', icon: 'text-teal' },
+  ]
 
   return (
     <div className="space-y-6">
       <div className="grid grid-cols-3 gap-4">
-        {([['NURSE','sky'], ['EN','violet'], ['PCA','teal']] as const).map(([role, color]) => (
+        {roleCards.map(({ role, label, bg, icon }) => (
           <Card key={role} className="hover:shadow-card-hover transition-shadow duration-300">
             <CardContent className="p-5">
-              <div className={`w-10 h-10 rounded-xl mb-3 flex items-center justify-center bg-${color}-100`}>
-                <Users className={`w-5 h-5 text-${color}-600`} />
+              <div className={`w-10 h-10 rounded-xl mb-3 flex items-center justify-center ${bg}`}>
+                <Users className={`w-5 h-5 ${icon}`} />
               </div>
               <p className="text-3xl font-black font-mono text-ink">{byRole[role].length}</p>
-              <p className="text-sm text-ink/50 mt-1">{role === 'NURSE' ? 'Registered Nurses' : role === 'EN' ? 'Enrolled Nurses' : 'PCAs'}</p>
+              <p className="text-sm text-ink/50 mt-1">{label}</p>
             </CardContent>
           </Card>
         ))}
@@ -675,6 +781,54 @@ function WorkforceTab({ data }: { data: Awaited<ReturnType<typeof getDashboardDa
                       </td>
                       <td className="px-4 py-3.5">
                         <div className="flex gap-1.5 justify-end">
+                          <details className="relative">
+                            <summary className="list-none">
+                              <Button size="sm" variant="outline" type="button" className="text-xs h-7 px-2.5 gap-1 cursor-pointer">
+                                <UserCog className="w-3 h-3" />
+                                Edit
+                              </Button>
+                            </summary>
+                            <div className="absolute right-0 top-9 z-30 w-80 rounded-2xl border border-surface-2 bg-white p-4 shadow-modal">
+                              <form action={updateWorkerProfile} className="space-y-3">
+                                <input type="hidden" name="workerId" value={w.id} />
+                                <div>
+                                  <label className="text-[10px] font-bold text-ink/40 uppercase tracking-wider">Name</label>
+                                  <input name="name" defaultValue={w.name ?? ''} className="mt-1 h-9 w-full rounded-xl border border-surface-3 px-3 text-xs text-ink focus:border-teal focus:outline-none" />
+                                </div>
+                                <div>
+                                  <label className="text-[10px] font-bold text-ink/40 uppercase tracking-wider">Phone</label>
+                                  <input name="phone" defaultValue={w.phone ?? ''} className="mt-1 h-9 w-full rounded-xl border border-surface-3 px-3 text-xs text-ink focus:border-teal focus:outline-none" />
+                                </div>
+                                <div className="grid grid-cols-2 gap-2">
+                                  <div>
+                                    <label className="text-[10px] font-bold text-ink/40 uppercase tracking-wider">Role</label>
+                                    <select name="role" defaultValue={w.role} className="mt-1 h-9 w-full rounded-xl border border-surface-3 px-2 text-xs text-ink focus:border-teal focus:outline-none">
+                                      <option value="NURSE">RN</option>
+                                      <option value="EN">EN</option>
+                                      <option value="PCA">PCA</option>
+                                    </select>
+                                  </div>
+                                  <div>
+                                    <label className="text-[10px] font-bold text-ink/40 uppercase tracking-wider">Account</label>
+                                    <select name="status" defaultValue={w.status} className="mt-1 h-9 w-full rounded-xl border border-surface-3 px-2 text-xs text-ink focus:border-teal focus:outline-none">
+                                      <option value="ACTIVE">Active</option>
+                                      <option value="PENDING">Pending</option>
+                                      <option value="BLOCKED">Blocked</option>
+                                    </select>
+                                  </div>
+                                </div>
+                                <div>
+                                  <label className="text-[10px] font-bold text-ink/40 uppercase tracking-wider">Compliance</label>
+                                  <select name="complianceStatus" defaultValue={w.complianceStatus ?? 'RED'} className="mt-1 h-9 w-full rounded-xl border border-surface-3 px-2 text-xs text-ink focus:border-teal focus:outline-none">
+                                    <option value="GREEN">Green</option>
+                                    <option value="AMBER">Amber</option>
+                                    <option value="RED">Red</option>
+                                  </select>
+                                </div>
+                                <Button size="sm" type="submit" className="h-9 w-full text-xs">Save Worker</Button>
+                              </form>
+                            </div>
+                          </details>
                           <form action={toggleCompliance}>
                             <input type="hidden" name="workerId" value={w.id} />
                             <Button size="sm" variant="outline" type="submit" className="text-xs h-7 px-2.5 gap-1">
@@ -707,54 +861,128 @@ function WorkforceTab({ data }: { data: Awaited<ReturnType<typeof getDashboardDa
 }
 
 function FacilitiesTab({ data }: { data: Awaited<ReturnType<typeof getDashboardData>> }) {
-  const { facilities, shifts } = data
+  const { facilities, shifts, facilityManagers } = data
   return (
-    <Card>
-      <CardHeader className="border-b border-surface-2">
-        <CardTitle className="text-sm">All Facilities — {facilities.length}</CardTitle>
-      </CardHeader>
-      <CardContent className="p-0">
-        {facilities.length === 0 ? (
-          <p className="text-ink/40 text-center py-10 text-sm">No facilities yet.</p>
-        ) : (
-          <div className="divide-y divide-surface-2">
-            {facilities.map(f => {
-              const fs        = shifts.filter(s => s.facilityId === f.id)
-              const active    = fs.filter(s => ['MATCHED','CLOCKED_IN'].includes(s.status)).length
-              const pending   = fs.filter(s => s.status === 'PENDING').length
-              const completed = fs.filter(s => s.status === 'COMPLETED').length
-              const spend     = fs.filter(s => s.status === 'COMPLETED')
-                .reduce((sum, s) => sum + s.hourlyRate * (s.endTime.getTime() - s.startTime.getTime()) / 3_600_000, 0)
+    <div className="space-y-6">
+      <Card>
+        <CardHeader className="border-b border-surface-2">
+          <CardTitle className="text-sm">Add Facility</CardTitle>
+        </CardHeader>
+        <CardContent className="p-5">
+          <form action={saveFacility} className="grid grid-cols-1 md:grid-cols-5 gap-3">
+            <input name="name" placeholder="Facility name" required className="h-10 rounded-xl border border-surface-3 px-3 text-sm text-ink focus:border-teal focus:outline-none" />
+            <input name="address" placeholder="Address" required className="md:col-span-2 h-10 rounded-xl border border-surface-3 px-3 text-sm text-ink focus:border-teal focus:outline-none" />
+            <input name="phone" placeholder="Phone" className="h-10 rounded-xl border border-surface-3 px-3 text-sm text-ink focus:border-teal focus:outline-none" />
+            <Button type="submit" className="h-10">Add Facility</Button>
+            <input name="email" type="email" placeholder="Email" className="md:col-span-2 h-10 rounded-xl border border-surface-3 px-3 text-sm text-ink focus:border-teal focus:outline-none" />
+            <input name="defaultRate" type="number" min="0" max="500" step="0.50" placeholder="Default rate" className="h-10 rounded-xl border border-surface-3 px-3 text-sm text-ink focus:border-teal focus:outline-none" />
+          </form>
+        </CardContent>
+      </Card>
 
-              return (
-                <div key={f.id} className="flex items-center gap-4 px-5 py-4 hover:bg-surface-1 transition-colors">
-                  <div className="w-10 h-10 rounded-xl bg-teal/10 flex items-center justify-center shrink-0">
-                    <Building2 className="w-5 h-5 text-teal" />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="font-semibold text-ink">{f.name}</p>
-                    <p className="text-xs text-ink/40 truncate">{f.address}</p>
-                  </div>
-                  <div className="flex gap-5 text-center shrink-0">
-                    {[
-                      { v: active,    l: 'Active',  c: 'text-teal' },
-                      { v: pending,   l: 'Pending', c: 'text-amber-600' },
-                      { v: completed, l: 'Done',    c: 'text-emerald-600' },
-                      { v: `$${spend.toFixed(0)}`, l: 'Spend', c: 'text-ink' },
-                    ].map(item => (
-                      <div key={item.l}>
-                        <p className={`font-black font-mono text-sm ${item.c}`}>{item.v}</p>
-                        <p className="text-[10px] text-ink/35 font-medium">{item.l}</p>
+      <Card>
+        <CardHeader className="border-b border-surface-2">
+          <CardTitle className="text-sm">All Facilities — {facilities.length}</CardTitle>
+        </CardHeader>
+        <CardContent className="p-0">
+          {facilities.length === 0 ? (
+            <p className="text-ink/40 text-center py-10 text-sm">No facilities yet.</p>
+          ) : (
+            <div className="divide-y divide-surface-2">
+              {facilities.map(f => {
+                const fs        = shifts.filter(s => s.facilityId === f.id)
+                const active    = fs.filter(s => ['MATCHED','CLOCKED_IN'].includes(s.status)).length
+                const pending   = fs.filter(s => s.status === 'PENDING').length
+                const completed = fs.filter(s => s.status === 'COMPLETED').length
+                const spend     = fs.filter(s => s.status === 'COMPLETED')
+                  .reduce((sum, s) => sum + s.hourlyRate * (s.endTime.getTime() - s.startTime.getTime()) / 3_600_000, 0)
+
+                return (
+                  <div key={f.id} className="px-5 py-4 hover:bg-surface-1 transition-colors">
+                    <div className="flex items-center gap-4">
+                      <div className="w-10 h-10 rounded-xl bg-teal/10 flex items-center justify-center shrink-0">
+                        <Building2 className="w-5 h-5 text-teal" />
                       </div>
-                    ))}
+                      <div className="flex-1 min-w-0">
+                        <p className="font-semibold text-ink">{f.name}</p>
+                        <p className="text-xs text-ink/40 truncate">{f.address}</p>
+                        <p className="text-[11px] text-ink/35 truncate">
+                          {f.managers.length > 0
+                            ? f.managers.map(m => m.name ?? m.email).join(', ')
+                            : 'No manager assigned'}
+                        </p>
+                      </div>
+                      <div className="flex gap-5 text-center shrink-0">
+                        {[
+                          { v: active,    l: 'Active',  c: 'text-teal' },
+                          { v: pending,   l: 'Pending', c: 'text-amber-600' },
+                          { v: completed, l: 'Done',    c: 'text-emerald-600' },
+                          { v: `$${spend.toFixed(0)}`, l: 'Spend', c: 'text-ink' },
+                        ].map(item => (
+                          <div key={item.l}>
+                            <p className={`font-black font-mono text-sm ${item.c}`}>{item.v}</p>
+                            <p className="text-[10px] text-ink/35 font-medium">{item.l}</p>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+
+                    <details className="mt-3">
+                      <summary className="cursor-pointer text-xs font-bold text-teal">Manage facility</summary>
+                      <div className="mt-3 grid grid-cols-1 lg:grid-cols-2 gap-4">
+                        <form action={saveFacility} className="rounded-2xl border border-surface-2 bg-white p-4 space-y-3">
+                          <input type="hidden" name="facilityId" value={f.id} />
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                            <input name="name" defaultValue={f.name} required className="h-9 rounded-xl border border-surface-3 px-3 text-xs text-ink focus:border-teal focus:outline-none" />
+                            <input name="phone" defaultValue={f.phone ?? ''} placeholder="Phone" className="h-9 rounded-xl border border-surface-3 px-3 text-xs text-ink focus:border-teal focus:outline-none" />
+                          </div>
+                          <input name="address" defaultValue={f.address} required className="h-9 w-full rounded-xl border border-surface-3 px-3 text-xs text-ink focus:border-teal focus:outline-none" />
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                            <input name="email" type="email" defaultValue={f.email ?? ''} placeholder="Email" className="h-9 rounded-xl border border-surface-3 px-3 text-xs text-ink focus:border-teal focus:outline-none" />
+                            <input name="defaultRate" type="number" min="0" max="500" step="0.50" defaultValue={f.defaultRate ? Number(f.defaultRate).toFixed(2) : ''} placeholder="Default rate" className="h-9 rounded-xl border border-surface-3 px-3 text-xs text-ink focus:border-teal focus:outline-none" />
+                          </div>
+                          <Button size="sm" type="submit" className="h-9 w-full text-xs">Save Facility</Button>
+                        </form>
+
+                        <form action={assignFacilityManager} className="rounded-2xl border border-surface-2 bg-white p-4 space-y-3">
+                          <input type="hidden" name="facilityId" value={f.id} />
+                          <div>
+                            <label className="text-[10px] font-bold text-ink/40 uppercase tracking-wider">Assign manager</label>
+                            <select name="managerId" className="mt-1 h-9 w-full rounded-xl border border-surface-3 px-3 text-xs text-ink focus:border-teal focus:outline-none" required>
+                              <option value="">Select facility admin...</option>
+                              {facilityManagers.map(manager => (
+                                <option key={manager.id} value={manager.id}>
+                                  {manager.name ?? manager.email}{manager.facilityId === f.id ? ' (current)' : ''}
+                                </option>
+                              ))}
+                            </select>
+                          </div>
+                          <Button size="sm" type="submit" className="h-9 w-full text-xs">Assign Manager</Button>
+                          <div className="rounded-xl bg-surface-1 p-3">
+                            <p className="text-[10px] font-bold text-ink/35 uppercase tracking-wider mb-1">Current managers</p>
+                            {f.managers.length === 0 ? (
+                              <p className="text-xs text-ink/35">None assigned</p>
+                            ) : (
+                              <div className="space-y-1">
+                                {f.managers.map(manager => (
+                                  <p key={manager.id} className="text-xs text-ink/55 truncate">
+                                    {manager.name ?? manager.email}
+                                  </p>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        </form>
+                      </div>
+                    </details>
                   </div>
-                </div>
-              )
-            })}
-          </div>
-        )}
-      </CardContent>
-    </Card>
+                )
+              })}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+    </div>
   )
 }
 

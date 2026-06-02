@@ -1,8 +1,6 @@
 import './globals.css'
 import type { Metadata, Viewport } from 'next'
-import { Inter } from 'next/font/google'
 
-const inter = Inter({ subsets: ['latin'] })
 const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://carelinkaustralia.com.au'
 
 export const metadata: Metadata = {
@@ -40,7 +38,7 @@ export const viewport: Viewport = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en">
-      <body className={inter.className}>{children}</body>
+      <body>{children}</body>
     </html>
   )
 }

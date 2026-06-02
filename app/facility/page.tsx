@@ -14,6 +14,7 @@ import { signOut } from '@/app/login/actions'
 import { Role } from '@prisma/client'
 import { fromZonedTime } from 'date-fns-tz'
 import { notifyShiftCancelled } from '@/lib/notifications'
+import { canCancelShift, shouldNotifyWorkerAboutCancellation } from '@/lib/shift-lifecycle'
 
 const TZ = 'Australia/Melbourne'
 
@@ -111,8 +112,9 @@ export default async function FacilityPortal({
     if (!shiftId) return
     const shift = await prisma.shift.findUnique({ where: { id: shiftId } })
     if (!shift || shift.facilityId !== facility.id) return
+    if (!canCancelShift(shift.status)) return
     await prisma.shift.update({ where: { id: shiftId }, data: { status: 'CANCELLED' } })
-    if (shift.workerId && ['MATCHED', 'CLOCKED_IN'].includes(shift.status)) {
+    if (shouldNotifyWorkerAboutCancellation(shift.status, shift.workerId) && shift.workerId) {
       await notifyShiftCancelled(shift.workerId, facility.name, shift.id)
     }
     revalidatePath('/facility')
@@ -154,7 +156,8 @@ export default async function FacilityPortal({
       redirect('/facility?error=Invalid+time+range')
     }
 
-    const hourlyRate = parseFloat(rateRaw) || ROLE_RATES[role] || 45.00
+    const facilityDefaultRate = facility.defaultRate ? Number(facility.defaultRate) : null
+    const hourlyRate = parseFloat(rateRaw) || facilityDefaultRate || ROLE_RATES[role] || 45.00
 
     await prisma.shift.createMany({
       data: Array.from({ length: repeatWeeks }, (_, index) => {
@@ -176,6 +179,33 @@ export default async function FacilityPortal({
     redirect('/facility')
   }
 
+  async function updateFacilitySettings(formData: FormData) {
+    'use server'
+    const supabase = await createClient()
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return
+    const dbUser = await prisma.user.findUnique({ where: { id: user.id } })
+    if (!dbUser || (dbUser.role !== 'ADMIN' && dbUser.role !== 'FACILITY_ADMIN')) return
+    if (dbUser.role === 'FACILITY_ADMIN' && dbUser.facilityId !== facility.id) return
+
+    const name = ((formData.get('name') as string) || '').trim()
+    const address = ((formData.get('address') as string) || '').trim()
+    const phone = ((formData.get('phone') as string) || '').trim() || null
+    const email = ((formData.get('email') as string) || '').trim() || null
+    const defaultRateRaw = ((formData.get('defaultRate') as string) || '').trim()
+    const defaultRate = defaultRateRaw ? Number(defaultRateRaw) : null
+    if (!name || !address) return
+    if (defaultRate !== null && (!Number.isFinite(defaultRate) || defaultRate < 0 || defaultRate > 500)) return
+
+    await prisma.facility.update({
+      where: { id: facility.id },
+      data: { name, address, phone, email, defaultRate },
+    })
+
+    revalidatePath('/facility')
+    revalidatePath('/dashboard')
+  }
+
   const KPI_ITEMS = [
     { label: 'Awaiting Staff', value: pending.length.toString(),       color: 'text-amber-500' },
     { label: 'Confirmed',      value: matched.length.toString(),       color: 'text-teal' },
@@ -187,6 +217,7 @@ export default async function FacilityPortal({
     { id: 'shifts',  label: 'Shift Requests', icon: Clock },
     { id: 'roster',  label: 'Live Roster',    icon: Users },
     { id: 'history', label: 'History',        icon: TrendingUp },
+    { id: 'settings', label: 'Settings',      icon: Building2 },
   ]
 
   return (
@@ -336,6 +367,7 @@ export default async function FacilityPortal({
                       step="0.50"
                       min="20"
                       max="200"
+                      defaultValue={facility.defaultRate ? Number(facility.defaultRate).toFixed(2) : ''}
                       placeholder="Leave blank for default"
                       className={inputCls}
                     />
@@ -612,6 +644,44 @@ export default async function FacilityPortal({
                 })}
               </div>
             )}
+          </div>
+        )}
+
+        {/* -- Settings Tab ------------------------------------------------ */}
+        {activeTab === 'settings' && (
+          <div className="max-w-3xl">
+            <div className="bg-white rounded-2xl border border-surface-2 shadow-card overflow-hidden">
+              <div className="px-5 py-4 border-b border-surface-2">
+                <p className="font-bold text-ink text-sm">Facility Settings</p>
+              </div>
+              <form action={updateFacilitySettings} className="p-5 space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className={labelCls}>Facility Name</label>
+                    <input name="name" defaultValue={facility.name} required className={inputCls} />
+                  </div>
+                  <div>
+                    <label className={labelCls}>Default Rate ($)</label>
+                    <input name="defaultRate" type="number" min="0" max="500" step="0.50" defaultValue={facility.defaultRate ? Number(facility.defaultRate).toFixed(2) : ''} className={inputCls} />
+                  </div>
+                </div>
+                <div>
+                  <label className={labelCls}>Address</label>
+                  <input name="address" defaultValue={facility.address} required className={inputCls} />
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className={labelCls}>Phone</label>
+                    <input name="phone" defaultValue={facility.phone ?? ''} className={inputCls} />
+                  </div>
+                  <div>
+                    <label className={labelCls}>Email</label>
+                    <input name="email" type="email" defaultValue={facility.email ?? ''} className={inputCls} />
+                  </div>
+                </div>
+                <Button type="submit" className="h-11 px-5">Save Settings</Button>
+              </form>
+            </div>
           </div>
         )}
       </main>
