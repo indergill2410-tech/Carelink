@@ -6,51 +6,32 @@ import { login, signup } from './actions'
 import { createClient } from '@/utils/supabase/client'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { DEMO_ROLE_OPTIONS, type DemoRoleOption } from '@/lib/demo-roles'
 import {
   Activity, ShieldCheck, Building2, Stethoscope,
   AlertCircle, ArrowRight, Eye, EyeOff, Phone, Mail,
-  CheckCircle2,
+  CheckCircle2, ClipboardCheck, UserCheck,
 } from 'lucide-react'
 import Link from 'next/link'
 
 // ─── Demo role cards ───────────────────────────────────────────────────────
 
-const DEMO_ROLES = [
-  {
-    role: 'ADMIN',
-    label: 'Agency Admin',
-    subtitle: 'Global dispatch · Compliance · Analytics',
-    icon: ShieldCheck,
-    gradient: 'from-violet-600 to-indigo-700',
-    glow: 'rgba(139,92,246,0.35)',
-    destination: '/dashboard',
-  },
-  {
-    role: 'FACILITY',
-    label: 'Facility Manager',
-    subtitle: 'Post shifts · Live roster · Spend tracking',
-    icon: Building2,
-    gradient: 'from-sky-500 to-blue-700',
-    glow: 'rgba(14,165,233,0.35)',
-    destination: '/facility',
-  },
-  {
-    role: 'NURSE',
-    label: 'Healthcare Worker',
-    subtitle: 'Browse shifts · Clock in/out · Pay history',
-    icon: Stethoscope,
-    gradient: 'from-teal to-electric-dim',
-    glow: 'rgba(0,201,167,0.35)',
-    destination: '/worker',
-  },
-]
+const DEMO_ICONS = {
+  admin: ShieldCheck,
+  facility: Building2,
+  nurse: Stethoscope,
+  en: ClipboardCheck,
+  pca: UserCheck,
+}
 
 function DemoCard({
-  role, label, subtitle, icon: Icon, gradient, glow,
+  role, label, subtitle, icon, gradient, glow,
   loading, disabled, onClick,
-}: (typeof DEMO_ROLES)[number] & {
+}: DemoRoleOption & {
   loading: boolean; disabled: boolean; onClick: (role: string) => void
 }) {
+  const Icon = DEMO_ICONS[icon]
+
   return (
     <button
       type="button"
@@ -489,7 +470,7 @@ function LoginContent() {
           )}
 
           <div className="space-y-3 stagger-children">
-            {DEMO_ROLES.map(demo => (
+            {DEMO_ROLE_OPTIONS.map(demo => (
               <DemoCard
                 key={demo.role}
                 {...demo}

@@ -1,15 +1,8 @@
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
+import { DEMO_EMAILS } from '@/lib/demo-roles'
 
 export const dynamic = 'force-dynamic'
-
-const DEMO_EMAILS = [
-  'admin@demo.carelink.app',
-  'facility@demo.carelink.app',
-  'nurse@demo.carelink.app',
-  'en@demo.carelink.app',
-  'pca@demo.carelink.app',
-]
 
 // GET /api/demo-status — operator diagnostic endpoint (no auth required, no secrets exposed)
 export async function GET() {
