@@ -33,3 +33,11 @@ export function checkRateLimit(
   entry.count++
   return { allowed: true }
 }
+
+export function getClientIp(headers: Headers): string {
+  const forwardedFor = headers.get('x-forwarded-for')?.split(',')[0]?.trim()
+  if (forwardedFor) return forwardedFor
+
+  const realIp = headers.get('x-real-ip')?.trim()
+  return realIp || 'unknown'
+}

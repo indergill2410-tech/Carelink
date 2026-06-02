@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { provisionDemoAccounts } from '@/lib/provision-demo-accounts'
+import { checkRateLimit, getClientIp } from '@/lib/rate-limit'
 
 // POST /api/demo-provision  — manually trigger demo account provisioning.
 // Secured by requiring DEMO_ACCOUNT_PASSWORD in the request body so only
@@ -11,6 +12,15 @@ import { provisionDemoAccounts } from '@/lib/provision-demo-accounts'
 //
 // Or visit /demo-provision in the browser (the form below is served via GET).
 export async function POST(req: NextRequest) {
+  const ip = getClientIp(req.headers)
+  const rateLimit = checkRateLimit(`demo-provision:${ip}`, 3, 5 * 60_000)
+  if (!rateLimit.allowed) {
+    return NextResponse.json(
+      { error: 'Too many requests' },
+      { status: 429, headers: { 'Retry-After': String(rateLimit.retryAfter) } },
+    )
+  }
+
   const body = await req.formData().catch(() => null)
   const token = body?.get('token') as string | null
 
