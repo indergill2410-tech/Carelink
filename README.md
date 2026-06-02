@@ -18,6 +18,13 @@ Healthcare staffing platform connecting aged care facilities with nurses, enroll
 | Facility Portal | `/facility` | `ADMIN`, `FACILITY_ADMIN` — facility-scoped shift requests |
 | Worker App | `/worker` | `NURSE`, `EN`, `PCA` — mobile shift feed |
 
+### Core Workflows
+
+- Facilities can request one-off or recurring shifts, maintain facility settings, and see matched worker contact details.
+- Workers can manage weekly availability, upload compliance documents with expiry dates, accept matching shifts, clock in/out, and track pay approval status.
+- Admins can broadcast shifts, assign eligible workers, edit worker details, manage facilities and facility managers, review compliance documents, and approve timesheets.
+- Notifications are delivered in-app across admin, facility, and worker portals, with email delivery through Resend when configured.
+
 ## Prerequisites
 
 - Node.js 18+
@@ -127,7 +134,7 @@ Render reads required environment variable names from `render.yaml`; values rema
 - `RESEND_API_KEY`
 - `FROM_EMAIL`
 
-The public health check at `/api/health` reports non-secret readiness, including whether email is configured.
+The public health check at `/api/health` reports non-secret readiness, including whether email and compliance-document storage are configured.
 
 ### Supabase Storage
 

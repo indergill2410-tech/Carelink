@@ -7,6 +7,7 @@ import { StatusBadge } from '@/components/StatusBadge'
 import {
   CalendarCheck, Clock, Wallet, UserCircle,
   MapPin, LogIn, LogOut, Star, Zap, AlertTriangle,
+  FileCheck,
 } from 'lucide-react'
 import { LogoutButton } from '@/components/LogoutButton'
 import { NotificationBell } from '@/components/NotificationBell'
@@ -44,6 +45,7 @@ export default async function MyShiftsPage({
     include: {
       facility: { select: { id: true, name: true, address: true } },
       ratings: { where: { raterId: user.id } },
+      timesheet: { select: { status: true } },
     },
     orderBy: { startTime: 'desc' },
   })
@@ -246,6 +248,12 @@ export default async function MyShiftsPage({
               <div className="flex items-center gap-2 text-xs text-blue-600 font-semibold">
                 <div className="w-2 h-2 rounded-full bg-blue-500 animate-pulse" />
                 On duty since {formatTime(shift.clockInAt)}
+              </div>
+            )}
+            {isCompleted && (
+              <div className="flex items-center gap-2 text-xs text-ink/40 font-semibold uppercase tracking-wider">
+                <FileCheck className="w-3.5 h-3.5 text-emerald-500" />
+                {shift.timesheet?.status ? shift.timesheet.status.replace(/_/g, ' ') : 'Pending approval'}
               </div>
             )}
           </div>
