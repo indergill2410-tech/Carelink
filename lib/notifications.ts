@@ -64,6 +64,61 @@ export async function notifyFacilityShiftFilled(
   )))
 }
 
+export async function notifyFacilityShiftCancelledByWorker(
+  facilityId: string,
+  workerName: string,
+  role: string,
+  shiftId: string,
+) {
+  const [managers, admins] = await Promise.all([
+    prisma.user.findMany({
+      where: {
+        facilityId,
+        role: 'FACILITY_ADMIN',
+        isActive: true,
+      },
+      select: { id: true },
+    }),
+    prisma.user.findMany({
+      where: { role: 'ADMIN', isActive: true },
+      select: { id: true },
+    }),
+  ])
+
+  await Promise.all([
+    ...managers.map(manager => createNotification(
+      manager.id,
+      'Worker Cancelled Shift',
+      `${workerName} cancelled the ${role} shift. The shift is open again.`,
+      `/facility?tab=shifts&shift=${shiftId}`,
+    )),
+    ...admins.map(admin => createNotification(
+      admin.id,
+      'Worker Cancelled Shift',
+      `${workerName} cancelled the ${role} shift. The shift is open again.`,
+      `/dashboard?tab=overview&shift=${shiftId}`,
+    )),
+  ])
+}
+
+export async function notifyAdminsComplianceDocumentUploaded(
+  workerName: string,
+  docLabel: string,
+  workerId: string,
+) {
+  const admins = await prisma.user.findMany({
+    where: { role: 'ADMIN', isActive: true },
+    select: { id: true },
+  })
+
+  await Promise.all(admins.map(admin => createNotification(
+    admin.id,
+    'Compliance Document Uploaded',
+    `${workerName} uploaded ${docLabel} for review.`,
+    `/dashboard?tab=compliance&worker=${workerId}`,
+  )))
+}
+
 export async function notifyShiftCancelled(workerId: string, facilityName: string, shiftId?: string) {
   await createNotification(
     workerId,

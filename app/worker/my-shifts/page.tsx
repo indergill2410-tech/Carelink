@@ -9,6 +9,8 @@ import {
   MapPin, LogIn, LogOut, Star, Zap, AlertTriangle,
 } from 'lucide-react'
 import { LogoutButton } from '@/components/LogoutButton'
+import { NotificationBell } from '@/components/NotificationBell'
+import { notifyFacilityShiftCancelledByWorker } from '@/lib/notifications'
 
 export const dynamic = 'force-dynamic'
 
@@ -67,9 +69,16 @@ export default async function MyShiftsPage({
     const earliestClockIn = new Date(shift.startTime.getTime() - 30 * 60 * 1000)
     if (now < earliestClockIn) return
 
-    await prisma.shift.update({
-      where: { id: shiftId },
-      data: { status: 'CLOCKED_IN', clockInAt: now },
+    await prisma.$transaction(async tx => {
+      await tx.shift.update({
+        where: { id: shiftId },
+        data: { status: 'CLOCKED_IN', clockInAt: now },
+      })
+      await tx.timesheet.upsert({
+        where: { shiftId },
+        create: { shiftId, clockIn: now, status: 'PENDING_APPROVAL' },
+        update: { clockIn: now, clockOut: null, status: 'PENDING_APPROVAL' },
+      })
     })
     revalidatePath('/worker/my-shifts')
     revalidatePath('/facility')
@@ -83,15 +92,25 @@ export default async function MyShiftsPage({
     const { data: { user: authUser } } = await supabase.auth.getUser()
     if (!authUser) redirect('/login')
     try {
-      await prisma.shift.updateMany({
-        where: { id: shiftId, workerId: authUser.id, status: 'CLOCKED_IN' },
-        data: { status: 'COMPLETED', clockOutAt: new Date() },
+      const now = new Date()
+      await prisma.$transaction(async tx => {
+        const result = await tx.shift.updateMany({
+          where: { id: shiftId, workerId: authUser.id, status: 'CLOCKED_IN' },
+          data: { status: 'COMPLETED', clockOutAt: now },
+        })
+        if (result.count === 0) return
+        await tx.timesheet.upsert({
+          where: { shiftId },
+          create: { shiftId, clockOut: now, status: 'PENDING_APPROVAL' },
+          update: { clockOut: now, status: 'PENDING_APPROVAL' },
+        })
       })
     } catch (err) {
       console.error('[clockOut] Prisma error:', err)
       return
     }
     revalidatePath('/worker/my-shifts')
+    revalidatePath('/worker/pay')
     revalidatePath('/facility')
     revalidatePath('/dashboard')
   }
@@ -104,15 +123,35 @@ export default async function MyShiftsPage({
     const { data: { user: authUser } } = await supabase.auth.getUser()
     if (!authUser) redirect('/login')
     try {
-      await prisma.shift.updateMany({
+      const shift = await prisma.shift.findFirst({
         where: { id: shiftId, workerId: authUser.id, status: 'MATCHED' },
-        data: { status: 'CANCELLED' },
+        include: {
+          facility: { select: { id: true, name: true } },
+          worker: { select: { name: true, email: true } },
+        },
       })
+      if (!shift) return
+
+      const result = await prisma.shift.updateMany({
+        where: { id: shiftId, workerId: authUser.id, status: 'MATCHED' },
+        data: { status: 'PENDING', workerId: null, clockInAt: null, clockOutAt: null },
+      })
+      if (result.count === 0) return
+
+      await notifyFacilityShiftCancelledByWorker(
+        shift.facility.id,
+        shift.worker?.name ?? shift.worker?.email ?? 'A worker',
+        shift.role,
+        shift.id,
+      )
     } catch (err) {
       console.error('[cancelShift] Prisma error:', err)
       return
     }
     revalidatePath('/worker/my-shifts')
+    revalidatePath('/worker')
+    revalidatePath('/facility')
+    revalidatePath('/dashboard')
   }
 
   async function rateShift(formData: FormData) {
@@ -127,10 +166,16 @@ export default async function MyShiftsPage({
     const shift = await prisma.shift.findFirst({ where: { id: shiftId, workerId: authUser.id, status: 'COMPLETED' } })
     if (!shift) return
     // rateeId must be a User ID — find the facility's admin manager
-    const facilityAdmin = await prisma.user.findFirst({
-      where: { facilityId: shift.facilityId, role: 'ADMIN' },
+    let facilityAdmin = await prisma.user.findFirst({
+      where: { facilityId: shift.facilityId, role: 'FACILITY_ADMIN', isActive: true },
       select: { id: true },
     })
+    if (!facilityAdmin) {
+      facilityAdmin = await prisma.user.findFirst({
+        where: { role: 'ADMIN', isActive: true },
+        select: { id: true },
+      })
+    }
     if (!facilityAdmin) redirect('/worker/my-shifts?error=' + encodeURIComponent('Could not submit rating — facility administrator not found.'))
     await prisma.shiftRating.upsert({
       where: { shiftId_raterId: { shiftId, raterId: authUser.id } },
@@ -290,7 +335,10 @@ export default async function MyShiftsPage({
             <p className="text-[11px] font-semibold text-teal/80 uppercase tracking-widest mb-0.5">My Shifts</p>
             <h1 className="font-black text-white text-xl tracking-tight">{dbUser.name ?? 'Worker'}</h1>
           </div>
-          <LogoutButton />
+          <div className="flex items-center gap-1.5">
+            <NotificationBell />
+            <LogoutButton />
+          </div>
         </div>
         {/* Summary pills */}
         <div className="relative flex gap-2 mt-4">

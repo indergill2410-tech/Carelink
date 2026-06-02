@@ -4,7 +4,8 @@ import { createServerClient } from '@supabase/ssr'
 import { prisma } from '@/lib/prisma'
 import { randomUUID } from 'crypto'
 import { checkRateLimit } from '@/lib/rate-limit'
-import { ALL_COMPLIANCE_DOC_TYPES, getComplianceStatusForDocuments } from '@/lib/compliance'
+import { ALL_COMPLIANCE_DOC_TYPES, COMPLIANCE_DOCUMENTS, getComplianceStatusForDocuments } from '@/lib/compliance'
+import { notifyAdminsComplianceDocumentUploaded } from '@/lib/notifications'
 
 const ALLOWED_MIME_TYPES = new Set([
   'application/pdf',
@@ -109,7 +110,7 @@ export async function POST(req: NextRequest) {
   })
 
   const [dbUser, documents] = await Promise.all([
-    prisma.user.findUnique({ where: { id: user.id }, select: { role: true } }),
+    prisma.user.findUnique({ where: { id: user.id }, select: { role: true, name: true, email: true } }),
     prisma.complianceDocument.findMany({ where: { userId: user.id } }),
   ])
   if (dbUser) {
@@ -117,6 +118,12 @@ export async function POST(req: NextRequest) {
       where: { id: user.id },
       data: { complianceStatus: getComplianceStatusForDocuments(dbUser.role, documents) },
     })
+    const docLabel = COMPLIANCE_DOCUMENTS.find(doc => doc.key === docType)?.label ?? docType
+    await notifyAdminsComplianceDocumentUploaded(
+      dbUser.name ?? dbUser.email,
+      docLabel,
+      user.id,
+    )
   }
 
   // Return a short-lived signed URL for immediate display

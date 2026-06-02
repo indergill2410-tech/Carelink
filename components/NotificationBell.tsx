@@ -15,7 +15,7 @@ type Notification = {
 
 type NotificationsResponse = { notifications?: Notification[] }
 
-export function NotificationBell() {
+export function NotificationBell({ tone = 'dark' }: { tone?: 'dark' | 'light' }) {
   const [notifications, setNotifications] = useState<Notification[]>([])
   const [open, setOpen] = useState(false)
   const ref = useRef<HTMLDivElement>(null)
@@ -48,7 +48,12 @@ export function NotificationBell() {
     <div className="relative" ref={ref}>
       <button
         onClick={() => { setOpen(o => !o); if (!open && unread > 0) markAllRead() }}
-        className="relative p-2 rounded-xl hover:bg-white/10 transition-colors text-white"
+        className={[
+          'relative p-2 rounded-xl transition-colors',
+          tone === 'dark'
+            ? 'hover:bg-white/10 text-white'
+            : 'hover:bg-surface-2 text-ink/55 hover:text-ink',
+        ].join(' ')}
         aria-label={`Notifications${unread > 0 ? `, ${unread} unread` : ''}`}
       >
         <Bell className="w-5 h-5" />
@@ -60,7 +65,7 @@ export function NotificationBell() {
       </button>
 
       {open && (
-        <div className="absolute right-0 top-12 w-80 bg-white rounded-2xl shadow-card-hover border border-surface-2 z-50 overflow-hidden">
+        <div className="absolute right-0 top-12 w-80 max-w-[calc(100vw-2rem)] bg-white rounded-2xl shadow-card-hover border border-surface-2 z-50 overflow-hidden">
           <div className="px-4 py-3 border-b border-surface-2 flex justify-between items-center">
             <p className="font-bold text-ink text-sm">Notifications</p>
             {unread > 0 && (

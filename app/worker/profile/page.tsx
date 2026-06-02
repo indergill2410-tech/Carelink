@@ -4,7 +4,9 @@ import { createServerClient } from '@supabase/ssr'
 import { prisma } from '@/lib/prisma'
 import { CalendarCheck, Clock, Wallet, UserCircle } from 'lucide-react'
 import { LogoutButton } from '@/components/LogoutButton'
+import { NotificationBell } from '@/components/NotificationBell'
 import ProfileClient from './ProfileClient'
+import { normalizeAvailability } from '@/lib/availability'
 
 export const dynamic = 'force-dynamic'
 
@@ -61,6 +63,7 @@ export default async function ProfilePage() {
       phone:            dbUser.phone,
       skills:           dbUser.skills,
       rating:           dbUser.rating,
+      availability:     normalizeAvailability(dbUser.availability),
     },
     documents: docsWithUrls,
   }
@@ -84,7 +87,10 @@ export default async function ProfilePage() {
             <h1 className="font-black text-white text-xl tracking-tight">{dbUser.name ?? 'Worker'}</h1>
             <p className="text-white/40 text-xs mt-0.5">{dbUser.email}</p>
           </div>
-          <LogoutButton />
+          <div className="flex items-center gap-1.5">
+            <NotificationBell />
+            <LogoutButton />
+          </div>
         </div>
         {/* Role + compliance badge row */}
         <div className="relative flex items-center gap-2 mt-4">
