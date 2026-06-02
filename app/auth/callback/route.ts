@@ -16,7 +16,7 @@ export async function GET(request: NextRequest) {
       {
         global: {
           headers: {
-            origin: process.env.NEXT_PUBLIC_SITE_URL ?? origin,
+            origin: process.env.NEXT_PUBLIC_SITE_URL || origin,
           },
         },
         cookies: {
