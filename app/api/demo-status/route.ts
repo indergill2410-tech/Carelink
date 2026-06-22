@@ -6,6 +6,10 @@ export const dynamic = 'force-dynamic'
 
 // GET /api/demo-status — operator diagnostic endpoint (no auth required, no secrets exposed)
 export async function GET() {
+  if (process.env.ENABLE_DEMO_ACCOUNTS !== 'true') {
+    return NextResponse.json({ error: 'Demo accounts are disabled.' }, { status: 404 })
+  }
+
   const envVars = {
     NEXT_PUBLIC_SUPABASE_URL: !!process.env.NEXT_PUBLIC_SUPABASE_URL,
     NEXT_PUBLIC_SUPABASE_ANON_KEY: !!process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,

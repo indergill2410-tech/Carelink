@@ -12,6 +12,10 @@ import { checkRateLimit, getClientIp } from '@/lib/rate-limit'
 //
 // Or visit /demo-provision in the browser (the form below is served via GET).
 export async function POST(req: NextRequest) {
+  if (process.env.ENABLE_DEMO_ACCOUNTS !== 'true') {
+    return NextResponse.json({ error: 'Demo accounts are disabled.' }, { status: 404 })
+  }
+
   const ip = getClientIp(req.headers)
   const rateLimit = checkRateLimit(`demo-provision:${ip}`, 3, 5 * 60_000)
   if (!rateLimit.allowed) {
@@ -40,6 +44,10 @@ export async function POST(req: NextRequest) {
 
 // GET — serve a minimal HTML form so operators can trigger provisioning from a browser
 export async function GET() {
+  if (process.env.ENABLE_DEMO_ACCOUNTS !== 'true') {
+    return NextResponse.json({ error: 'Demo accounts are disabled.' }, { status: 404 })
+  }
+
   const html = `<!DOCTYPE html>
 <html>
 <head><title>Demo Provision</title></head>

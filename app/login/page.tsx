@@ -223,6 +223,7 @@ function LoginContent() {
   const router = useRouter()
   const errorMessage = searchParams.get('error')
   const message = searchParams.get('message')
+  const demoEnabled = process.env.NEXT_PUBLIC_ENABLE_DEMO_ACCOUNTS === 'true'
 
   const [authMode, setAuthMode] = useState<'email' | 'phone'>('email')
   const [isRegistering, setIsRegistering] = useState(false)
@@ -259,7 +260,7 @@ function LoginContent() {
   const inputBase = "h-12 rounded-xl border border-surface-3 bg-surface-1 px-4 text-sm text-ink placeholder:text-ink/30 transition-all duration-150 focus:border-teal focus:bg-white focus:shadow-focus focus:outline-none w-full"
 
   return (
-    <div className="min-h-screen grid grid-cols-1 md:grid-cols-2">
+    <div className={`min-h-screen grid grid-cols-1 ${demoEnabled ? 'md:grid-cols-2' : ''}`}>
 
       {/* ── Left: Auth Form ────────────────────────────────────────────── */}
       <div className="flex flex-col items-center justify-center px-8 py-12 bg-white">
@@ -442,6 +443,7 @@ function LoginContent() {
       </div>
 
       {/* ── Right: Dark demo panel ──────────────────────────────────────── */}
+      {demoEnabled && (
       <div className="bg-mesh relative flex flex-col items-center justify-center px-8 py-12 overflow-hidden">
         <div
           className="absolute inset-0 opacity-[0.04]"
@@ -487,6 +489,7 @@ function LoginContent() {
           </p>
         </div>
       </div>
+      )}
     </div>
   )
 }

@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-labelledby="title">
+  <title id="title">Carelink</title>
+  <rect width="512" height="512" rx="112" fill="#07111F"/>
+  <path d="M120 256c0-75.1 60.9-136 136-136 47.9 0 90 24.8 114.2 62.3" fill="none" stroke="#00C9A7" stroke-width="42" stroke-linecap="round"/>
+  <path d="M392 256c0 75.1-60.9 136-136 136-47.9 0-90-24.8-114.2-62.3" fill="none" stroke="#5EEBD4" stroke-width="42" stroke-linecap="round"/>
+  <path d="M176 256h52l22-54 44 108 24-54h58" fill="none" stroke="#FFFFFF" stroke-width="28" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>

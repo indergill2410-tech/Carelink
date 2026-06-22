@@ -11,6 +11,10 @@ export const metadata: Metadata = {
   },
   description: 'Carelink helps Australian aged-care facilities fill shifts with document-checked RN, EN, and PCA workers.',
   manifest: '/manifest.json',
+  icons: {
+    icon: '/icon.svg',
+    apple: '/icon.svg',
+  },
   alternates: {
     canonical: '/',
   },
