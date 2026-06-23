@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest'
-import { getEmailReadiness, getStorageReadiness } from '@/lib/service-readiness'
+import {
+  getDatabaseFailure,
+  getDatabaseReadiness,
+  getEmailReadiness,
+  getStorageReadiness,
+} from '@/lib/service-readiness'
 
 describe('getEmailReadiness', () => {
   it('reports configured when Resend has an API key', () => {
@@ -44,6 +49,47 @@ describe('getStorageReadiness', () => {
       provider: 'supabase-storage',
       bucket: 'compliance-docs',
       status: 'missing_config',
+    })
+  })
+})
+
+describe('getDatabaseReadiness', () => {
+  it('reports configured when DATABASE_URL is present', () => {
+    expect(getDatabaseReadiness({
+      DATABASE_URL: 'postgresql://user:password@example.supabase.co:6543/postgres',
+    })).toEqual({
+      provider: 'postgresql',
+      status: 'configured',
+    })
+  })
+
+  it('reports missing config when DATABASE_URL is blank', () => {
+    expect(getDatabaseReadiness({ DATABASE_URL: '   ' })).toEqual({
+      provider: 'postgresql',
+      status: 'missing_config',
+    })
+  })
+})
+
+describe('getDatabaseFailure', () => {
+  it('reports a safe Prisma error code without exposing the raw message', () => {
+    expect(getDatabaseFailure(
+      Object.assign(new Error('password=secret host=private'), { code: 'P1001' }),
+      { DATABASE_URL: 'postgresql://user:password@example.supabase.co:6543/postgres' },
+    )).toEqual({
+      provider: 'postgresql',
+      status: 'unreachable',
+      errorCode: 'P1001',
+    })
+  })
+
+  it('falls back to the error name when no code is available', () => {
+    expect(getDatabaseFailure(new TypeError('network failed'), {
+      DATABASE_URL: 'postgresql://user:password@example.supabase.co:6543/postgres',
+    })).toEqual({
+      provider: 'postgresql',
+      status: 'unreachable',
+      errorCode: 'TypeError',
     })
   })
 })
