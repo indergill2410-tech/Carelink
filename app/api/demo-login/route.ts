@@ -6,6 +6,10 @@ import { DEMO_LOGIN_CONFIGS } from '@/lib/demo-roles'
 
 // POST — returns JSON so the client can handle navigation and timeouts.
 export async function POST(req: NextRequest) {
+  if (process.env.ENABLE_DEMO_ACCOUNTS !== 'true') {
+    return NextResponse.json({ error: 'Demo accounts are disabled.' }, { status: 404 })
+  }
+
   const ip = getClientIp(req.headers)
   const rateLimit = checkRateLimit(`demo-login:${ip}`, 5, 60_000)
   if (!rateLimit.allowed) {

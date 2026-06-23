@@ -59,6 +59,7 @@ Required variables include:
 Optional variables:
 - `DEMO_ACCOUNT_PASSWORD`
 - `ENABLE_DEMO_ACCOUNTS`
+- `NEXT_PUBLIC_ENABLE_DEMO_ACCOUNTS`
 - `RESEND_API_KEY`
 - `FROM_EMAIL`
 
@@ -126,6 +127,8 @@ Set these repository secrets before enabling the workflows:
 - `NEXT_PUBLIC_SUPABASE_ANON_KEY`
 - `SUPABASE_SERVICE_ROLE_KEY`
 - `DEMO_ACCOUNT_PASSWORD`
+- `ENABLE_DEMO_ACCOUNTS`
+- `NEXT_PUBLIC_ENABLE_DEMO_ACCOUNTS`
 - `NEXT_PUBLIC_SITE_URL`
 
 ### Production service environment

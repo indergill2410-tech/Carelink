@@ -11,13 +11,15 @@ export async function register() {
     // Validate required env vars at startup so missing config fails fast
     const missing = REQUIRED_ENV_VARS.filter(k => !process.env[k])
     if (missing.length > 0) {
-      console.error(`[startup] Missing required environment variables: ${missing.join(', ')}`)
-      // Log only — do not throw, to avoid crashing cold-start on platforms that
-      // inject env vars slightly after the Node.js process starts.
+      const message = `[startup] Missing required environment variables: ${missing.join(', ')}`
+      if (process.env.NODE_ENV === 'production') throw new Error(message)
+      console.error(message)
     }
 
-    const { provisionDemoAccounts } = await import('./lib/provision-demo-accounts')
-    // Fire-and-forget — must not block server startup
-    provisionDemoAccounts().catch(err => console.error('[demo] startup provision failed:', err))
+    if (process.env.ENABLE_DEMO_ACCOUNTS === 'true') {
+      const { provisionDemoAccounts } = await import('./lib/provision-demo-accounts')
+      // Fire-and-forget — demo account drift must not block normal startup.
+      provisionDemoAccounts().catch(err => console.error('[demo] startup provision failed:', err))
+    }
   }
 }
