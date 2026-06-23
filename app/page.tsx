@@ -80,21 +80,28 @@ export default function LandingPage() {
   return (
     <main className="min-h-screen overflow-hidden bg-surface-1 text-ink">
       <section className="relative isolate overflow-hidden bg-ink text-white">
-        {/* Warm amber base — replaces the cold grid/mesh background */}
-        <div className="absolute inset-0 bg-gradient-to-br from-ink via-[#2a1d10] to-[#3a2510]" />
-        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_15%_20%,rgba(217,119,6,0.22)_0%,transparent_55%)]" />
+        {/* Warm amber base */}
+        <div className="absolute inset-0 bg-gradient-to-br from-ink via-[#241a12] to-[#33240f]" />
 
-        {/* Hero photo — full-bleed on the right half, fading into the amber background */}
-        <div className="pointer-events-none absolute inset-y-0 right-0 w-full lg:w-[58%]">
+        {/* Hero photo — full-bleed across the whole hero, no seam */}
+        <div className="pointer-events-none absolute inset-0">
           <div
             className="absolute inset-0 bg-cover bg-center"
             style={{ backgroundImage: "url('/hero-care.jpg')" }}
           />
-          {/* Fade the photo's left edge into the warm background so text stays crisp */}
-          <div className="absolute inset-0 bg-gradient-to-r from-ink via-ink/85 to-transparent lg:via-ink/30 lg:from-ink" />
-          <div className="absolute inset-0 bg-gradient-to-t from-ink/70 via-transparent to-transparent" />
-          {/* Soft amber tint so the photo reads as brand tonality */}
-          <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_70%_40%,rgba(217,119,6,0.18)_0%,transparent_60%)] mix-blend-soft-light" />
+          {/* Single smooth horizontal fade — solid on the left for text, clear photo on the right.
+              Custom stops keep it buttery with no visible line. */}
+          <div
+            className="absolute inset-0"
+            style={{
+              background:
+                'linear-gradient(to right, rgba(26,20,15,0.96) 0%, rgba(26,20,15,0.92) 26%, rgba(26,20,15,0.62) 44%, rgba(26,20,15,0.28) 62%, rgba(26,20,15,0.06) 80%, rgba(26,20,15,0) 100%)',
+            }}
+          />
+          {/* Gentle bottom + top vignette so edges feel finished, not heavy */}
+          <div className="absolute inset-0 bg-gradient-to-t from-ink/55 via-transparent to-ink/15" />
+          {/* Soft amber warmth on the photo for a premium, brand-tinted glow */}
+          <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_72%_38%,rgba(217,119,6,0.16)_0%,transparent_58%)] mix-blend-soft-light" />
         </div>
 
         <nav className="relative z-20 border-b border-white/10">
