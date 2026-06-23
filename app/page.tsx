@@ -129,7 +129,7 @@ export default function LandingPage() {
               </Link>
               <Link
                 href="/login"
-                className="inline-flex items-center justify-center rounded-xl bg-white px-4 py-2 text-sm font-black text-ink shadow-btn transition-all hover:-translate-y-0.5 hover:bg-teal hover:text-ink"
+                className="inline-flex items-center justify-center rounded-xl bg-surface-0 px-4 py-2 text-sm font-black text-ink shadow-btn transition-all hover:-translate-y-0.5 hover:bg-teal hover:text-ink"
               >
                 Try demo
               </Link>
@@ -187,7 +187,7 @@ export default function LandingPage() {
       </section>
 
       {/* Trust signals */}
-      <section className="border-b border-surface-3 bg-white">
+      <section className="border-b border-surface-3 bg-surface-1">
         <div className="mx-auto grid max-w-7xl grid-cols-1 gap-4 px-4 py-6 sm:grid-cols-2 sm:px-6 lg:grid-cols-4 lg:px-8">
           {trustSignals.map(({ icon: Icon, label, detail }) => (
             <div key={label} className="flex items-start gap-3 rounded-2xl px-2 py-3">
@@ -204,7 +204,7 @@ export default function LandingPage() {
       </section>
 
       {/* Our Story */}
-      <section id="story" className="bg-ink px-4 py-20 text-white sm:px-6 lg:px-8">
+      <section id="story" className="bg-gradient-to-br from-ink via-[#241a12] to-[#33240f] px-4 py-20 text-white sm:px-6 lg:px-8">
         <div className="mx-auto max-w-6xl">
           <div className="grid gap-10 lg:grid-cols-[0.85fr_1.15fr]">
             <div>
@@ -248,7 +248,7 @@ export default function LandingPage() {
         </div>
 
         <div className="mx-auto mt-12 grid max-w-6xl gap-5 lg:grid-cols-[0.95fr_1.05fr]">
-          <div className="rounded-[28px] border border-surface-3 bg-white p-6 shadow-card sm:p-8">
+          <div className="rounded-[28px] border border-surface-3 bg-surface-0 p-6 shadow-card sm:p-8">
             <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-amber-50 text-teal">
               <Building2 className="h-6 w-6" />
             </div>
@@ -280,7 +280,7 @@ export default function LandingPage() {
               { icon: ClipboardCheck, label: 'Stay compliant', value: 'Checks current, always', tone: 'bg-emerald-50 text-emerald-600' },
               { icon: Users, label: 'Full visibility', value: 'See who\'s on shift, live', tone: 'bg-sky-50 text-sky-600' },
             ].map(({ icon: Icon, label, value, tone }) => (
-              <div key={label} className="rounded-[24px] border border-surface-3 bg-white p-6 shadow-card">
+              <div key={label} className="rounded-[24px] border border-surface-3 bg-surface-0 p-6 shadow-card">
                 <span className={`flex h-11 w-11 items-center justify-center rounded-2xl ${tone}`}>
                   <Icon className="h-5 w-5" />
                 </span>
@@ -307,7 +307,7 @@ export default function LandingPage() {
             </div>
             <div className="flex flex-wrap gap-2 lg:flex-col lg:items-end">
               {['Police checks current', 'AHPRA verified', 'Audit-ready records'].map(tag => (
-                <span key={tag} className="inline-flex items-center gap-1.5 rounded-full border border-emerald-200 bg-white px-3 py-1.5 text-xs font-bold text-emerald-700">
+                <span key={tag} className="inline-flex items-center gap-1.5 rounded-full border border-emerald-200 bg-surface-0 px-3 py-1.5 text-xs font-bold text-emerald-700">
                   <CheckCircle2 className="h-3.5 w-3.5" />
                   {tag}
                 </span>
@@ -318,7 +318,7 @@ export default function LandingPage() {
       </section>
 
       {/* For Workers */}
-      <section id="workers" className="bg-white px-4 py-20 sm:px-6 lg:px-8">
+      <section id="workers" className="bg-surface-1 px-4 py-20 sm:px-6 lg:px-8">
         <div className="mx-auto grid max-w-6xl items-center gap-10 lg:grid-cols-2">
           <div>
             <p className="text-xs font-black uppercase tracking-[0.18em] text-teal">For carers</p>
@@ -345,8 +345,8 @@ export default function LandingPage() {
             </Link>
           </div>
 
-          <div className="rounded-[32px] border border-surface-3 bg-surface-1 p-4 shadow-card sm:p-5">
-            <div className="rounded-[24px] bg-white p-5 shadow-card">
+          <div className="rounded-[32px] border border-surface-3 bg-surface-2 p-4 shadow-card sm:p-5">
+            <div className="rounded-[24px] bg-surface-0 p-5 shadow-card">
               <div className="flex items-center justify-between border-b border-surface-3 pb-4">
                 <div>
                   <p className="text-xs font-black uppercase tracking-[0.16em] text-ink/35">Open shift</p>
@@ -387,8 +387,8 @@ export default function LandingPage() {
       </section>
 
       {/* CTA */}
-      <section className="bg-white px-4 py-20 sm:px-6 lg:px-8">
-        <div className="mx-auto max-w-5xl rounded-[32px] bg-ink px-6 py-12 text-center text-white shadow-modal sm:px-10">
+      <section className="bg-surface-1 px-4 py-20 sm:px-6 lg:px-8">
+        <div className="mx-auto max-w-5xl rounded-[32px] bg-gradient-to-br from-ink via-[#241a12] to-[#33240f] px-6 py-12 text-center text-white shadow-modal sm:px-10">
           <p className="text-xs font-black uppercase tracking-[0.18em] text-teal">Join Carelink today</p>
           <h2 className="mx-auto mt-4 max-w-3xl text-3xl font-black tracking-tight sm:text-5xl">
             Better staffing. Better care. Every single shift.
@@ -414,7 +414,7 @@ export default function LandingPage() {
         </div>
       </section>
 
-      <footer className="border-t border-surface-3 bg-white">
+      <footer className="border-t border-surface-3 bg-surface-1">
         <div className="mx-auto flex max-w-7xl flex-col gap-4 px-4 py-8 text-sm text-ink/45 sm:px-6 md:flex-row md:items-center md:justify-between lg:px-8">
           <div className="flex items-center gap-2">
             <Heart className="h-4 w-4 text-teal" />
