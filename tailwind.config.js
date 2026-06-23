@@ -28,10 +28,10 @@ module.exports = {
         'electric-dim': '#B45309',
         // Surface — warm stone tones
         surface: {
-          0: '#FFFFFF',
-          1: '#FAFAF9',
-          2: '#F5F5F4',
-          3: '#E7E5E4',
+          0: '#FFFCF7',
+          1: '#FBF6EE',
+          2: '#F4ECDD',
+          3: '#EBE0CD',
         },
         // Role colors
         nurse:    '#0EA5E9',
