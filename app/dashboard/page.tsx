@@ -2,7 +2,7 @@ import {
   Activity, Clock, FileWarning, Users, X, Building2,
   CheckCircle, XCircle, LayoutDashboard, TrendingUp,
   BarChart3, Star, UserCog, Power, FileCheck, Zap,
-  ArrowUpRight, ArrowRight,
+  ArrowUpRight, ArrowRight, Heart,
 } from 'lucide-react'
 import { fromZonedTime } from 'date-fns-tz'
 
@@ -26,9 +26,6 @@ import { Role, UserStatus } from '@prisma/client'
 
 export const dynamic = 'force-dynamic'
 
-// ─── Auth guard ───────────────────────────────────────────────────────────────
-// All mutating server actions call this first — returns the authed admin user
-// or null if the caller is unauthenticated / not an ADMIN.
 async function requireAdmin() {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
@@ -94,7 +91,6 @@ async function toggleCompliance(formData: FormData) {
 
   const workerId = formData.get('workerId') as string
   if (!workerId) return
-  // Atomic: flip in a single round-trip using a raw conditional expression
   await prisma.$executeRaw`
     UPDATE "User"
     SET "complianceStatus" = CASE WHEN "complianceStatus" = 'GREEN' THEN 'RED' ELSE 'GREEN' END
@@ -109,7 +105,6 @@ async function toggleWorkerActive(formData: FormData) {
 
   const workerId = formData.get('workerId') as string
   if (!workerId) return
-  // Atomic: flip boolean in a single round-trip
   await prisma.$executeRaw`
     UPDATE "User" SET "isActive" = NOT "isActive" WHERE id = ${workerId}
   `
@@ -230,17 +225,17 @@ async function reviewDocument(formData: FormData) {
     if (action === 'APPROVED') {
       await createNotification(
         doc.userId,
-        isNowCompliant ? '✅ Fully Compliant!' : '✅ Document Approved',
+        isNowCompliant ? '✅ All Clear!' : '✅ Document Approved',
         isNowCompliant
-          ? 'All required documents approved. You can now accept shifts.'
+          ? 'All your documents are approved. You can now accept shifts.'
           : `Your ${docLabel} has been approved.`,
         '/worker/profile',
       )
     } else {
       await createNotification(
         doc.userId,
-        '⚠️ Document Rejected',
-        reviewNote ? `${docLabel}: ${reviewNote}` : `Your ${docLabel} was rejected. Please re-upload.`,
+        '⚠️ Document Needs Attention',
+        reviewNote ? `${docLabel}: ${reviewNote}` : `Your ${docLabel} needs to be re-uploaded.`,
         '/worker/profile',
       )
     }
@@ -274,8 +269,8 @@ async function assignWorker(formData: FormData) {
   })
   await createNotification(
     workerId,
-    '📋 Shift Assigned',
-    `You have been assigned a ${shift.role} shift at ${shift.facility.name} on ${dateStr}.`,
+    '📋 Shift Confirmed',
+    `You have been confirmed for a ${shift.role} shift at ${shift.facility.name} on ${dateStr}.`,
     '/worker/my-shifts',
   )
   await notifyFacilityShiftFilled(
@@ -359,8 +354,8 @@ async function approveTimesheet(formData: FormData) {
   if (timesheet.shift.workerId) {
     await createNotification(
       timesheet.shift.workerId,
-      'Timesheet Approved',
-      `Your timesheet for ${timesheet.shift.facility.name} has been approved.`,
+      'Hours Approved',
+      `Your hours for ${timesheet.shift.facility.name} have been approved.`,
       `/worker/pay?shift=${timesheet.shift.id}`,
     )
   }
@@ -412,7 +407,6 @@ async function getDashboardData() {
       orderBy: { createdAt: 'asc' },
     }),
   ])
-  // compliantWorkers pre-filtered for the assignment dropdown
   const compliantWorkers = workers.filter(w => w.complianceStatus === 'GREEN' && w.isActive)
 
   const activeShifts    = shifts.filter(s => ['MATCHED','CLOCKED_IN'].includes(s.status))
@@ -421,18 +415,18 @@ async function getDashboardData() {
   const pendingTimesheets = completedShifts.filter(s => !s.timesheet || s.timesheet.status === 'PENDING_APPROVAL')
   const complianceAlerts = workers.filter(w => w.complianceStatus !== 'GREEN')
 
-  const totalRevenue = completedShifts.reduce((sum, s) => sum + calculateShiftPay(s).total, 0)
+  const totalHours = completedShifts.reduce((sum, s) => sum + (s.endTime.getTime() - s.startTime.getTime()) / 3_600_000, 0)
 
-  const monthlyMap: Record<string, { revenue: number; shifts: number }> = {}
+  const monthlyMap: Record<string, { hours: number; shifts: number }> = {}
   for (const s of completedShifts) {
     const key = s.startTime.toLocaleDateString('en-AU', { month: 'short', year: 'numeric', timeZone: 'Australia/Melbourne' })
-    if (!monthlyMap[key]) monthlyMap[key] = { revenue: 0, shifts: 0 }
-    monthlyMap[key].revenue += calculateShiftPay(s).total
+    if (!monthlyMap[key]) monthlyMap[key] = { hours: 0, shifts: 0 }
+    monthlyMap[key].hours += (s.endTime.getTime() - s.startTime.getTime()) / 3_600_000
     monthlyMap[key].shifts  += 1
   }
   const monthlyData = Object.entries(monthlyMap).slice(-6).reverse()
 
-  return { shifts, workers, activeShifts, unfilledShifts, completedShifts, pendingTimesheets, complianceAlerts, facilities: facilitiesList, facilityManagers, totalRevenue, monthlyData, pendingDocs, compliantWorkers }
+  return { shifts, workers, activeShifts, unfilledShifts, completedShifts, pendingTimesheets, complianceAlerts, facilities: facilitiesList, facilityManagers, totalHours, monthlyData, pendingDocs, compliantWorkers }
 }
 
 // ─── Tab Components ───────────────────────────────────────────────────────
@@ -444,13 +438,13 @@ function OverviewTab({ data }: { data: Awaited<ReturnType<typeof getDashboardDat
       <Card className="lg:col-span-2 hover:shadow-card-hover transition-shadow duration-300">
         <CardHeader className="border-b border-surface-2">
           <CardTitle className="flex items-center gap-2 text-sm">
-            <Activity className="w-4 h-4 text-teal" /> Live Dispatch Activity
+            <Activity className="w-4 h-4 text-teal" /> Shift Activity
           </CardTitle>
         </CardHeader>
         <CardContent className="p-0">
           {data.shifts.length === 0 ? (
             <div className="p-12 text-center text-ink/40 text-sm">
-              No shifts yet — broadcast one to get started.
+              No shifts yet — post one to get started.
             </div>
           ) : (
             <div className="divide-y divide-surface-2">
@@ -460,7 +454,7 @@ function OverviewTab({ data }: { data: Awaited<ReturnType<typeof getDashboardDat
                     s.urgent ? 'bg-rose-100 text-rose-700' :
                     s.role === 'NURSE' ? 'bg-sky-100 text-sky-700' :
                     s.role === 'EN' ? 'bg-violet-100 text-violet-700' :
-                    'bg-teal/10 text-teal'
+                    'bg-amber-100 text-amber-700'
                   }`}>{s.role}</div>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2">
@@ -520,7 +514,7 @@ function OverviewTab({ data }: { data: Awaited<ReturnType<typeof getDashboardDat
                     <form action={assignWorker} className="flex gap-2">
                       <input type="hidden" name="shiftId" value={s.id} />
                       <select name="workerId" className="flex-1 h-8 rounded-lg border border-surface-3 bg-white px-2 text-xs text-ink focus:outline-none focus:border-teal transition-all" required>
-                        <option value="">Assign worker…</option>
+                        <option value="">Assign a carer…</option>
                         {eligibleWorkers.map(w => (
                           <option key={w.id} value={w.id}>{w.name ?? w.email}</option>
                         ))}
@@ -528,7 +522,7 @@ function OverviewTab({ data }: { data: Awaited<ReturnType<typeof getDashboardDat
                       <Button size="sm" type="submit" className="h-8 px-3 text-xs shrink-0">Assign</Button>
                     </form>
                   ) : (
-                    <p className="text-xs text-ink/40 italic">No eligible workers available</p>
+                    <p className="text-xs text-ink/40 italic">No verified carers available for this slot</p>
                   )}
                   <form action={cancelShift}>
                     <input type="hidden" name="shiftId" value={s.id} />
@@ -541,12 +535,12 @@ function OverviewTab({ data }: { data: Awaited<ReturnType<typeof getDashboardDat
             })}
             {data.complianceAlerts.slice(0, 2).map(w => (
               <div key={w.id} className="p-3.5 bg-rose-50 border border-rose-100 rounded-xl">
-                <p className="font-bold text-ink text-sm">Compliance Issue</p>
+                <p className="font-bold text-ink text-sm">Certification Issue</p>
                 <p className="text-ink/50 text-xs mt-0.5 mb-3 truncate">{w.name ?? w.email} · {w.role}</p>
                 <form action={toggleCompliance}>
                   <input type="hidden" name="workerId" value={w.id} />
                   <Button size="sm" variant="outline" className="w-full text-xs h-8 border-rose-200 text-rose-900 hover:bg-rose-100" type="submit">
-                    Mark Compliant
+                    Clear for Work
                   </Button>
                 </form>
               </div>
@@ -554,7 +548,7 @@ function OverviewTab({ data }: { data: Awaited<ReturnType<typeof getDashboardDat
             {data.unfilledShifts.length === 0 && data.complianceAlerts.length === 0 && (
               <div className="text-center py-6">
                 <CheckCircle className="w-8 h-8 text-emerald-400 mx-auto mb-2" />
-                <p className="text-sm font-semibold text-ink/60">All clear</p>
+                <p className="text-sm font-semibold text-ink/60">Everything is on track</p>
               </div>
             )}
           </CardContent>
@@ -563,14 +557,14 @@ function OverviewTab({ data }: { data: Awaited<ReturnType<typeof getDashboardDat
         <Card className="hover:shadow-card-hover transition-shadow duration-300">
           <CardHeader className="border-b border-surface-2">
             <CardTitle className="flex items-center gap-2 text-sm">
-              <FileCheck className="w-4 h-4 text-emerald-600" /> Timesheets
+              <FileCheck className="w-4 h-4 text-emerald-600" /> Hours to Approve
             </CardTitle>
           </CardHeader>
           <CardContent className="p-4 space-y-3">
             {data.pendingTimesheets.length === 0 ? (
               <div className="text-center py-5">
                 <CheckCircle className="w-7 h-7 text-emerald-400 mx-auto mb-2" />
-                <p className="text-sm font-semibold text-ink/55">No pending approvals</p>
+                <p className="text-sm font-semibold text-ink/55">All hours approved</p>
               </div>
             ) : (
               data.pendingTimesheets.slice(0, 4).map(s => {
@@ -581,7 +575,7 @@ function OverviewTab({ data }: { data: Awaited<ReturnType<typeof getDashboardDat
                   <div key={s.id} className="p-3.5 bg-emerald-50 border border-emerald-100 rounded-xl space-y-2.5">
                     <div>
                       <p className="font-bold text-ink text-sm truncate">
-                        {s.worker?.name ?? s.worker?.email ?? 'Worker'} · {s.facility.name}
+                        {s.worker?.name ?? s.worker?.email ?? 'Carer'} · {s.facility.name}
                       </p>
                       <p className="text-xs text-ink/45 font-mono mt-0.5">
                         {s.startTime.toLocaleDateString('en-AU', { weekday: 'short', month: 'short', day: 'numeric', timeZone: 'Australia/Melbourne' })}
@@ -594,7 +588,7 @@ function OverviewTab({ data }: { data: Awaited<ReturnType<typeof getDashboardDat
                     <form action={approveTimesheet}>
                       <input type="hidden" name="shiftId" value={s.id} />
                       {s.timesheet && <input type="hidden" name="timesheetId" value={s.timesheet.id} />}
-                      <Button size="sm" type="submit" className="w-full h-8 text-xs">Approve Timesheet</Button>
+                      <Button size="sm" type="submit" className="w-full h-8 text-xs">Approve Hours</Button>
                     </form>
                   </div>
                 )
@@ -619,7 +613,7 @@ function ComplianceTab({ data }: { data: Awaited<ReturnType<typeof getDashboardD
           <CardHeader className="border-b border-surface-2">
             <CardTitle className="flex items-center gap-2 text-sm">
               <FileCheck className="w-4 h-4 text-blue-500" />
-              Document Review Queue
+              Documents Awaiting Review
               <span className="ml-1 bg-blue-100 text-blue-700 text-[10px] font-black px-1.5 py-0.5 rounded-full">{pendingDocs.length}</span>
             </CardTitle>
           </CardHeader>
@@ -648,7 +642,7 @@ function ComplianceTab({ data }: { data: Awaited<ReturnType<typeof getDashboardD
                       <input type="hidden" name="docId" value={doc.id} />
                       <input type="hidden" name="action" value="REJECTED" />
                       <Button size="sm" variant="destructive" className="text-xs h-8 gap-1">
-                        <XCircle className="w-3 h-3" /> Reject
+                        <XCircle className="w-3 h-3" /> Request Re-upload
                       </Button>
                     </form>
                   </div>
@@ -661,9 +655,9 @@ function ComplianceTab({ data }: { data: Awaited<ReturnType<typeof getDashboardD
 
       <div className="grid grid-cols-3 gap-4">
         {[
-          { label: 'Compliant', count: green.length, color: 'bg-emerald-50 border-emerald-200', num: 'text-emerald-700', sub: 'text-emerald-500' },
-          { label: 'Need Review', count: nonGreen.length, color: 'bg-rose-50 border-rose-200', num: 'text-rose-700', sub: 'text-rose-500' },
-          { label: 'Total', count: workers.length, color: 'bg-surface-1 border-surface-3', num: 'text-ink', sub: 'text-ink/40' },
+          { label: 'Verified', count: green.length, color: 'bg-emerald-50 border-emerald-200', num: 'text-emerald-700', sub: 'text-emerald-500' },
+          { label: 'Needs Attention', count: nonGreen.length, color: 'bg-rose-50 border-rose-200', num: 'text-rose-700', sub: 'text-rose-500' },
+          { label: 'Total Carers', count: workers.length, color: 'bg-surface-1 border-surface-3', num: 'text-ink', sub: 'text-ink/40' },
         ].map(item => (
           <div key={item.label} className={`border rounded-2xl p-5 text-center ${item.color}`}>
             <p className={`text-3xl font-black font-mono ${item.num}`}>{item.count}</p>
@@ -674,11 +668,11 @@ function ComplianceTab({ data }: { data: Awaited<ReturnType<typeof getDashboardD
 
       <Card>
         <CardHeader className="border-b border-surface-2">
-          <CardTitle className="text-sm">Worker Compliance Status</CardTitle>
+          <CardTitle className="text-sm">Team Readiness</CardTitle>
         </CardHeader>
         <CardContent className="p-0">
           {workers.length === 0 ? (
-            <p className="text-ink/40 text-center py-10 text-sm">No workers registered yet.</p>
+            <p className="text-ink/40 text-center py-10 text-sm">No carers registered yet.</p>
           ) : (
             <div className="divide-y divide-surface-2">
               {[...nonGreen, ...green].map(w => (
@@ -699,7 +693,7 @@ function ComplianceTab({ data }: { data: Awaited<ReturnType<typeof getDashboardD
                     <form action={toggleCompliance}>
                       <input type="hidden" name="workerId" value={w.id} />
                       <Button size="sm" variant="outline" type="submit" className="text-xs h-8 px-3">
-                        {w.complianceStatus === 'GREEN' ? 'Mark RED' : 'Mark GREEN'}
+                        {w.complianceStatus === 'GREEN' ? 'Flag for Review' : 'Clear for Work'}
                       </Button>
                     </form>
                   </div>
@@ -719,7 +713,7 @@ function WorkforceTab({ data }: { data: Awaited<ReturnType<typeof getDashboardDa
   const roleCards = [
     { role: 'NURSE' as const, label: 'Registered Nurses', bg: 'bg-sky-100', icon: 'text-sky-600' },
     { role: 'EN' as const, label: 'Enrolled Nurses', bg: 'bg-violet-100', icon: 'text-violet-600' },
-    { role: 'PCA' as const, label: 'PCAs', bg: 'bg-teal/10', icon: 'text-teal' },
+    { role: 'PCA' as const, label: 'Personal Care Assistants', bg: 'bg-amber-100', icon: 'text-amber-600' },
   ]
 
   return (
@@ -740,19 +734,19 @@ function WorkforceTab({ data }: { data: Awaited<ReturnType<typeof getDashboardDa
 
       <Card>
         <CardHeader className="border-b border-surface-2">
-          <CardTitle className="text-sm">All Workers — {workers.length}</CardTitle>
+          <CardTitle className="text-sm">All Care Team Members — {workers.length}</CardTitle>
         </CardHeader>
         <CardContent className="p-0">
           {workers.length === 0 ? (
-            <p className="text-ink/40 text-center py-10 text-sm">No workers registered yet.</p>
+            <p className="text-ink/40 text-center py-10 text-sm">No carers registered yet.</p>
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b border-surface-2 bg-surface-1">
-                    <th className="text-left px-5 py-3 text-xs font-semibold text-ink/40 uppercase tracking-wider">Worker</th>
+                    <th className="text-left px-5 py-3 text-xs font-semibold text-ink/40 uppercase tracking-wider">Name</th>
                     <th className="text-left px-4 py-3 text-xs font-semibold text-ink/40 uppercase tracking-wider">Role</th>
-                    <th className="text-left px-4 py-3 text-xs font-semibold text-ink/40 uppercase tracking-wider">Compliance</th>
+                    <th className="text-left px-4 py-3 text-xs font-semibold text-ink/40 uppercase tracking-wider">Verification</th>
                     <th className="text-left px-4 py-3 text-xs font-semibold text-ink/40 uppercase tracking-wider">Status</th>
                     <th className="px-4 py-3" />
                   </tr>
@@ -802,9 +796,9 @@ function WorkforceTab({ data }: { data: Awaited<ReturnType<typeof getDashboardDa
                                   <div>
                                     <label className="text-[10px] font-bold text-ink/40 uppercase tracking-wider">Role</label>
                                     <select name="role" defaultValue={w.role} className="mt-1 h-9 w-full rounded-xl border border-surface-3 px-2 text-xs text-ink focus:border-teal focus:outline-none">
-                                      <option value="NURSE">RN</option>
-                                      <option value="EN">EN</option>
-                                      <option value="PCA">PCA</option>
+                                      <option value="NURSE">Registered Nurse</option>
+                                      <option value="EN">Enrolled Nurse</option>
+                                      <option value="PCA">Personal Care Assistant</option>
                                     </select>
                                   </div>
                                   <div>
@@ -817,14 +811,14 @@ function WorkforceTab({ data }: { data: Awaited<ReturnType<typeof getDashboardDa
                                   </div>
                                 </div>
                                 <div>
-                                  <label className="text-[10px] font-bold text-ink/40 uppercase tracking-wider">Compliance</label>
+                                  <label className="text-[10px] font-bold text-ink/40 uppercase tracking-wider">Verification</label>
                                   <select name="complianceStatus" defaultValue={w.complianceStatus ?? 'RED'} className="mt-1 h-9 w-full rounded-xl border border-surface-3 px-2 text-xs text-ink focus:border-teal focus:outline-none">
-                                    <option value="GREEN">Green</option>
-                                    <option value="AMBER">Amber</option>
-                                    <option value="RED">Red</option>
+                                    <option value="GREEN">Verified</option>
+                                    <option value="AMBER">In Review</option>
+                                    <option value="RED">Incomplete</option>
                                   </select>
                                 </div>
-                                <Button size="sm" type="submit" className="h-9 w-full text-xs">Save Worker</Button>
+                                <Button size="sm" type="submit" className="h-9 w-full text-xs">Save</Button>
                               </form>
                             </div>
                           </details>
@@ -832,7 +826,7 @@ function WorkforceTab({ data }: { data: Awaited<ReturnType<typeof getDashboardDa
                             <input type="hidden" name="workerId" value={w.id} />
                             <Button size="sm" variant="outline" type="submit" className="text-xs h-7 px-2.5 gap-1">
                               <UserCog className="w-3 h-3" />
-                              {w.complianceStatus === 'GREEN' ? 'Mark RED' : 'Mark GREEN'}
+                              {w.complianceStatus === 'GREEN' ? 'Flag for Review' : 'Clear for Work'}
                             </Button>
                           </form>
                           <form action={toggleWorkerActive}>
@@ -865,14 +859,14 @@ function FacilitiesTab({ data }: { data: Awaited<ReturnType<typeof getDashboardD
     <div className="space-y-6">
       <Card>
         <CardHeader className="border-b border-surface-2">
-          <CardTitle className="text-sm">Add Facility</CardTitle>
+          <CardTitle className="text-sm">Add Care Home</CardTitle>
         </CardHeader>
         <CardContent className="p-5">
           <form action={saveFacility} className="grid grid-cols-1 md:grid-cols-5 gap-3">
             <input name="name" placeholder="Facility name" required className="h-10 rounded-xl border border-surface-3 px-3 text-sm text-ink focus:border-teal focus:outline-none" />
             <input name="address" placeholder="Address" required className="md:col-span-2 h-10 rounded-xl border border-surface-3 px-3 text-sm text-ink focus:border-teal focus:outline-none" />
             <input name="phone" placeholder="Phone" className="h-10 rounded-xl border border-surface-3 px-3 text-sm text-ink focus:border-teal focus:outline-none" />
-            <Button type="submit" className="h-10">Add Facility</Button>
+            <Button type="submit" className="h-10">Add Care Home</Button>
             <input name="email" type="email" placeholder="Email" className="md:col-span-2 h-10 rounded-xl border border-surface-3 px-3 text-sm text-ink focus:border-teal focus:outline-none" />
             <input name="defaultRate" type="number" min="0" max="500" step="0.50" placeholder="Default rate" className="h-10 rounded-xl border border-surface-3 px-3 text-sm text-ink focus:border-teal focus:outline-none" />
           </form>
@@ -881,11 +875,11 @@ function FacilitiesTab({ data }: { data: Awaited<ReturnType<typeof getDashboardD
 
       <Card>
         <CardHeader className="border-b border-surface-2">
-          <CardTitle className="text-sm">All Facilities — {facilities.length}</CardTitle>
+          <CardTitle className="text-sm">All Care Homes — {facilities.length}</CardTitle>
         </CardHeader>
         <CardContent className="p-0">
           {facilities.length === 0 ? (
-            <p className="text-ink/40 text-center py-10 text-sm">No facilities yet.</p>
+            <p className="text-ink/40 text-center py-10 text-sm">No care homes added yet.</p>
           ) : (
             <div className="divide-y divide-surface-2">
               {facilities.map(f => {
@@ -893,8 +887,6 @@ function FacilitiesTab({ data }: { data: Awaited<ReturnType<typeof getDashboardD
                 const active    = fs.filter(s => ['MATCHED','CLOCKED_IN'].includes(s.status)).length
                 const pending   = fs.filter(s => s.status === 'PENDING').length
                 const completed = fs.filter(s => s.status === 'COMPLETED').length
-                const spend     = fs.filter(s => s.status === 'COMPLETED')
-                  .reduce((sum, s) => sum + calculateShiftPay(s).total, 0)
 
                 return (
                   <div key={f.id} className="px-5 py-4 hover:bg-surface-1 transition-colors">
@@ -913,10 +905,9 @@ function FacilitiesTab({ data }: { data: Awaited<ReturnType<typeof getDashboardD
                       </div>
                       <div className="flex gap-5 text-center shrink-0">
                         {[
-                          { v: active,    l: 'Active',  c: 'text-teal' },
-                          { v: pending,   l: 'Pending', c: 'text-amber-600' },
-                          { v: completed, l: 'Done',    c: 'text-emerald-600' },
-                          { v: `$${spend.toFixed(0)}`, l: 'Spend', c: 'text-ink' },
+                          { v: active,    l: 'On Shift',  c: 'text-teal' },
+                          { v: pending,   l: 'Awaiting',  c: 'text-amber-600' },
+                          { v: completed, l: 'Done',      c: 'text-emerald-600' },
                         ].map(item => (
                           <div key={item.l}>
                             <p className={`font-black font-mono text-sm ${item.c}`}>{item.v}</p>
@@ -948,7 +939,7 @@ function FacilitiesTab({ data }: { data: Awaited<ReturnType<typeof getDashboardD
                           <div>
                             <label className="text-[10px] font-bold text-ink/40 uppercase tracking-wider">Assign manager</label>
                             <select name="managerId" className="mt-1 h-9 w-full rounded-xl border border-surface-3 px-3 text-xs text-ink focus:border-teal focus:outline-none" required>
-                              <option value="">Select facility admin...</option>
+                              <option value="">Select a facility manager...</option>
                               {facilityManagers.map(manager => (
                                 <option key={manager.id} value={manager.id}>
                                   {manager.name ?? manager.email}{manager.facilityId === f.id ? ' (current)' : ''}
@@ -989,8 +980,9 @@ function AnalyticsTab({ data }: { data: Awaited<ReturnType<typeof getDashboardDa
   const { shifts, workers, monthlyData } = data
   const completed       = shifts.filter(s => s.status === 'COMPLETED')
   const fillRate        = shifts.length > 0 ? Math.round((completed.length / shifts.length) * 100) : 0
-  const avgHours        = completed.length > 0 ? completed.reduce((s, x) => s + (x.endTime.getTime() - x.startTime.getTime()) / 3_600_000, 0) / completed.length : 0
-  const maxRevenue      = Math.max(...monthlyData.map(([, v]) => v.revenue), 1)
+  const totalHours      = completed.reduce((s, x) => s + (x.endTime.getTime() - x.startTime.getTime()) / 3_600_000, 0)
+  const avgHours        = completed.length > 0 ? totalHours / completed.length : 0
+  const maxShifts       = Math.max(...monthlyData.map(([, v]) => v.shifts), 1)
   const roleDistrib     = { NURSE: shifts.filter(s => s.role === 'NURSE').length, EN: shifts.filter(s => s.role === 'EN').length, PCA: shifts.filter(s => s.role === 'PCA').length }
 
   return (
@@ -998,10 +990,10 @@ function AnalyticsTab({ data }: { data: Awaited<ReturnType<typeof getDashboardDa
       {/* KPI strip */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         {[
-          { label: 'Fill Rate',      value: `${fillRate}%`,                 sub: 'of shifts completed',         bar: fillRate },
-          { label: 'Total Revenue',  value: `$${(data.totalRevenue/1000).toFixed(1)}k`, sub: 'from completed shifts', bar: null },
-          { label: 'Avg Shift',      value: `${avgHours.toFixed(1)}h`,       sub: 'average duration',            bar: null },
-          { label: 'Active Workers', value: String(workers.filter(w=>w.isActive).length), sub: 'across all facilities', bar: null },
+          { label: 'Fill Rate',          value: `${fillRate}%`,                                   sub: 'of shifts covered',           bar: fillRate },
+          { label: 'Care Hours Delivered', value: `${Math.round(totalHours)}h`,                   sub: 'total hours of care',         bar: null },
+          { label: 'Avg Shift Length',   value: `${avgHours.toFixed(1)}h`,                        sub: 'average duration',            bar: null },
+          { label: 'Active Carers',      value: String(workers.filter(w=>w.isActive).length),     sub: 'across all care homes',       bar: null },
         ].map(kpi => (
           <Card key={kpi.label} className="hover:shadow-card-hover transition-shadow duration-300">
             <CardContent className="p-5">
@@ -1019,11 +1011,11 @@ function AnalyticsTab({ data }: { data: Awaited<ReturnType<typeof getDashboardDa
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Revenue chart */}
+        {/* Shifts chart */}
         <Card className="hover:shadow-card-hover transition-shadow duration-300">
           <CardHeader className="border-b border-surface-2">
             <CardTitle className="flex items-center gap-2 text-sm">
-              <TrendingUp className="w-4 h-4 text-teal" /> Monthly Revenue
+              <TrendingUp className="w-4 h-4 text-teal" /> Monthly Shifts Completed
             </CardTitle>
           </CardHeader>
           <CardContent className="p-5">
@@ -1032,11 +1024,11 @@ function AnalyticsTab({ data }: { data: Awaited<ReturnType<typeof getDashboardDa
             ) : (
               <div className="flex items-end gap-2 h-36">
                 {monthlyData.map(([month, v]) => {
-                  const pct = (v.revenue / maxRevenue) * 100
+                  const pct = (v.shifts / maxShifts) * 100
                   return (
                     <div key={month} className="flex-1 flex flex-col items-center gap-1.5 group">
                       <p className="text-[9px] text-teal font-bold opacity-0 group-hover:opacity-100 transition-opacity">
-                        ${(v.revenue/1000).toFixed(1)}k
+                        {v.shifts} shifts
                       </p>
                       <div
                         className="w-full rounded-t-lg bg-gradient-electric opacity-80 group-hover:opacity-100 transition-all duration-300"
@@ -1059,13 +1051,13 @@ function AnalyticsTab({ data }: { data: Awaited<ReturnType<typeof getDashboardDa
             </CardTitle>
           </CardHeader>
           <CardContent className="p-5 space-y-4">
-            {([['NURSE', 'bg-sky-500', 'text-sky-600'], ['EN', 'bg-violet-500', 'text-violet-600'], ['PCA', 'bg-teal', 'text-teal']] as const).map(([role, bar, txt]) => {
+            {([['NURSE', 'bg-sky-500', 'text-sky-600', 'Registered Nurses'], ['EN', 'bg-violet-500', 'text-violet-600', 'Enrolled Nurses'], ['PCA', 'bg-amber-500', 'text-amber-600', 'Personal Care Assistants']] as const).map(([role, bar, txt, label]) => {
               const count = roleDistrib[role as keyof typeof roleDistrib]
               const pct   = shifts.length > 0 ? (count / shifts.length) * 100 : 0
               return (
                 <div key={role}>
                   <div className="flex justify-between text-sm mb-1.5">
-                    <span className="font-semibold text-ink">{role}</span>
+                    <span className="font-semibold text-ink">{label}</span>
                     <span className={`font-mono font-bold text-xs ${txt}`}>{count} ({pct.toFixed(0)}%)</span>
                   </div>
                   <div className="h-2 bg-surface-2 rounded-full overflow-hidden">
@@ -1086,11 +1078,11 @@ function AnalyticsTab({ data }: { data: Awaited<ReturnType<typeof getDashboardDa
           </CardHeader>
           <CardContent className="p-5 space-y-3">
             {[
-              { label: 'Pending',    status: 'PENDING',    bar: 'bg-amber-400' },
-              { label: 'Matched',    status: 'MATCHED',    bar: 'bg-teal' },
-              { label: 'On Duty',    status: 'CLOCKED_IN', bar: 'bg-blue-500' },
-              { label: 'Completed',  status: 'COMPLETED',  bar: 'bg-emerald-500' },
-              { label: 'Cancelled',  status: 'CANCELLED',  bar: 'bg-slate-300' },
+              { label: 'Awaiting Staff',   status: 'PENDING',    bar: 'bg-amber-400' },
+              { label: 'Confirmed',        status: 'MATCHED',    bar: 'bg-emerald-500' },
+              { label: 'On Shift',         status: 'CLOCKED_IN', bar: 'bg-blue-500' },
+              { label: 'Completed',        status: 'COMPLETED',  bar: 'bg-emerald-500' },
+              { label: 'Cancelled',        status: 'CANCELLED',  bar: 'bg-stone-300' },
             ].map(({ label, status, bar }) => {
               const count = shifts.filter(s => s.status === status).length
               const pct   = shifts.length > 0 ? (count / shifts.length) * 100 : 0
@@ -1113,7 +1105,7 @@ function AnalyticsTab({ data }: { data: Awaited<ReturnType<typeof getDashboardDa
         <Card className="hover:shadow-card-hover transition-shadow duration-300">
           <CardHeader className="border-b border-surface-2">
             <CardTitle className="flex items-center gap-2 text-sm">
-              <Star className="w-4 h-4 fill-amber-400 text-amber-400" /> Top Rated Workers
+              <Star className="w-4 h-4 fill-amber-400 text-amber-400" /> Highly Rated Carers
             </CardTitle>
           </CardHeader>
           <CardContent className="p-0">
@@ -1159,19 +1151,18 @@ export default async function Dashboard({
   const activeTab     = searchParams.tab ?? 'overview'
 
   const tabs = [
-    { id: 'overview',   label: 'Overview',    icon: LayoutDashboard, badge: 0 },
-    { id: 'compliance', label: 'Compliance',  icon: FileWarning,    badge: data.pendingDocs.length },
-    { id: 'workforce',  label: 'Workforce',   icon: Users,          badge: 0 },
-    { id: 'facilities', label: 'Facilities',  icon: Building2,      badge: 0 },
-    { id: 'analytics',  label: 'Analytics',   icon: TrendingUp,     badge: 0 },
+    { id: 'overview',   label: 'Overview',              icon: LayoutDashboard, badge: 0 },
+    { id: 'compliance', label: 'Certifications',        icon: FileWarning,     badge: data.pendingDocs.length },
+    { id: 'workforce',  label: 'Care Team',             icon: Users,           badge: 0 },
+    { id: 'facilities', label: 'Care Homes',            icon: Building2,       badge: 0 },
+    { id: 'analytics',  label: 'Insights',              icon: TrendingUp,      badge: 0 },
   ]
 
   return (
     <div className="flex min-h-screen bg-surface-1">
 
-      {/* ── Sidebar ──────────────────────────────────────────────────── */}
+      {/* ── Sidebar ──────────────────────────────────────────────── */}
       <aside className="w-60 bg-ink hidden md:flex flex-col shrink-0 relative overflow-hidden">
-        {/* Mesh background */}
         <div className="absolute inset-0 bg-mesh opacity-50 pointer-events-none" />
         <div className="absolute right-0 top-0 bottom-0 w-px bg-gradient-to-b from-transparent via-white/5 to-transparent" />
 
@@ -1179,11 +1170,11 @@ export default async function Dashboard({
           {/* Logo */}
           <div className="flex items-center gap-3 mb-8">
             <div className="w-9 h-9 rounded-xl bg-gradient-electric flex items-center justify-center shadow-btn shrink-0">
-              <Activity className="w-5 h-5 text-white" />
+              <Heart className="w-5 h-5 text-white" />
             </div>
             <div>
               <p className="font-black text-white text-sm leading-tight tracking-tight">Carelink</p>
-              <p className="text-white/30 text-[10px] font-medium">Agency Admin</p>
+              <p className="text-white/30 text-[10px] font-medium">Operations</p>
             </div>
           </div>
 
@@ -1203,9 +1194,8 @@ export default async function Dashboard({
                       : 'text-white/40 hover:text-white/80 hover:bg-white/5',
                   ].join(' ')}
                 >
-                  {/* Active left glow bar */}
                   {isActive && (
-                    <span className="absolute left-0 top-1/2 -translate-y-1/2 w-0.5 h-5 bg-teal rounded-r-full" style={{ boxShadow: '0 0 8px rgba(0,201,167,0.8)' }} />
+                    <span className="absolute left-0 top-1/2 -translate-y-1/2 w-0.5 h-5 bg-teal rounded-r-full" style={{ boxShadow: '0 0 8px rgba(217,119,6,0.8)' }} />
                   )}
                   <tab.icon className={`w-4 h-4 shrink-0 transition-colors duration-150 ${isActive ? 'text-teal' : 'text-white/30 group-hover:text-white/60'}`} />
                   <span className="flex-1">{tab.label}</span>
@@ -1219,7 +1209,6 @@ export default async function Dashboard({
             })}
           </nav>
 
-          {/* Divider + sign out */}
           <div className="border-t border-white/5 pt-4 mt-4">
             <form action={signOut}>
               <button type="submit" className="w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-white/30 hover:text-rose-400 hover:bg-white/5 transition-all duration-150 text-sm font-medium text-left">
@@ -1237,13 +1226,13 @@ export default async function Dashboard({
         <div className="sticky top-0 z-20 bg-white/80 backdrop-blur-xl border-b border-surface-2 px-8 py-4 flex justify-between items-center">
           <div>
             <p className="text-label text-ink/40">{tabs.find(t => t.id === activeTab)?.label}</p>
-            <h2 className="text-2xl font-black tracking-tight text-ink leading-tight">Global Dispatch</h2>
+            <h2 className="text-2xl font-black tracking-tight text-ink leading-tight">Care Operations</h2>
           </div>
           <div className="flex items-center gap-2">
             <NotificationBell tone="light" />
             <a href="/dashboard?broadcast=1">
               <Button className="gap-2 shadow-btn">
-                <Zap className="w-4 h-4" /> Broadcast Shift
+                <Zap className="w-4 h-4" /> Post a Shift
               </Button>
             </a>
           </div>
@@ -1253,10 +1242,10 @@ export default async function Dashboard({
           {/* KPI Strip */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 stagger-children">
             {[
-              { label: 'Total Shifts', value: data.shifts.length, sub: 'All time', icon: Clock, accent: 'text-ink' },
-              { label: 'Active Now',   value: data.activeShifts.length, sub: 'Matched + On duty', icon: Activity, accent: 'text-teal' },
-              { label: 'Unfilled',     value: data.unfilledShifts.length, sub: 'Need workers', icon: FileWarning, accent: 'text-amber-600' },
-              { label: 'Workforce',    value: data.workers.length, sub: `${data.facilities.length} facilities`, icon: Users, accent: 'text-ink' },
+              { label: 'Total Shifts',   value: data.shifts.length,         sub: 'All time',               icon: Clock,        accent: 'text-ink' },
+              { label: 'Active Now',     value: data.activeShifts.length,   sub: 'Confirmed + on shift',   icon: Activity,     accent: 'text-teal' },
+              { label: 'Awaiting Staff', value: data.unfilledShifts.length, sub: 'Need a carer assigned',  icon: FileWarning,  accent: 'text-amber-600' },
+              { label: 'Care Team',      value: data.workers.length,        sub: `${data.facilities.length} care homes`, icon: Users, accent: 'text-ink' },
             ].map(kpi => (
               <Card key={kpi.label} className="hover:shadow-card-hover transition-all duration-300">
                 <CardContent className="p-5">
@@ -1304,15 +1293,14 @@ export default async function Dashboard({
         </div>
       </nav>
 
-      {/* ── Broadcast Modal ─────────────────────────────────────────── */}
+      {/* ── Post Shift Modal ─────────────────────────────────────────── */}
       {showBroadcast && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink/60 backdrop-blur-sm p-4 animate-fade-in">
           <div className="bg-white rounded-3xl shadow-modal w-full max-w-md relative animate-scale-in">
-            {/* Header */}
             <div className="flex items-center justify-between px-7 pt-7 pb-5 border-b border-surface-2">
               <div>
-                <h3 className="text-xl font-black tracking-tight text-ink">Broadcast Shift</h3>
-                <p className="text-sm text-ink/40 mt-0.5">Notify available workers instantly</p>
+                <h3 className="text-xl font-black tracking-tight text-ink">Post a Shift</h3>
+                <p className="text-sm text-ink/40 mt-0.5">We'll match you with a verified carer</p>
               </div>
               <a href="/dashboard" className="w-8 h-8 rounded-xl bg-surface-2 flex items-center justify-center hover:bg-surface-3 transition-colors">
                 <X className="w-4 h-4 text-ink/50" />
@@ -1324,20 +1312,16 @@ export default async function Dashboard({
                 <div className="p-3.5 bg-rose-50 border border-rose-200 rounded-xl text-rose-700 text-sm">{decodeURIComponent(broadcastError)}</div>
               )}
 
-              {[
-                { label: 'Facility', name: 'facilityId', isSelect: true, options: data.facilities.map(f => ({ value: f.id, label: f.name })) },
-              ].map(field => (
-                <div key={field.name} className="space-y-1.5">
-                  <label className="text-label text-ink/50">{field.label}</label>
-                  <select name={field.name} className="w-full h-11 rounded-xl border border-surface-3 bg-white px-4 text-sm text-ink focus:outline-none focus:border-teal focus:shadow-focus transition-all" required>
-                    <option value="">Select a facility…</option>
-                    {field.options?.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
-                  </select>
-                </div>
-              ))}
+              <div className="space-y-1.5">
+                <label className="text-label text-ink/50">Care Home</label>
+                <select name="facilityId" className="w-full h-11 rounded-xl border border-surface-3 bg-white px-4 text-sm text-ink focus:outline-none focus:border-teal focus:shadow-focus transition-all" required>
+                  <option value="">Select a care home…</option>
+                  {data.facilities.map(f => <option key={f.id} value={f.id}>{f.name}</option>)}
+                </select>
+              </div>
 
               <div className="space-y-1.5">
-                <label className="text-label text-ink/50">Role</label>
+                <label className="text-label text-ink/50">Role Required</label>
                 <select name="role" className="w-full h-11 rounded-xl border border-surface-3 bg-white px-4 text-sm text-ink focus:outline-none focus:border-teal focus:shadow-focus transition-all" required>
                   <option value="NURSE">Registered Nurse (RN)</option>
                   <option value="EN">Enrolled Nurse (EN)</option>
@@ -1355,13 +1339,13 @@ export default async function Dashboard({
               </div>
 
               <div className="space-y-1.5">
-                <label className="text-label text-ink/50">Hourly Rate ($)</label>
-                <input type="number" name="hourlyRate" step="0.01" min="0" defaultValue="45.00" className="w-full h-11 rounded-xl border border-surface-3 bg-white px-4 text-sm text-ink focus:outline-none focus:border-teal focus:shadow-focus transition-all" required />
+                <label className="text-label text-ink/50">Hourly Rate</label>
+                <input type="number" name="hourlyRate" step="0.01" min="0" className="w-full h-11 rounded-xl border border-surface-3 bg-white px-4 text-sm text-ink focus:outline-none focus:border-teal focus:shadow-focus transition-all" required placeholder="Enter rate…" />
               </div>
 
               <div className="space-y-1.5">
                 <label className="text-label text-ink/50">Notes (optional)</label>
-                <textarea name="notes" rows={2} maxLength={500} className="w-full rounded-xl border border-surface-3 bg-white px-4 py-3 text-sm text-ink resize-none focus:outline-none focus:border-teal focus:shadow-focus transition-all" placeholder="Instructions for workers…" />
+                <textarea name="notes" rows={2} maxLength={500} className="w-full rounded-xl border border-surface-3 bg-white px-4 py-3 text-sm text-ink resize-none focus:outline-none focus:border-teal focus:shadow-focus transition-all" placeholder="Any special requirements for this shift…" />
               </div>
 
               <label className="flex items-center gap-2.5 cursor-pointer py-1">
@@ -1376,7 +1360,7 @@ export default async function Dashboard({
                   <Button type="button" variant="outline" className="w-full">Cancel</Button>
                 </a>
                 <Button type="submit" className="flex-1 gap-2">
-                  <Zap className="w-4 h-4" /> Broadcast
+                  Post Shift
                 </Button>
               </div>
             </form>
