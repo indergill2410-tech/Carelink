@@ -7,11 +7,12 @@ import {
   Clock,
   Heart,
   ShieldCheck,
-  Star,
   UserCheck,
   Users,
   Activity,
   Award,
+  ClipboardCheck,
+  FileCheck2,
 } from 'lucide-react'
 
 export const metadata: Metadata = {
@@ -36,8 +37,9 @@ const trustSignals = [
 const facilityBenefits = [
   'Post a shift request in under 2 minutes',
   'We match you with a verified, qualified carer',
+  'Stay compliant — every carer\'s checks and registrations are current',
   'Track who\'s on shift in real time',
-  'Review completed shifts easily',
+  'Audit-ready records for every shift you fill',
 ]
 
 const workerBenefits = [
@@ -275,7 +277,7 @@ export default function LandingPage() {
             {[
               { icon: Clock, label: 'Faster response', value: 'Shifts filled in minutes', tone: 'bg-amber-50 text-teal' },
               { icon: ShieldCheck, label: 'Peace of mind', value: 'Only verified carers', tone: 'bg-teal/10 text-teal' },
-              { icon: Star, label: 'Quality care', value: 'Right person, every time', tone: 'bg-violet-50 text-violet-600' },
+              { icon: ClipboardCheck, label: 'Stay compliant', value: 'Checks current, always', tone: 'bg-emerald-50 text-emerald-600' },
               { icon: Users, label: 'Full visibility', value: 'See who\'s on shift, live', tone: 'bg-sky-50 text-sky-600' },
             ].map(({ icon: Icon, label, value, tone }) => (
               <div key={label} className="rounded-[24px] border border-surface-3 bg-white p-6 shadow-card">
@@ -286,6 +288,31 @@ export default function LandingPage() {
                 <p className="mt-2 text-2xl font-black tracking-tight text-ink">{value}</p>
               </div>
             ))}
+          </div>
+        </div>
+
+        {/* Compliance callout — the thing care homes worry about most */}
+        <div className="mx-auto mt-10 max-w-6xl">
+          <div className="grid items-center gap-6 rounded-[28px] border border-emerald-200 bg-emerald-50/60 p-6 sm:p-8 lg:grid-cols-[auto_1fr_auto]">
+            <span className="flex h-14 w-14 items-center justify-center rounded-2xl bg-emerald-100 text-emerald-600">
+              <FileCheck2 className="h-7 w-7" />
+            </span>
+            <div>
+              <h3 className="text-xl font-black tracking-tight text-ink sm:text-2xl">
+                We help your facility stay compliant — where it matters most.
+              </h3>
+              <p className="mt-2 max-w-2xl leading-7 text-ink/60">
+                Every carer arrives with their police check, AHPRA registration, and mandatory training verified and in date. We keep the records, so you&apos;re always ready for an audit and never staffing a shift with someone who isn&apos;t cleared to work.
+              </p>
+            </div>
+            <div className="flex flex-wrap gap-2 lg:flex-col lg:items-end">
+              {['Police checks current', 'AHPRA verified', 'Audit-ready records'].map(tag => (
+                <span key={tag} className="inline-flex items-center gap-1.5 rounded-full border border-emerald-200 bg-white px-3 py-1.5 text-xs font-bold text-emerald-700">
+                  <CheckCircle2 className="h-3.5 w-3.5" />
+                  {tag}
+                </span>
+              ))}
+            </div>
           </div>
         </div>
       </section>
