@@ -2,11 +2,10 @@ import { redirect } from 'next/navigation'
 import { createClient } from '@/utils/supabase/server'
 import { prisma } from '@/lib/prisma'
 import { Button } from '@/components/ui/button'
-import { StatusBadge } from '@/components/StatusBadge'
 import {
-  Stethoscope, CalendarCheck, Wallet, UserCircle,
+  CalendarCheck, Wallet, UserCircle,
   Clock, AlertTriangle, MapPin, ArrowRight,
-  Zap, ShieldCheck, Heart,
+  Zap, ShieldCheck,
 } from 'lucide-react'
 import { revalidatePath } from 'next/cache'
 import { LogoutButton } from '@/components/LogoutButton'

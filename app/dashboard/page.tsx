@@ -19,7 +19,6 @@ import { createNotification, notifyFacilityShiftFilled, notifyShiftCancelled } f
 import { getComplianceStatusForDocuments } from '@/lib/compliance'
 import { isShiftAllowedByAvailability } from '@/lib/availability'
 import { canCancelShift, shouldNotifyWorkerAboutCancellation } from '@/lib/shift-lifecycle'
-import { calculateShiftPay } from '@/lib/pay-engine'
 import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
 import { Role, UserStatus } from '@prisma/client'
