@@ -19,6 +19,7 @@ import { createNotification, notifyFacilityShiftFilled, notifyShiftCancelled } f
 import { getComplianceStatusForDocuments } from '@/lib/compliance'
 import { isShiftAllowedByAvailability } from '@/lib/availability'
 import { canCancelShift, shouldNotifyWorkerAboutCancellation } from '@/lib/shift-lifecycle'
+import { calculateShiftPay } from '@/lib/pay-engine'
 import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
 import { Role, UserStatus } from '@prisma/client'
@@ -420,15 +421,13 @@ async function getDashboardData() {
   const pendingTimesheets = completedShifts.filter(s => !s.timesheet || s.timesheet.status === 'PENDING_APPROVAL')
   const complianceAlerts = workers.filter(w => w.complianceStatus !== 'GREEN')
 
-  const totalRevenue = completedShifts.reduce((sum, s) => {
-    return sum + s.hourlyRate * (s.endTime.getTime() - s.startTime.getTime()) / 3_600_000
-  }, 0)
+  const totalRevenue = completedShifts.reduce((sum, s) => sum + calculateShiftPay(s).total, 0)
 
   const monthlyMap: Record<string, { revenue: number; shifts: number }> = {}
   for (const s of completedShifts) {
     const key = s.startTime.toLocaleDateString('en-AU', { month: 'short', year: 'numeric', timeZone: 'Australia/Melbourne' })
     if (!monthlyMap[key]) monthlyMap[key] = { revenue: 0, shifts: 0 }
-    monthlyMap[key].revenue += s.hourlyRate * (s.endTime.getTime() - s.startTime.getTime()) / 3_600_000
+    monthlyMap[key].revenue += calculateShiftPay(s).total
     monthlyMap[key].shifts  += 1
   }
   const monthlyData = Object.entries(monthlyMap).slice(-6).reverse()
@@ -895,7 +894,7 @@ function FacilitiesTab({ data }: { data: Awaited<ReturnType<typeof getDashboardD
                 const pending   = fs.filter(s => s.status === 'PENDING').length
                 const completed = fs.filter(s => s.status === 'COMPLETED').length
                 const spend     = fs.filter(s => s.status === 'COMPLETED')
-                  .reduce((sum, s) => sum + s.hourlyRate * (s.endTime.getTime() - s.startTime.getTime()) / 3_600_000, 0)
+                  .reduce((sum, s) => sum + calculateShiftPay(s).total, 0)
 
                 return (
                   <div key={f.id} className="px-5 py-4 hover:bg-surface-1 transition-colors">
