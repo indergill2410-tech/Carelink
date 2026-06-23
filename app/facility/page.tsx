@@ -92,7 +92,7 @@ export default async function FacilityPortal({
   const selectedTemplate = SHIFT_TEMPLATES.find(t => t.label === searchParams.template)
 
   const totalHours = completed.reduce((sum, s) => {
-    const hrs = (s.endTime.getTime() - s.startTime.getTime()) / 3600000
+    const hrs = Math.max(0, (s.endTime.getTime() - s.startTime.getTime()) / 3600000)
     return sum + hrs
   }, 0)
 
@@ -157,12 +157,23 @@ export default async function FacilityPortal({
 
     await prisma.shift.createMany({
       data: Array.from({ length: repeatWeeks }, (_, index) => {
-        const weekOffsetMs = index * 7 * 24 * 60 * 60 * 1000
+        // Build each week's local date string and convert to UTC so the shift
+        // always starts at the same local time, even across DST transitions.
+        const weekDate = new Date(`${date}T00:00:00Z`)
+        weekDate.setUTCDate(weekDate.getUTCDate() + index * 7)
+        const weekDateStr = weekDate.toISOString().split('T')[0]
+
+        const weekStartTime = fromZonedTime(`${weekDateStr}T${startT}:00`, TZ)
+        let weekEndTime = fromZonedTime(`${weekDateStr}T${endT}:00`, TZ)
+        if (weekEndTime <= weekStartTime) {
+          weekEndTime = new Date(weekEndTime.getTime() + 24 * 60 * 60 * 1000)
+        }
+
         return {
           facilityId: facility.id,
           role: role as Role,
-          startTime: new Date(startTime.getTime() + weekOffsetMs),
-          endTime: new Date(normalizedEndTime.getTime() + weekOffsetMs),
+          startTime: weekStartTime,
+          endTime: weekEndTime,
           hourlyRate,
           notes: notes || null,
           urgent,

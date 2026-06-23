@@ -977,10 +977,9 @@ function FacilitiesTab({ data }: { data: Awaited<ReturnType<typeof getDashboardD
 }
 
 function AnalyticsTab({ data }: { data: Awaited<ReturnType<typeof getDashboardData>> }) {
-  const { shifts, workers, monthlyData } = data
+  const { shifts, workers, monthlyData, totalHours } = data
   const completed       = shifts.filter(s => s.status === 'COMPLETED')
   const fillRate        = shifts.length > 0 ? Math.round((completed.length / shifts.length) * 100) : 0
-  const totalHours      = completed.reduce((s, x) => s + (x.endTime.getTime() - x.startTime.getTime()) / 3_600_000, 0)
   const avgHours        = completed.length > 0 ? totalHours / completed.length : 0
   const maxShifts       = Math.max(...monthlyData.map(([, v]) => v.shifts), 1)
   const roleDistrib     = { NURSE: shifts.filter(s => s.role === 'NURSE').length, EN: shifts.filter(s => s.role === 'EN').length, PCA: shifts.filter(s => s.role === 'PCA').length }
