@@ -1,5 +1,7 @@
 import type { Metadata } from 'next'
 import Link from 'next/link'
+import SiteNav from '@/components/SiteNav'
+import SiteFooter from '@/components/SiteFooter'
 import {
   ArrowRight,
   Building2,
@@ -20,12 +22,6 @@ export const metadata: Metadata = {
   description:
     'Carelink connects Australian aged care facilities with verified, qualified carers. Trusted staffing, award wages, verified credentials — built for dignity in care.',
 }
-
-const navLinks = [
-  { href: '#story',     label: 'Our Story' },
-  { href: '#facilities', label: 'For Care Homes' },
-  { href: '#workers',   label: 'For Carers' },
-]
 
 const trustSignals = [
   { icon: ShieldCheck, label: 'Background Checked',         detail: 'Every carer is police checked before joining' },
@@ -49,17 +45,6 @@ const workerBenefits = [
   'Your credentials and profile in one place',
 ]
 
-function BrandMark() {
-  return (
-    <Link href="/" className="flex items-center gap-3" aria-label="Carelink home">
-      <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-electric shadow-btn">
-        <Heart className="h-5 w-5 text-white" />
-      </span>
-      <span className="text-base font-black tracking-tight text-white">Carelink</span>
-    </Link>
-  )
-}
-
 function SectionHeading({
   eyebrow,
   title,
@@ -81,6 +66,7 @@ function SectionHeading({
 export default function LandingPage() {
   return (
     <main className="min-h-screen overflow-hidden bg-surface-1 text-ink">
+      <SiteNav />
       <section className="relative isolate overflow-hidden bg-ink text-white">
         {/* Warm amber base */}
         <div className="absolute inset-0 bg-gradient-to-br from-ink via-[#241a12] to-[#33240f]" />
@@ -106,38 +92,7 @@ export default function LandingPage() {
           <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_72%_38%,rgba(217,119,6,0.16)_0%,transparent_58%)] mix-blend-soft-light" />
         </div>
 
-        <nav className="relative z-20 border-b border-white/10">
-          <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
-            <BrandMark />
-            <div className="hidden items-center gap-1 md:flex">
-              {navLinks.map(link => (
-                <Link
-                  key={link.href}
-                  href={link.href}
-                  className="rounded-xl px-3 py-2 text-sm font-bold text-white/58 transition-colors hover:bg-white/8 hover:text-white"
-                >
-                  {link.label}
-                </Link>
-              ))}
-            </div>
-            <div className="flex items-center gap-2">
-              <Link
-                href="/login"
-                className="rounded-xl px-3 py-2 text-sm font-bold text-white/62 transition-colors hover:bg-white/8 hover:text-white"
-              >
-                Sign in
-              </Link>
-              <Link
-                href="/login"
-                className="inline-flex items-center justify-center rounded-xl bg-surface-0 px-4 py-2 text-sm font-black text-ink shadow-btn transition-all hover:-translate-y-0.5 hover:bg-teal hover:text-ink"
-              >
-                Try demo
-              </Link>
-            </div>
-          </div>
-        </nav>
-
-        <div className="relative z-10 mx-auto max-w-7xl px-4 pb-20 pt-16 sm:px-6 sm:pb-24 sm:pt-24 lg:px-8 lg:pb-32 lg:pt-28">
+        <div className="relative z-10 mx-auto max-w-7xl px-4 pb-20 pt-20 sm:px-6 sm:pb-24 sm:pt-24 lg:px-8 lg:pb-32 lg:pt-28">
           <div className="max-w-2xl">
             <div className="inline-flex items-center gap-2 rounded-full border border-teal/25 bg-teal/10 px-3 py-1.5 text-xs font-black uppercase tracking-[0.16em] text-teal">
               <ShieldCheck className="h-3.5 w-3.5" />
@@ -154,14 +109,14 @@ export default function LandingPage() {
 
             <div className="mt-9 flex flex-col gap-3 sm:flex-row">
               <Link
-                href="#facilities"
+                href="/for-care-homes"
                 className="inline-flex h-14 items-center justify-center gap-2 rounded-2xl bg-teal px-7 text-base font-black text-ink shadow-glow transition-all hover:-translate-y-0.5 hover:bg-mint"
               >
                 For Care Homes
                 <Building2 className="h-4 w-4" />
               </Link>
               <Link
-                href="#workers"
+                href="/for-carers"
                 className="inline-flex h-14 items-center justify-center gap-2 rounded-2xl border border-white/20 bg-white/10 px-7 text-base font-black text-white backdrop-blur-sm transition-all hover:-translate-y-0.5 hover:bg-white/15"
               >
                 For Carers
@@ -265,10 +220,10 @@ export default function LandingPage() {
               ))}
             </div>
             <Link
-              href="/login"
+              href="/for-care-homes"
               className="mt-8 inline-flex items-center gap-2 rounded-2xl bg-ink px-5 py-3 text-sm font-black text-white transition-all hover:-translate-y-0.5 hover:bg-teal hover:text-ink"
             >
-              Get started
+              Explore for care homes
               <ArrowRight className="h-4 w-4" />
             </Link>
           </div>
@@ -337,10 +292,10 @@ export default function LandingPage() {
               ))}
             </div>
             <Link
-              href="/login"
+              href="/for-carers"
               className="mt-8 inline-flex items-center gap-2 rounded-2xl bg-teal px-5 py-3 text-sm font-black text-ink shadow-btn transition-all hover:-translate-y-0.5 hover:bg-mint"
             >
-              Join as a carer
+              Explore for carers
               <ArrowRight className="h-4 w-4" />
             </Link>
           </div>
@@ -405,7 +360,7 @@ export default function LandingPage() {
               <ArrowRight className="h-4 w-4" />
             </Link>
             <Link
-              href="#facilities"
+              href="/for-care-homes"
               className="inline-flex h-14 w-full items-center justify-center gap-2 rounded-2xl border border-white/15 bg-white/8 px-7 py-4 text-base font-black text-white transition-all hover:-translate-y-0.5 hover:bg-white/12 sm:w-auto"
             >
               For Care Homes
@@ -414,20 +369,7 @@ export default function LandingPage() {
         </div>
       </section>
 
-      <footer className="border-t border-surface-3 bg-surface-1">
-        <div className="mx-auto flex max-w-7xl flex-col gap-4 px-4 py-8 text-sm text-ink/45 sm:px-6 md:flex-row md:items-center md:justify-between lg:px-8">
-          <div className="flex items-center gap-2">
-            <Heart className="h-4 w-4 text-teal" />
-            <span className="font-black text-ink">Carelink</span>
-            <span>Trusted aged care staffing</span>
-          </div>
-          <div className="flex flex-wrap gap-4">
-            <Link href="/login" className="font-bold hover:text-teal">Sign in</Link>
-            <Link href="#workers" className="font-bold hover:text-teal">For Carers</Link>
-            <Link href="#facilities" className="font-bold hover:text-teal">For Care Homes</Link>
-          </div>
-        </div>
-      </footer>
+      <SiteFooter />
     </main>
   )
 }
