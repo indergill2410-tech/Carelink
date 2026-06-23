@@ -8,7 +8,6 @@ import {
   ShieldCheck,
   Users,
   Activity,
-  HandHeart,
   Clock,
 } from 'lucide-react'
 
@@ -26,7 +25,7 @@ const values = [
     body: 'Every carer has their qualifications, registrations, and police check confirmed before they can accept a single shift. No exceptions.',
   },
   {
-    icon: HandHeart,
+    icon: Heart,
     title: 'Dignity at the centre',
     body: 'Older Australians deserve to be cared for by someone who is present, prepared, and genuinely kind. That belief drives every match we make.',
   },
