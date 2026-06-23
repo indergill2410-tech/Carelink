@@ -12,6 +12,7 @@ import {
 import { LogoutButton } from '@/components/LogoutButton'
 import { NotificationBell } from '@/components/NotificationBell'
 import { notifyFacilityShiftCancelledByWorker } from '@/lib/notifications'
+import { calculateShiftPay } from '@/lib/pay-engine'
 
 export const dynamic = 'force-dynamic'
 
@@ -197,8 +198,7 @@ export default async function MyShiftsPage({
   type ShiftWithIncludes = typeof shifts[number]
 
   function ShiftCard({ shift, section }: { shift: ShiftWithIncludes; section: 'upcoming' | 'overdue' | 'past' }) {
-    const hrs = (shift.endTime.getTime() - shift.startTime.getTime()) / 3_600_000
-    const earnings    = shift.hourlyRate * hrs
+    const pay         = calculateShiftPay(shift)
     const hasRated    = shift.ratings.length > 0
     const isClockedIn = shift.status === 'CLOCKED_IN'
     const isCompleted = shift.status === 'COMPLETED'
@@ -237,13 +237,19 @@ export default async function MyShiftsPage({
             <div className="flex items-center gap-2 text-xs text-ink/60">
               <Clock className="w-3.5 h-3.5 shrink-0 text-ink/30" />
               <span>{formatDate(shift.startTime)} · {formatTime(shift.startTime)} – {formatTime(shift.endTime)}</span>
-              <span className="font-mono text-ink/40 ml-auto">{hrs.toFixed(1)}h</span>
+              <span className="font-mono text-ink/40 ml-auto">{pay.hours.toFixed(1)}h</span>
             </div>
             <div className="flex items-center gap-2 text-xs text-ink/60">
               <MapPin className="w-3.5 h-3.5 shrink-0 text-ink/30" />
               <span className="truncate flex-1">{shift.facility.address}</span>
-              <span className="font-mono font-bold text-ink/70 shrink-0">${earnings.toFixed(0)}</span>
+              <span className="font-mono font-bold text-ink/70 shrink-0">${pay.total.toFixed(0)}</span>
             </div>
+            {pay.extras > 0 && (
+              <div className="flex items-center gap-2 text-xs text-teal font-semibold">
+                <Wallet className="w-3.5 h-3.5 shrink-0" />
+                +${pay.extras.toFixed(0)} loadings and ERTC incentives
+              </div>
+            )}
             {isClockedIn && shift.clockInAt && (
               <div className="flex items-center gap-2 text-xs text-blue-600 font-semibold">
                 <div className="w-2 h-2 rounded-full bg-blue-500 animate-pulse" />
