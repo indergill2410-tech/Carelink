@@ -10,6 +10,9 @@ jobs:
   check:
     name: Type check & lint
     runs-on: ubuntu-latest
+    env:
+      DATABASE_URL: ${{ secrets.DATABASE_URL || 'postgresql://ci:ci@localhost:5432/carelink' }}
+      DIRECT_URL: ${{ secrets.DIRECT_URL || 'postgresql://ci:ci@localhost:5432/carelink' }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -18,9 +21,6 @@ jobs:
           cache: 'npm'
       - run: npm ci
       - run: npx prisma generate
-        env:
-          DATABASE_URL: ${{ secrets.DATABASE_URL }}
-          DIRECT_URL: ${{ secrets.DIRECT_URL }}
       - run: npm run typecheck
       - run: npm run test
       - run: npm run lint
@@ -30,15 +30,17 @@ jobs:
     runs-on: ubuntu-latest
     needs: check
     env:
-      DATABASE_URL: ${{ secrets.DATABASE_URL }}
-      DIRECT_URL: ${{ secrets.DIRECT_URL }}
-      NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
-      NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
-      DEMO_ACCOUNT_PASSWORD: ${{ secrets.DEMO_ACCOUNT_PASSWORD }}
-      NEXT_PUBLIC_SITE_URL: ${{ secrets.NEXT_PUBLIC_SITE_URL }}
-      SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
-      RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
-      FROM_EMAIL: ${{ secrets.FROM_EMAIL }}
+      DATABASE_URL: ${{ secrets.DATABASE_URL || 'postgresql://ci:ci@localhost:5432/carelink' }}
+      DIRECT_URL: ${{ secrets.DIRECT_URL || 'postgresql://ci:ci@localhost:5432/carelink' }}
+      NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL || 'https://example.supabase.co' }}
+      NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'sb_publishable_ci_placeholder' }}
+      DEMO_ACCOUNT_PASSWORD: ${{ secrets.DEMO_ACCOUNT_PASSWORD || 'ci-demo-password' }}
+      ENABLE_DEMO_ACCOUNTS: ${{ secrets.ENABLE_DEMO_ACCOUNTS || 'false' }}
+      NEXT_PUBLIC_ENABLE_DEMO_ACCOUNTS: ${{ secrets.NEXT_PUBLIC_ENABLE_DEMO_ACCOUNTS || 'false' }}
+      NEXT_PUBLIC_SITE_URL: ${{ secrets.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000' }}
+      SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY || 'sb_secret_ci_placeholder' }}
+      RESEND_API_KEY: ${{ secrets.RESEND_API_KEY || '' }}
+      FROM_EMAIL: ${{ secrets.FROM_EMAIL || '' }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
