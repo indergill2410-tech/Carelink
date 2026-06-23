@@ -11,6 +11,7 @@ import {
   UserCheck,
   Users,
   Activity,
+  Award,
 } from 'lucide-react'
 
 export const metadata: Metadata = {
@@ -46,12 +47,6 @@ const workerBenefits = [
   'Your credentials and profile in one place',
 ]
 
-const coverageRows = [
-  { role: 'RN',  facility: 'Sunrise Aged Care',    time: '07:00 – 15:00', status: 'Confirmed',  accent: 'bg-sky-400' },
-  { role: 'EN',  facility: 'Oakwood Nursing Home',  time: '15:00 – 23:00', status: 'Matching…', accent: 'bg-violet-400' },
-  { role: 'PCA', facility: 'Bayside Care',          time: '23:00 – 07:00', status: 'On Shift',  accent: 'bg-amber-400' },
-]
-
 function BrandMark() {
   return (
     <Link href="/" className="flex items-center gap-3" aria-label="Carelink home">
@@ -60,69 +55,6 @@ function BrandMark() {
       </span>
       <span className="text-base font-black tracking-tight text-white">Carelink</span>
     </Link>
-  )
-}
-
-function HeroConsole() {
-  return (
-    <div
-      className="mx-auto mt-12 w-full max-w-4xl overflow-hidden rounded-[28px] border border-white/12 bg-white/[0.08] shadow-[0_42px_110px_rgba(0,0,0,0.42)] backdrop-blur-2xl"
-      aria-label="Carelink live operations preview"
-    >
-      <div className="flex items-center justify-between border-b border-white/10 px-4 py-3 sm:px-5">
-        <div className="flex items-center gap-2">
-          <span className="h-2.5 w-2.5 rounded-full bg-rose-400" />
-          <span className="h-2.5 w-2.5 rounded-full bg-amber-300" />
-          <span className="h-2.5 w-2.5 rounded-full bg-emerald-400" />
-        </div>
-        <div className="hidden rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs font-semibold text-white/55 sm:block">
-          Live care coverage
-        </div>
-      </div>
-
-      <div className="p-4 sm:p-6">
-        <div className="mb-5 flex items-start justify-between gap-4">
-          <div>
-            <p className="text-xs font-bold uppercase tracking-[0.18em] text-teal/80">Tonight&apos;s roster</p>
-            <h2 className="mt-2 text-2xl font-black tracking-tight text-white sm:text-3xl">3 shifts — all covered</h2>
-          </div>
-          <div className="rounded-2xl border border-emerald-500/30 bg-emerald-500/10 px-4 py-3 text-right">
-            <p className="text-2xl font-black text-white">100%</p>
-            <p className="text-xs font-semibold text-emerald-400/80">care covered</p>
-          </div>
-        </div>
-
-        <div className="space-y-3">
-          {coverageRows.map(row => (
-            <div key={`${row.role}-${row.facility}`} className="grid grid-cols-[auto_1fr_auto] items-center gap-3 rounded-2xl border border-white/10 bg-white/[0.06] p-3">
-              <div className={`h-10 w-10 rounded-xl ${row.accent} flex items-center justify-center text-sm font-black text-ink`}>
-                {row.role}
-              </div>
-              <div className="min-w-0">
-                <p className="truncate text-sm font-bold text-white">{row.facility}</p>
-                <p className="text-xs font-medium text-white/45">{row.time}</p>
-              </div>
-              <span className="rounded-full border border-white/10 bg-white/[0.07] px-3 py-1 text-xs font-bold text-white/70">
-                {row.status}
-              </span>
-            </div>
-          ))}
-        </div>
-
-        <div className="mt-5 grid grid-cols-3 gap-3">
-          {[
-            { label: 'Verified Carers', value: '200+', color: 'text-teal' },
-            { label: 'Care Homes', value: '40+', color: 'text-white' },
-            { label: 'Shifts Filled', value: '5,000+', color: 'text-white' },
-          ].map(stat => (
-            <div key={stat.label} className="rounded-2xl border border-white/10 bg-white/[0.06] p-4 text-center">
-              <p className={`text-2xl font-black ${stat.color}`}>{stat.value}</p>
-              <p className="text-xs font-semibold text-white/40 mt-1">{stat.label}</p>
-            </div>
-          ))}
-        </div>
-      </div>
-    </div>
   )
 }
 
@@ -136,7 +68,7 @@ function SectionHeading({
   body: string
 }) {
   return (
-    <div className="mx-auto max-w-3xl text-center">
+    <div className="max-w-3xl">
       <p className="text-xs font-black uppercase tracking-[0.18em] text-teal">{eyebrow}</p>
       <h2 className="mt-4 text-3xl font-black tracking-tight text-ink sm:text-4xl">{title}</h2>
       <p className="mt-4 text-base leading-7 text-ink/58 sm:text-lg">{body}</p>
@@ -147,30 +79,25 @@ function SectionHeading({
 export default function LandingPage() {
   return (
     <main className="min-h-screen overflow-hidden bg-surface-1 text-ink">
-      <section className="relative bg-ink text-white">
-        {/* Hero photo — warm aged-care imagery. Drop a file at public/hero-care.jpg */}
-        <div
-          className="absolute inset-0 bg-cover bg-center"
-          style={{ backgroundImage: "url('/hero-care.jpg')" }}
-        />
-        {/* Soft amber wash to tint the photo into brand tonality */}
-        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_70%_30%,rgba(217,119,6,0.35)_0%,transparent_60%)] mix-blend-soft-light" />
-        {/* Legibility gradient — darken left/bottom so headline stays readable */}
-        <div className="absolute inset-0 bg-gradient-to-r from-ink/90 via-ink/70 to-ink/60" />
-        <div className="absolute inset-0 bg-gradient-to-t from-ink via-ink/55 to-transparent" />
-        {/* Existing mesh + grid, softened so the photo reads through */}
-        <div className="absolute inset-0 bg-mesh opacity-40 mix-blend-overlay" />
-        <div className="absolute inset-x-0 top-0 h-40 bg-gradient-to-b from-white/8 to-transparent" />
-        <div
-          className="absolute inset-0 opacity-[0.04]"
-          style={{
-            backgroundImage:
-              'linear-gradient(rgba(255,255,255,1) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,1) 1px, transparent 1px)',
-            backgroundSize: '48px 48px',
-          }}
-        />
+      <section className="relative isolate overflow-hidden bg-ink text-white">
+        {/* Warm amber base — replaces the cold grid/mesh background */}
+        <div className="absolute inset-0 bg-gradient-to-br from-ink via-[#2a1d10] to-[#3a2510]" />
+        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_15%_20%,rgba(217,119,6,0.22)_0%,transparent_55%)]" />
 
-        <nav className="relative z-20 border-b border-white/10 bg-ink/60 backdrop-blur-2xl">
+        {/* Hero photo — full-bleed on the right half, fading into the amber background */}
+        <div className="pointer-events-none absolute inset-y-0 right-0 w-full lg:w-[58%]">
+          <div
+            className="absolute inset-0 bg-cover bg-center"
+            style={{ backgroundImage: "url('/hero-care.jpg')" }}
+          />
+          {/* Fade the photo's left edge into the warm background so text stays crisp */}
+          <div className="absolute inset-0 bg-gradient-to-r from-ink via-ink/85 to-transparent lg:via-ink/30 lg:from-ink" />
+          <div className="absolute inset-0 bg-gradient-to-t from-ink/70 via-transparent to-transparent" />
+          {/* Soft amber tint so the photo reads as brand tonality */}
+          <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_70%_40%,rgba(217,119,6,0.18)_0%,transparent_60%)] mix-blend-soft-light" />
+        </div>
+
+        <nav className="relative z-20 border-b border-white/10">
           <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
             <BrandMark />
             <div className="hidden items-center gap-1 md:flex">
@@ -193,7 +120,7 @@ export default function LandingPage() {
               </Link>
               <Link
                 href="/login"
-                className="inline-flex items-center justify-center rounded-xl bg-white px-4 py-2 text-sm font-black text-ink shadow-btn transition-all hover:-translate-y-0.5 hover:bg-teal"
+                className="inline-flex items-center justify-center rounded-xl bg-white px-4 py-2 text-sm font-black text-ink shadow-btn transition-all hover:-translate-y-0.5 hover:bg-teal hover:text-ink"
               >
                 Try demo
               </Link>
@@ -201,38 +128,52 @@ export default function LandingPage() {
           </div>
         </nav>
 
-        <div className="relative z-10 mx-auto max-w-7xl px-4 pb-12 pt-16 text-center sm:px-6 sm:pb-16 sm:pt-20 lg:px-8">
-          <div className="mx-auto inline-flex items-center gap-2 rounded-full border border-teal/25 bg-teal/10 px-3 py-1.5 text-xs font-black uppercase tracking-[0.16em] text-teal">
-            <ShieldCheck className="h-3.5 w-3.5" />
-            Australian aged care staffing — built for trust
+        <div className="relative z-10 mx-auto max-w-7xl px-4 pb-20 pt-16 sm:px-6 sm:pb-24 sm:pt-24 lg:px-8 lg:pb-32 lg:pt-28">
+          <div className="max-w-2xl">
+            <div className="inline-flex items-center gap-2 rounded-full border border-teal/25 bg-teal/10 px-3 py-1.5 text-xs font-black uppercase tracking-[0.16em] text-teal">
+              <ShieldCheck className="h-3.5 w-3.5" />
+              Australian aged care staffing — built for trust
+            </div>
+
+            <h1 className="mt-7 text-5xl font-black leading-[0.95] tracking-tight text-white sm:text-6xl lg:text-7xl">
+              Dignified care starts with the&nbsp;right carer
+            </h1>
+
+            <p className="mt-7 max-w-xl text-lg leading-8 text-white/72 sm:text-xl">
+              Carelink connects Australian aged care homes with verified, qualified carers — so every shift is covered with someone you can trust.
+            </p>
+
+            <div className="mt-9 flex flex-col gap-3 sm:flex-row">
+              <Link
+                href="#facilities"
+                className="inline-flex h-14 items-center justify-center gap-2 rounded-2xl bg-teal px-7 text-base font-black text-ink shadow-glow transition-all hover:-translate-y-0.5 hover:bg-mint"
+              >
+                For Care Homes
+                <Building2 className="h-4 w-4" />
+              </Link>
+              <Link
+                href="#workers"
+                className="inline-flex h-14 items-center justify-center gap-2 rounded-2xl border border-white/20 bg-white/10 px-7 text-base font-black text-white backdrop-blur-sm transition-all hover:-translate-y-0.5 hover:bg-white/15"
+              >
+                For Carers
+                <Heart className="h-4 w-4" />
+              </Link>
+            </div>
+
+            {/* Inline trust strip — replaces the floating centered console */}
+            <div className="mt-10 flex flex-wrap items-center gap-x-6 gap-y-3 border-t border-white/10 pt-7">
+              {[
+                { icon: ShieldCheck, label: 'Police checked' },
+                { icon: CheckCircle2, label: 'AHPRA verified' },
+                { icon: Award, label: 'Award wages — always' },
+              ].map(({ icon: Icon, label }) => (
+                <span key={label} className="inline-flex items-center gap-2 text-sm font-bold text-white/70">
+                  <Icon className="h-4 w-4 text-teal" />
+                  {label}
+                </span>
+              ))}
+            </div>
           </div>
-
-          <h1 className="mx-auto mt-7 max-w-5xl text-5xl font-black leading-[0.94] tracking-tight text-white sm:text-6xl lg:text-7xl">
-            Dignified care starts with the right carer
-          </h1>
-
-          <p className="mx-auto mt-7 max-w-3xl text-lg leading-8 text-white/64 sm:text-xl">
-            Carelink connects Australian aged care homes with verified, qualified carers — so every shift is covered with someone you can trust.
-          </p>
-
-          <div className="mt-9 flex flex-col items-center justify-center gap-3 sm:flex-row">
-            <Link
-              href="#facilities"
-              className="inline-flex h-14 w-full items-center justify-center gap-2 rounded-2xl bg-teal px-7 text-base font-black text-ink shadow-glow transition-all hover:-translate-y-0.5 hover:bg-mint sm:w-auto"
-            >
-              For Care Homes
-              <Building2 className="h-4 w-4" />
-            </Link>
-            <Link
-              href="#workers"
-              className="inline-flex h-14 w-full items-center justify-center gap-2 rounded-2xl border border-white/15 bg-white/8 px-7 text-base font-black text-white transition-all hover:-translate-y-0.5 hover:bg-white/12 sm:w-auto"
-            >
-              For Carers
-              <Heart className="h-4 w-4" />
-            </Link>
-          </div>
-
-          <HeroConsole />
         </div>
       </section>
 
@@ -289,11 +230,13 @@ export default function LandingPage() {
 
       {/* For Facilities */}
       <section id="facilities" className="bg-surface-1 px-4 py-20 sm:px-6 lg:px-8">
-        <SectionHeading
-          eyebrow="For care homes"
-          title="Staff your roster with confidence."
-          body="Whether it&apos;s a planned shift or an urgent gap, Carelink finds you a verified carer who&apos;s ready to work — so you can focus on your residents, not your roster."
-        />
+        <div className="mx-auto max-w-6xl">
+          <SectionHeading
+            eyebrow="For care homes"
+            title="Staff your roster with confidence."
+            body="Whether it&apos;s a planned shift or an urgent gap, Carelink finds you a verified carer who&apos;s ready to work — so you can focus on your residents, not your roster."
+          />
+        </div>
 
         <div className="mx-auto mt-12 grid max-w-6xl gap-5 lg:grid-cols-[0.95fr_1.05fr]">
           <div className="rounded-[28px] border border-surface-3 bg-white p-6 shadow-card sm:p-8">
