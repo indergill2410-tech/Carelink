@@ -15,6 +15,7 @@ import { AcceptShiftSchema } from '@/lib/validations'
 import { notifyFacilityShiftFilled, notifyShiftAccepted } from '@/lib/notifications'
 import { getComplianceStatusForDocuments } from '@/lib/compliance'
 import { hasAvailability, isShiftAllowedByAvailability } from '@/lib/availability'
+import { calculateShiftPay } from '@/lib/pay-engine'
 
 export const dynamic = 'force-dynamic'
 
@@ -102,6 +103,7 @@ export default async function WorkerPortal({
   const confirmShift = searchParams.confirm
     ? availabilityMatchedShifts.find(s => s.id === searchParams.confirm)
     : null
+  const confirmShiftPay = confirmShift ? calculateShiftPay(confirmShift) : null
   const isCompliant = user.complianceStatus === 'GREEN'
 
   function feedHref(next: Record<string, string | undefined>) {
@@ -330,8 +332,7 @@ export default async function WorkerPortal({
         ) : (
           <div className="space-y-3 stagger-children">
             {filteredShifts.map(shift => {
-              const hrs = (shift.endTime.getTime() - shift.startTime.getTime()) / 3_600_000
-              const est = shift.hourlyRate * hrs
+              const pay = calculateShiftPay(shift)
               const gradient = ROLE_GRADIENT[shift.role] ?? 'from-teal to-electric-dim'
               const roleBadge = ROLE_BG[shift.role] ?? 'bg-teal/10 text-teal border-teal/20'
 
@@ -380,7 +381,7 @@ export default async function WorkerPortal({
                           {shift.startTime.toLocaleTimeString('en-AU', { hour: '2-digit', minute: '2-digit', timeZone: 'Australia/Melbourne' })}
                           {' – '}
                           {shift.endTime.toLocaleTimeString('en-AU', { hour: '2-digit', minute: '2-digit', timeZone: 'Australia/Melbourne' })}
-                          <span className="text-ink/35 ml-1.5">({hrs.toFixed(1)}h)</span>
+                          <span className="text-ink/35 ml-1.5">({pay.hours.toFixed(1)}h)</span>
                         </span>
                       </div>
                       <div className="flex items-center gap-2">
@@ -390,9 +391,17 @@ export default async function WorkerPortal({
                       <div className="flex items-center gap-2">
                         <DollarSign className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
                         <span className="font-semibold text-emerald-600">
-                          Est. ${est.toFixed(0)} for this shift
+                          Est. ${pay.total.toFixed(0)} for this shift
                         </span>
                       </div>
+                      {pay.extras > 0 && (
+                        <div className="flex items-center gap-2">
+                          <Bell className="w-3.5 h-3.5 text-teal shrink-0" />
+                          <span className="font-semibold text-teal">
+                            Includes ${pay.extras.toFixed(0)} in loadings and ERTC incentives
+                          </span>
+                        </div>
+                      )}
                     </div>
 
                     {/* Notes */}
@@ -448,6 +457,17 @@ export default async function WorkerPortal({
                   <p className="text-[10px] font-bold text-ink/35 uppercase tracking-wider">Rate</p>
                   <p className="font-black text-ink mt-1">${confirmShift.hourlyRate.toFixed(0)}/hr</p>
                 </div>
+                {confirmShiftPay && (
+                  <div className="col-span-2 rounded-2xl bg-teal/10 border border-teal/20 p-3">
+                    <p className="text-[10px] font-bold text-teal uppercase tracking-wider">Estimated total</p>
+                    <p className="font-black text-ink mt-1">${confirmShiftPay.total.toFixed(0)}</p>
+                    {confirmShiftPay.extras > 0 && (
+                      <p className="text-xs text-teal font-semibold mt-1">
+                        Includes ${confirmShiftPay.extras.toFixed(0)} loadings and ERTC incentives
+                      </p>
+                    )}
+                  </div>
+                )}
                 <div className="col-span-2 rounded-2xl bg-surface-1 border border-surface-2 p-3">
                   <p className="text-[10px] font-bold text-ink/35 uppercase tracking-wider">Time</p>
                   <p className="font-bold text-ink mt-1">

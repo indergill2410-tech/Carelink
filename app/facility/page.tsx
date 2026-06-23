@@ -15,16 +15,11 @@ import { Role } from '@prisma/client'
 import { fromZonedTime } from 'date-fns-tz'
 import { notifyShiftCancelled } from '@/lib/notifications'
 import { canCancelShift, shouldNotifyWorkerAboutCancellation } from '@/lib/shift-lifecycle'
+import { calculateShiftPay, normaliseOfferedRate, ROLE_RATE_FLOORS } from '@/lib/pay-engine'
 
 const TZ = 'Australia/Melbourne'
 
 export const dynamic = 'force-dynamic'
-
-const ROLE_RATES: Record<string, number> = {
-  NURSE: 55.00,
-  EN: 45.00,
-  PCA: 32.50,
-}
 
 const ROLE_META: Record<string, { label: string; color: string }> = {
   NURSE: { label: 'RN', color: 'bg-sky-100 text-sky-700 border-sky-200' },
@@ -95,10 +90,7 @@ export default async function FacilityPortal({
   const matched   = shifts.filter(s => s.status === 'MATCHED' || s.status === 'CLOCKED_IN')
   const completed = shifts.filter(s => s.status === 'COMPLETED')
   const selectedTemplate = SHIFT_TEMPLATES.find(t => t.label === searchParams.template)
-  const totalSpend = completed.reduce((sum, s) => {
-    const hrs = (s.endTime.getTime() - s.startTime.getTime()) / 3_600_000
-    return sum + s.hourlyRate * hrs
-  }, 0)
+  const totalSpend = completed.reduce((sum, s) => sum + calculateShiftPay(s).total, 0)
 
   async function cancelShift(formData: FormData) {
     'use server'
@@ -157,7 +149,8 @@ export default async function FacilityPortal({
     }
 
     const facilityDefaultRate = facility.defaultRate ? Number(facility.defaultRate) : null
-    const hourlyRate = parseFloat(rateRaw) || facilityDefaultRate || ROLE_RATES[role] || 45.00
+    const requestedRate = parseFloat(rateRaw) || facilityDefaultRate || ROLE_RATE_FLOORS[role as keyof typeof ROLE_RATE_FLOORS] || 45.00
+    const hourlyRate = normaliseOfferedRate(role, requestedRate)
 
     await prisma.shift.createMany({
       data: Array.from({ length: repeatWeeks }, (_, index) => {
@@ -337,9 +330,9 @@ export default async function FacilityPortal({
                   <div>
                     <label className={labelCls}>Role Needed</label>
                     <select name="role" className={inputCls} defaultValue={selectedTemplate?.role ?? 'NURSE'} required>
-                      <option value="NURSE">Registered Nurse (RN) — ${ROLE_RATES.NURSE}/hr</option>
-                      <option value="EN">Enrolled Nurse (EN) — ${ROLE_RATES.EN}/hr</option>
-                      <option value="PCA">Personal Care Assistant — ${ROLE_RATES.PCA}/hr</option>
+                      <option value="NURSE">Registered Nurse (RN) — floor ${ROLE_RATE_FLOORS.NURSE}/hr</option>
+                      <option value="EN">Enrolled Nurse (EN) — floor ${ROLE_RATE_FLOORS.EN}/hr</option>
+                      <option value="PCA">Personal Care Assistant — floor ${ROLE_RATE_FLOORS.PCA}/hr</option>
                     </select>
                   </div>
 
@@ -429,7 +422,7 @@ export default async function FacilityPortal({
               ) : (
                 [...pending, ...matched].map(shift => {
                   const meta = ROLE_META[shift.role] ?? ROLE_META.PCA
-                  const hrs = (shift.endTime.getTime() - shift.startTime.getTime()) / 3_600_000
+                  const pay = calculateShiftPay(shift)
                   return (
                     <div
                       key={shift.id}
@@ -468,9 +461,9 @@ export default async function FacilityPortal({
                               hour: '2-digit', minute: '2-digit', timeZone: 'Australia/Melbourne',
                             })}
                             {' · '}
-                            <span className="font-mono">{hrs.toFixed(1)}h</span>
+                            <span className="font-mono">{pay.hours.toFixed(1)}h</span>
                             {' · '}
-                            <span className="font-mono">${shift.hourlyRate.toFixed(0)}/hr</span>
+                            <span className="font-mono">${pay.effectiveHourlyRate.toFixed(0)} eff/hr</span>
                           </p>
                           {shift.worker ? (
                             <div className="mt-0.5 space-y-1">
@@ -613,8 +606,7 @@ export default async function FacilityPortal({
             ) : (
               <div className="bg-white rounded-2xl border border-surface-2 shadow-card overflow-hidden divide-y divide-surface-2">
                 {completed.map(shift => {
-                  const hrs = (shift.endTime.getTime() - shift.startTime.getTime()) / 3_600_000
-                  const cost = shift.hourlyRate * hrs
+                  const pay = calculateShiftPay(shift)
                   const meta = ROLE_META[shift.role] ?? ROLE_META.PCA
                   return (
                     <div key={shift.id} className="flex items-center gap-4 px-5 py-3.5 hover:bg-surface-1 transition-colors">
@@ -629,11 +621,14 @@ export default async function FacilityPortal({
                           })}
                         </p>
                         <p className="text-xs text-ink/45 mt-0.5">
-                          {shift.worker?.name ?? 'Unknown'} · <span className="font-mono">{hrs.toFixed(1)}h @ ${shift.hourlyRate}/hr</span>
+                          {shift.worker?.name ?? 'Unknown'} · <span className="font-mono">{pay.hours.toFixed(1)}h @ ${pay.effectiveHourlyRate}/hr eff</span>
                         </p>
                       </div>
                       <div className="text-right shrink-0">
-                        <p className="font-black font-mono text-emerald-600 text-sm">${cost.toFixed(2)}</p>
+                        <p className="font-black font-mono text-emerald-600 text-sm">${pay.total.toFixed(2)}</p>
+                        {pay.extras > 0 && (
+                          <p className="text-[10px] text-teal font-bold uppercase">+${pay.extras.toFixed(0)} incentives</p>
+                        )}
                         <div className="flex items-center gap-1 justify-end mt-0.5">
                           <DollarSign className="w-2.5 h-2.5 text-emerald-400" />
                           <span className="text-[10px] text-emerald-500 font-bold uppercase">Completed</span>
