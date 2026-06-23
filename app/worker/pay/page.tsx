@@ -4,6 +4,7 @@ import { prisma } from '@/lib/prisma'
 import { CalendarCheck, Clock, Wallet, UserCircle, TrendingUp, Building2 } from 'lucide-react'
 import { LogoutButton } from '@/components/LogoutButton'
 import { NotificationBell } from '@/components/NotificationBell'
+import { calculateShiftPay } from '@/lib/pay-engine'
 
 export const dynamic = 'force-dynamic'
 
@@ -25,19 +26,17 @@ export default async function PayPage() {
   })
 
   const shiftsWithEarnings = completedShifts.map(shift => {
-    const hours = (shift.endTime.getTime() - shift.startTime.getTime()) / 3_600_000
-    const earnings = shift.hourlyRate * hours
+    const pay = calculateShiftPay(shift)
     const monthKey = shift.startTime.toLocaleDateString('en-AU', {
       month: 'short', year: 'numeric', timeZone: 'Australia/Melbourne',
     })
-    return { ...shift, hours, earnings, monthKey }
+    return { ...shift, hours: pay.hours, earnings: pay.total, incentiveExtras: pay.extras, effectiveHourlyRate: pay.effectiveHourlyRate, monthKey }
   })
 
   const totalEarnings = shiftsWithEarnings.reduce((s, x) => s + x.earnings, 0)
   const totalHours    = shiftsWithEarnings.reduce((s, x) => s + x.hours, 0)
-  const avgRate       = completedShifts.length > 0
-    ? completedShifts.reduce((s, x) => s + x.hourlyRate, 0) / completedShifts.length
-    : 0
+  const avgRate       = totalHours > 0 ? totalEarnings / totalHours : 0
+  const totalIncentives = shiftsWithEarnings.reduce((s, x) => s + x.incentiveExtras, 0)
 
   const byMonth: Record<string, { earnings: number; hours: number; count: number }> = {}
   for (const s of shiftsWithEarnings) {
@@ -106,7 +105,7 @@ export default async function PayPage() {
               {[
                 { label: 'Shifts', value: completedShifts.length.toString(), suffix: '' },
                 { label: 'Hours',  value: totalHours.toFixed(1),              suffix: 'h' },
-                { label: 'Avg Rate', value: `$${avgRate.toFixed(0)}`,         suffix: '/hr' },
+                { label: 'Incentives', value: `$${totalIncentives.toFixed(0)}`, suffix: '' },
               ].map(stat => (
                 <div key={stat.label} className="bg-white rounded-2xl border border-surface-2 shadow-card px-4 py-3.5 text-center">
                   <p className="text-[10px] font-semibold text-ink/40 uppercase tracking-wider mb-1">{stat.label}</p>
@@ -195,6 +194,11 @@ export default async function PayPage() {
                           ? shift.timesheet.status.replace(/_/g, ' ')
                           : 'Pending approval'}
                       </p>
+                      {shift.incentiveExtras > 0 && (
+                        <p className="text-[10px] text-teal font-bold uppercase tracking-wider mt-1">
+                          +${shift.incentiveExtras.toFixed(0)} loadings and ERTC
+                        </p>
+                      )}
                     </div>
 
                     {/* Earnings */}
@@ -203,7 +207,7 @@ export default async function PayPage() {
                         ${shift.earnings.toFixed(2)}
                       </p>
                       <p className="text-[10px] text-ink/30 font-mono mt-0.5">
-                        ${shift.hourlyRate.toFixed(0)}/hr
+                        ${shift.effectiveHourlyRate.toFixed(0)}/hr eff
                       </p>
                     </div>
                   </div>
