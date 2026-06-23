@@ -148,10 +148,21 @@ export default function LandingPage() {
   return (
     <main className="min-h-screen overflow-hidden bg-surface-1 text-ink">
       <section className="relative bg-ink text-white">
-        <div className="absolute inset-0 bg-mesh opacity-90" />
+        {/* Hero photo — warm aged-care imagery. Drop a file at public/hero-care.jpg */}
+        <div
+          className="absolute inset-0 bg-cover bg-center"
+          style={{ backgroundImage: "url('/hero-care.jpg')" }}
+        />
+        {/* Soft amber wash to tint the photo into brand tonality */}
+        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_70%_30%,rgba(217,119,6,0.35)_0%,transparent_60%)] mix-blend-soft-light" />
+        {/* Legibility gradient — darken left/bottom so headline stays readable */}
+        <div className="absolute inset-0 bg-gradient-to-r from-ink/90 via-ink/70 to-ink/60" />
+        <div className="absolute inset-0 bg-gradient-to-t from-ink via-ink/55 to-transparent" />
+        {/* Existing mesh + grid, softened so the photo reads through */}
+        <div className="absolute inset-0 bg-mesh opacity-40 mix-blend-overlay" />
         <div className="absolute inset-x-0 top-0 h-40 bg-gradient-to-b from-white/8 to-transparent" />
         <div
-          className="absolute inset-0 opacity-[0.055]"
+          className="absolute inset-0 opacity-[0.04]"
           style={{
             backgroundImage:
               'linear-gradient(rgba(255,255,255,1) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,1) 1px, transparent 1px)',
