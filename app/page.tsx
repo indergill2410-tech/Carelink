@@ -97,7 +97,7 @@ export default function LandingPage() {
             className="absolute inset-0"
             style={{
               background:
-                'linear-gradient(to right, rgba(26,20,15,0.96) 0%, rgba(26,20,15,0.92) 26%, rgba(26,20,15,0.62) 44%, rgba(26,20,15,0.28) 62%, rgba(26,20,15,0.06) 80%, rgba(26,20,15,0) 100%)',
+                'linear-gradient(to right, rgba(26,20,15,0.95) 0%, rgba(26,20,15,0.88) 24%, rgba(26,20,15,0.55) 40%, rgba(26,20,15,0.14) 56%, rgba(26,20,15,0) 70%)',
             }}
           />
           {/* Gentle bottom + top vignette so edges feel finished, not heavy */}
