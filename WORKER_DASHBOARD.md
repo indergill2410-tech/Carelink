@@ -42,6 +42,18 @@ Living record of the worker (carer) side build. Updated each phase.
 - [ ] `PreferredWorker` + badge
 - [ ] Public `/worker/profile` polish
 
+## Demo data (all 3 worker accounts wired to live data)
+
+`prisma/seed-demo-workers.sql` — idempotent. Gives nurse@/en@/pca@ each:
+- All compliance docs APPROVED → **GREEN** (nurse First Aid expires in 28 days to demo the 60-day credential alert)
+- Completed shifts this week + last week → **earnings widget + stats**
+- A confirmed shift **today** → today's-shift card with check-in
+- Upcoming confirmed shifts → **coming up**
+- Open role-matched offers (some urgent) → **new offers**
+- Manager ratings → **rating_avg 4.7**
+
+Re-run any time: `psql "$DIRECT_URL" -f prisma/seed-demo-workers.sql` (or Supabase SQL editor). Applied to live DB `ansojajzpnkbrcqoeile` on 2026-06-24.
+
 ## Env vars needed
 None new yet. (Existing: `RESEND_API_KEY`, `FROM_EMAIL`, Supabase keys, `DATABASE_URL`/`DIRECT_URL`.)
 
