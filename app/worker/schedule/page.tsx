@@ -63,7 +63,12 @@ export default async function SchedulePage() {
   return (
     <div className="min-h-screen bg-surface-1 flex flex-col max-w-2xl mx-auto">
       <header className="relative bg-ink text-white overflow-hidden">
-        <div className="absolute inset-0 bg-mesh opacity-70" />
+        <div
+          className="absolute inset-0 bg-cover bg-center opacity-25"
+          style={{ backgroundImage: "url('/hero-care.jpg')", backgroundPosition: 'center 20%' }}
+        />
+        <div className="absolute inset-0 bg-gradient-to-br from-ink/95 via-ink/85 to-ink/70" />
+        <div className="absolute inset-0 bg-mesh opacity-50" />
         <div className="absolute bottom-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-teal/30 to-transparent" />
         <div className="relative px-5 pt-5 pb-6">
           <div className="flex justify-between items-start">

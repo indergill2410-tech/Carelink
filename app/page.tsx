@@ -190,17 +190,24 @@ export default function LandingPage() {
                 Carelink was built because understaffing in aged care is a real, daily problem — and it has real consequences for residents, families, and the dedicated carers who show up every day.
               </p>
               <p className="mt-4 text-base leading-7 text-white/45">
-                We bring care homes and verified carers together, quickly and reliably. No guesswork. No gaps in coverage. Just trusted people, ready to help.
+                We bring care homes and verified carers together, quickly and reliably. No guesswork. No gaps in coverage. Just trusted people, ready to help — paid what they deserve, every time.
               </p>
+              <Link
+                href="/our-story"
+                className="mt-6 inline-flex items-center gap-2 text-sm font-black text-teal hover:gap-3 transition-all"
+              >
+                Read our story
+                <ArrowRight className="h-4 w-4" />
+              </Link>
             </div>
 
             <div className="grid gap-4 sm:grid-cols-3">
               {[
                 { icon: ShieldCheck, title: 'Verified before day one', body: 'Every carer on Carelink has their qualifications, registrations, and police check confirmed before they can accept a shift.' },
-                { icon: Users, title: 'People at the centre', body: 'We treat carers and care homes as partners, not just users. Fair pay, clear communication, and respect — always.' },
+                { icon: Users, title: 'People at the centre', body: 'We treat carers and care homes as partners. Fair pay, clear communication, and respect — always.' },
                 { icon: Activity, title: 'Always accountable', body: 'From the moment a shift is posted to when it\'s completed, every step is visible and trackable.' },
               ].map(({ icon: Icon, title, body }) => (
-                <div key={title} className="rounded-[24px] border border-white/10 bg-white/[0.06] p-5">
+                <div key={title} className="rounded-[24px] border border-white/10 bg-white/[0.06] p-5 hover:bg-white/[0.09] transition-colors">
                   <Icon className="h-6 w-6 text-teal" />
                   <h3 className="mt-5 text-lg font-black text-white">{title}</h3>
                   <p className="mt-3 text-sm leading-6 text-white/50">{body}</p>
@@ -291,69 +298,82 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* For Workers */}
-      <section id="workers" className="bg-surface-1 px-4 py-20 sm:px-6 lg:px-8">
-        <div className="mx-auto grid max-w-6xl items-center gap-10 lg:grid-cols-2">
-          <div>
-            <p className="text-xs font-black uppercase tracking-[0.18em] text-teal">For carers</p>
-            <h2 className="mt-4 text-3xl font-black tracking-tight text-ink sm:text-4xl">
-              Your skills deserve fair pay and real opportunities.
-            </h2>
-            <p className="mt-5 text-lg leading-8 text-ink/58">
-              Whether you&apos;re a Registered Nurse, Enrolled Nurse, or Personal Care Assistant, Carelink puts shifts in front of you that match your qualifications — with award wages paid, always.
-            </p>
-            <div className="mt-8 grid gap-4 sm:grid-cols-2">
-              {workerBenefits.map(item => (
-                <div key={item} className="flex gap-3">
-                  <UserCheck className="mt-0.5 h-5 w-5 shrink-0 text-teal" />
-                  <span className="text-sm font-bold leading-6 text-ink/70">{item}</span>
-                </div>
-              ))}
+      {/* For Workers — photo background section */}
+      <section id="workers" className="relative overflow-hidden">
+        {/* Photo background */}
+        <div
+          className="absolute inset-0 bg-cover bg-center"
+          style={{ backgroundImage: "url('/hero-care.jpg')", backgroundPosition: 'center 35%' }}
+        />
+        {/* Strong warm overlay so text reads */}
+        <div className="absolute inset-0 bg-gradient-to-r from-ink/96 via-ink/82 to-ink/50" />
+        <div className="absolute inset-0 bg-gradient-to-t from-ink/60 via-transparent to-transparent" />
+        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_10%_50%,rgba(217,119,6,0.15)_0%,transparent_50%)]" />
+
+        <div className="relative mx-auto max-w-6xl px-4 py-20 sm:px-6 lg:px-8">
+          <div className="grid items-center gap-12 lg:grid-cols-[1.1fr_0.9fr]">
+            <div>
+              <p className="text-xs font-black uppercase tracking-[0.18em] text-teal">For carers</p>
+              <h2 className="mt-4 text-3xl font-black tracking-tight text-white sm:text-4xl lg:text-5xl">
+                You show up when it matters. We make sure you&apos;re paid what you&apos;re worth.
+              </h2>
+              <p className="mt-5 text-lg leading-8 text-white/65">
+                Whether you&apos;re a Registered Nurse, Enrolled Nurse, or Personal Care Assistant — Carelink puts qualified shifts in front of you, on your schedule, with award wages paid. Every time. No exceptions.
+              </p>
+              <div className="mt-8 grid gap-4 sm:grid-cols-2">
+                {workerBenefits.map(item => (
+                  <div key={item} className="flex gap-3">
+                    <UserCheck className="mt-0.5 h-5 w-5 shrink-0 text-teal" />
+                    <span className="text-sm font-bold leading-6 text-white/70">{item}</span>
+                  </div>
+                ))}
+              </div>
+              <Link
+                href="/for-carers"
+                className="mt-8 inline-flex items-center gap-2 rounded-2xl bg-teal px-6 py-3.5 text-sm font-black text-ink shadow-glow transition-all hover:-translate-y-0.5 hover:bg-mint"
+              >
+                Explore for carers
+                <ArrowRight className="h-4 w-4" />
+              </Link>
             </div>
-            <Link
-              href="/for-carers"
-              className="mt-8 inline-flex items-center gap-2 rounded-2xl bg-teal px-5 py-3 text-sm font-black text-ink shadow-btn transition-all hover:-translate-y-0.5 hover:bg-mint"
-            >
-              Explore for carers
-              <ArrowRight className="h-4 w-4" />
-            </Link>
-          </div>
 
-          <div className="rounded-[32px] border border-surface-3 bg-surface-2 p-4 shadow-card sm:p-5">
-            <div className="rounded-[24px] bg-surface-0 p-5 shadow-card">
-              <div className="flex items-center justify-between border-b border-surface-3 pb-4">
-                <div>
-                  <p className="text-xs font-black uppercase tracking-[0.16em] text-ink/35">Open shift</p>
-                  <h3 className="mt-1 text-xl font-black text-ink">Morning RN shift</h3>
+            {/* Shift card mockup */}
+            <div className="rounded-[32px] border border-white/10 bg-white/[0.08] p-4 shadow-card backdrop-blur-sm sm:p-5">
+              <div className="rounded-[24px] bg-surface-0 p-5 shadow-card">
+                <div className="flex items-center justify-between border-b border-surface-3 pb-4">
+                  <div>
+                    <p className="text-xs font-black uppercase tracking-[0.16em] text-ink/35">Open shift</p>
+                    <h3 className="mt-1 text-xl font-black text-ink">Morning RN shift</h3>
+                  </div>
+                  <span className="rounded-full bg-teal/10 px-3 py-1 text-xs font-black text-teal">Eligible</span>
                 </div>
-                <span className="rounded-full bg-teal/10 px-3 py-1 text-xs font-black text-teal">Eligible</span>
-              </div>
 
-              <div className="py-5 space-y-3">
-                <div className="flex items-center gap-3 text-sm text-ink/60">
-                  <Clock className="w-4 h-4 text-ink/30 shrink-0" />
-                  <span className="font-medium">Wednesday · 07:00 – 15:00 (8h)</span>
+                <div className="py-5 space-y-3">
+                  <div className="flex items-center gap-3 text-sm text-ink/60">
+                    <Clock className="w-4 h-4 text-ink/30 shrink-0" />
+                    <span className="font-medium">Wednesday · 07:00 – 15:00 (8h)</span>
+                  </div>
+                  <div className="flex items-center gap-3 text-sm text-ink/60">
+                    <Building2 className="w-4 h-4 text-ink/30 shrink-0" />
+                    <span className="font-medium">Sunrise Aged Care, Melbourne</span>
+                  </div>
                 </div>
-                <div className="flex items-center gap-3 text-sm text-ink/60">
-                  <Building2 className="w-4 h-4 text-ink/30 shrink-0" />
-                  <span className="font-medium">Sunrise Aged Care, Melbourne</span>
-                </div>
-              </div>
 
-              <div className="rounded-2xl bg-emerald-50 border border-emerald-200 p-4 flex items-center gap-3">
-                <ShieldCheck className="w-6 h-6 text-emerald-600 shrink-0" />
-                <div>
-                  <p className="text-xs font-black uppercase tracking-wider text-emerald-700">Pay guarantee</p>
-                  <p className="font-bold text-emerald-800 mt-0.5">Award wages paid for this shift</p>
+                <div className="rounded-2xl bg-emerald-50 border border-emerald-200 p-4 flex items-center gap-3">
+                  <ShieldCheck className="w-6 h-6 text-emerald-600 shrink-0" />
+                  <div>
+                    <p className="text-xs font-black uppercase tracking-wider text-emerald-700">Pay guarantee</p>
+                    <p className="font-bold text-emerald-800 mt-0.5">Award wages paid for this shift</p>
+                  </div>
                 </div>
-              </div>
 
-              <div className="mt-4 flex items-center justify-between rounded-2xl border border-surface-3 bg-surface-1 px-4 py-3">
-                <span className="flex items-center gap-2 text-sm font-bold text-ink/65">
-                  <CheckCircle2 className="h-4 w-4 text-teal" />
-                  Credentials verified
-                </span>
-                <span className="text-sm font-black text-teal">Accept shift →</span>
+                <div className="mt-4 flex items-center justify-between rounded-2xl border border-surface-3 bg-surface-1 px-4 py-3">
+                  <span className="flex items-center gap-2 text-sm font-bold text-ink/65">
+                    <CheckCircle2 className="h-4 w-4 text-teal" />
+                    Credentials verified
+                  </span>
+                  <span className="text-sm font-black text-teal">Accept shift →</span>
+                </div>
               </div>
             </div>
           </div>
