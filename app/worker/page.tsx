@@ -150,7 +150,7 @@ export default async function WorkerHome({
 
         {/* ── Credential alert ── */}
         {expiringSoon.length > 0 && (
-          <a href="/worker/profile" className="block">
+          <a href="/worker/credentials" className="block">
             <div className="flex items-start gap-3 p-4 bg-amber-50 border border-amber-200 rounded-2xl hover:bg-amber-100 transition-colors group">
               <div className="w-8 h-8 rounded-xl bg-amber-100 flex items-center justify-center shrink-0">
                 <AlertTriangle className="w-4 h-4 text-amber-600" />
@@ -284,6 +284,22 @@ export default async function WorkerHome({
             </div>
           )}
         </section>
+
+        {/* ── Quick links ── */}
+        <div className="grid grid-cols-3 gap-3">
+          {[
+            { href: '/worker/schedule',      icon: CalendarCheck, label: 'Schedule' },
+            { href: '/worker/credentials',   icon: ShieldCheck,   label: 'Credentials' },
+            { href: '/worker/notifications', icon: Sparkles,      label: 'Alerts' },
+          ].map(l => (
+            <a key={l.href} href={l.href} className="flex flex-col items-center gap-2 bg-white rounded-2xl border border-surface-3 shadow-card py-4 hover:border-teal/40 transition-colors">
+              <div className="w-9 h-9 rounded-xl bg-teal/10 flex items-center justify-center">
+                <l.icon className="w-4 h-4 text-teal" />
+              </div>
+              <span className="text-xs font-bold text-ink/70">{l.label}</span>
+            </a>
+          ))}
+        </div>
 
         {/* ── Coming up ── */}
         {comingUp.length > 0 && (

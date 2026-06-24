@@ -1,10 +1,11 @@
 import { redirect } from 'next/navigation'
 import { createClient } from '@/utils/supabase/server'
 import { prisma } from '@/lib/prisma'
-import { Wallet, TrendingUp, Building2 } from 'lucide-react'
+import { Wallet, TrendingUp, Building2, CalendarClock } from 'lucide-react'
 import { LogoutButton } from '@/components/LogoutButton'
 import { NotificationBell } from '@/components/NotificationBell'
 import { WorkerBottomNav } from '@/components/worker/WorkerBottomNav'
+import { EarningsCsvButton, type EarningsRow } from '@/components/worker/EarningsCsvButton'
 import { calculateShiftPay } from '@/lib/pay-engine'
 
 export const dynamic = 'force-dynamic'
@@ -48,6 +49,21 @@ export default async function PayPage() {
   }
   const monthlyData = Object.entries(byMonth).slice(0, 6).reverse()
   const maxEarnings = Math.max(...monthlyData.map(([, v]) => v.earnings), 1)
+
+  // Projected earnings from upcoming confirmed shifts.
+  const upcomingShifts = await prisma.shift.findMany({
+    where: { workerId: user.id, status: { in: ['MATCHED', 'CLOCKED_IN'] }, endTime: { gte: new Date() } },
+  })
+  const projectedEarnings = upcomingShifts.reduce((s, x) => s + calculateShiftPay(x).total, 0)
+
+  // ATO-friendly CSV rows.
+  const csvRows: EarningsRow[] = shiftsWithEarnings.map(s => ({
+    date: s.startTime.toLocaleDateString('en-AU', { day: '2-digit', month: '2-digit', year: 'numeric', timeZone: 'Australia/Melbourne' }),
+    facility: s.facility.name,
+    role: s.role,
+    hours: s.hours,
+    gross: s.earnings,
+  }))
 
   return (
     <div className="min-h-screen bg-surface-1 flex flex-col max-w-2xl mx-auto relative">
@@ -111,6 +127,22 @@ export default async function PayPage() {
               ))}
             </div>
 
+            {/* Projected from upcoming confirmed shifts */}
+            {projectedEarnings > 0 && (
+              <div className="flex items-center gap-3 bg-teal/5 border border-teal/20 rounded-2xl px-4 py-3.5">
+                <div className="w-9 h-9 rounded-xl bg-teal/15 flex items-center justify-center shrink-0">
+                  <CalendarClock className="w-4 h-4 text-teal" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-[10px] font-bold text-teal uppercase tracking-wider">Projected — confirmed ahead</p>
+                  <p className="font-black text-ink font-mono text-lg leading-none mt-0.5">
+                    ${projectedEarnings.toFixed(2)}
+                    <span className="text-xs text-ink/40 font-sans font-semibold ml-1.5">across {upcomingShifts.length} shift{upcomingShifts.length === 1 ? '' : 's'}</span>
+                  </p>
+                </div>
+              </div>
+            )}
+
             {/* Monthly chart */}
             {monthlyData.length > 1 && (
               <div className="bg-white rounded-2xl border border-surface-2 shadow-card p-5">
@@ -144,9 +176,12 @@ export default async function PayPage() {
 
             {/* Shift list */}
             <section>
-              <h2 className="font-bold text-ink text-sm uppercase tracking-wider mb-3">
-                Completed Shifts
-              </h2>
+              <div className="flex items-center justify-between mb-3">
+                <h2 className="font-bold text-ink text-sm uppercase tracking-wider">
+                  Completed Shifts
+                </h2>
+                <EarningsCsvButton rows={csvRows} />
+              </div>
               <div className="bg-white rounded-2xl border border-surface-2 shadow-card overflow-hidden divide-y divide-surface-1">
                 {shiftsWithEarnings.map((shift, i) => (
                   <div

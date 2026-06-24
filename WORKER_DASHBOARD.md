@@ -29,18 +29,24 @@ Living record of the worker (carer) side build. Updated each phase.
 - [ ] `app/worker/layout.tsx` — desktop side rail (deferred; bottom nav covers mobile)
 - [ ] `/worker/onboarding` stepper (deferred — current profile/compliance flow covers most)
 
-### Phase 2 — Shift engine (pending)
-- [ ] `ShiftAssignment` model + OFFERED/expiry lifecycle
-- [ ] `match-shift` Edge Function
-- [ ] `/worker/schedule` calendar
-- [ ] PIN check-in
-- [ ] `/worker/notifications` page (Realtime)
+### Phase 2 — Shift engine
+- [x] `/worker/schedule` — agenda/calendar of confirmed shifts + Google Calendar export
+- [x] `/worker/notifications` — dedicated feed (today/earlier groups, mark-all-read)
+- [ ] `ShiftAssignment` model + OFFERED/expiry lifecycle — **deferred** (would replace the working pull-based booking flow; needs live-schema + flow change)
+- [ ] `match-shift` Edge Function — **deferred** (depends on ShiftAssignment + Edge Function deploy)
+- [ ] PIN check-in — **deferred** (current time-window clock-in works; PIN needs an additive `Shift.checkInPin` column)
+- [ ] Notifications Realtime subscription — **deferred** (page polls on load; Realtime is an enhancement)
 
-### Phase 3 — Trust & retention (pending)
-- [ ] `/worker/credentials` centre + expiry jobs
-- [ ] `WorkerEarnings` persisted table
-- [ ] `PreferredWorker` + badge
-- [ ] Public `/worker/profile` polish
+### Phase 3 — Trust & retention
+- [x] `/worker/credentials` — compliance centre with RAG status + progress
+- [x] Earnings: projected-monthly from confirmed shifts + ATO CSV export (on `/worker/pay`)
+- [ ] Credential expiry scheduled jobs (60/30/7d emails) — **deferred** (needs a cron/Edge Function)
+- [ ] `WorkerEarnings` persisted table — **deferred** (earnings computed live via pay-engine; table only needed for Stripe payouts)
+- [ ] `PreferredWorker` + badge — **deferred** (additive table; facility-side rating prompt out of worker scope)
+- [x] `/worker/profile` — already polished (existing)
+
+### Phase 4 — $1B features (all deferred — external infra)
+- [ ] Stripe Connect payouts · Push notifications (OneSignal/FCM) · AHPRA register API · availability intelligence · gamified analytics
 
 ## Demo data (all 3 worker accounts wired to live data)
 
