@@ -96,7 +96,7 @@ export async function notifyFacilityShiftCancelledByWorker(
       admin.id,
       'Worker Cancelled Shift',
       `${workerName} cancelled the ${role} shift. The shift is open again.`,
-      `/dashboard?tab=overview&shift=${shiftId}`,
+      `/dashboard?shift=${shiftId}`,
     )),
   ])
 }
@@ -115,7 +115,7 @@ export async function notifyAdminsComplianceDocumentUploaded(
     admin.id,
     'Compliance Document Uploaded',
     `${workerName} uploaded ${docLabel} for review.`,
-    `/dashboard?tab=compliance&worker=${workerId}`,
+    `/dashboard/certifications?worker=${workerId}`,
   )))
 }
 

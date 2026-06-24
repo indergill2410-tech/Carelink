@@ -454,10 +454,80 @@ async function seedDemoData(facilityManagerId: string, nurseId: string, enId: st
       ],
     })
 
+    await seedDemoRoster(sunrise.id, oakwood.id)
+
     console.log('[demo] Seeded demo shifts for Sunrise:', sunrise.id, 'and Oakwood:', oakwood.id)
   } catch (err) {
     console.error('[demo] Failed to seed demo data:', err)
   }
+}
+
+// Seed a realistic display-only roster of carers with staggered certification
+// expiries, ratings, and a fuller shift history — so the ops console looks like
+// a live operation. These users are data-only (no auth accounts); idempotent via
+// deterministic IDs + skipDuplicates / upsert.
+async function seedDemoRoster(sunriseId: string, oakwoodId: string) {
+  const DAY = 86_400_000
+  const now = Date.now()
+  const ROLES = ['NURSE', 'EN', 'PCA'] as const
+  const FIRST = ['Aisha', 'Liam', 'Priya', 'Noah', 'Mia', 'Ethan', 'Sofia', 'Lucas', 'Grace', 'Oliver', 'Chloe', 'Daniel']
+  const LAST = ['Nguyen', 'Patel', 'Kelly', 'Singh', 'Brown', 'Tran', 'Lopez', 'Murphy', 'Chen', 'Walsh', 'Ahmed', 'Reid']
+
+  // Required documents by role (matches lib/compliance).
+  const baseDocs = ['POLICE_CHECK', 'WORKING_WITH_CHILDREN', 'FIRST_AID', 'IMMUNISATION', 'ID_PROOF']
+  const docExpiryDays: Record<string, number | null> = {
+    POLICE_CHECK: 365, WORKING_WITH_CHILDREN: 540, FIRST_AID: 400,
+    IMMUNISATION: 300, ID_PROOF: null, NURSING_REGISTRATION: 365,
+  }
+
+  for (let i = 0; i < FIRST.length; i++) {
+    const role = ROLES[i % 3]
+    const id = deterministicUuid(`roster-carer-${i}`)
+    const email = `carer${i + 1}@demo.carelink.app`
+    const name = `${FIRST[i]} ${LAST[i]}`
+    const risk = i % 5 // 0=expired doc, 1=expiring soon, 2=pending doc, else all-good
+    const complianceStatus = risk === 0 ? 'RED' : risk === 2 ? 'AMBER' : 'GREEN'
+    const isActive = i !== 7 // one inactive carer for realism
+    const rating = Number((4.2 + ((i * 7) % 9) / 10).toFixed(1))
+
+    await prisma.user.upsert({
+      where: { id },
+      create: { id, email, name, role, complianceStatus, isActive, status: 'ACTIVE', rating },
+      update: { name, role, complianceStatus, isActive, rating },
+    }).catch(() => null)
+
+    const required = role === 'NURSE' || role === 'EN' ? [...baseDocs, 'NURSING_REGISTRATION'] : baseDocs
+    const docs = required.map((docType, di) => {
+      let status: 'APPROVED' | 'PENDING' | 'EXPIRED' = 'APPROVED'
+      let expiresAt: Date | null = docExpiryDays[docType] != null ? new Date(now + docExpiryDays[docType]! * DAY) : null
+      if (risk === 0 && di === 0) { status = 'EXPIRED'; expiresAt = new Date(now - 10 * DAY) }       // expired
+      else if (risk === 1 && docType === 'FIRST_AID') { expiresAt = new Date(now + 15 * DAY) }         // expiring soon
+      else if (risk === 2 && docType === 'IMMUNISATION') { status = 'PENDING' }                        // awaiting review
+      return {
+        id: deterministicUuid(`roster-doc-${i}-${docType}`),
+        userId: id, docType, url: '#', status, expiresAt,
+      }
+    })
+    await prisma.complianceDocument.createMany({ data: docs, skipDuplicates: true }).catch(() => null)
+  }
+
+  // A fuller shift history spread across recent months, assigned to roster carers.
+  const histOffsets = [-4, -9, -16, -23, -31, -45, -58, -67]
+  const histShifts = histOffsets.map((off, k) => {
+    const role = ROLES[k % 3]
+    const workerId = deterministicUuid(`roster-carer-${k % FIRST.length}`)
+    return {
+      id: deterministicUuid(`roster-shift-${k}`),
+      facilityId: k % 2 === 0 ? sunriseId : oakwoodId,
+      role,
+      status: 'COMPLETED' as const,
+      startTime: melbourneDate(off, 7),
+      endTime: melbourneDate(off, 15),
+      hourlyRate: role === 'NURSE' ? 55 : role === 'EN' ? 45 : 32.5,
+      workerId,
+    }
+  })
+  await prisma.shift.createMany({ data: histShifts, skipDuplicates: true }).catch(() => null)
 }
 
 // Provision a single demo account by role key (e.g. 'ADMIN', 'NURSE').
