@@ -77,13 +77,21 @@ export default async function FindShiftsPage({
 
       {/* Header */}
       <header className="relative bg-ink text-white overflow-hidden">
-        <div className="absolute inset-0 bg-mesh opacity-70" />
+        <div
+          className="absolute inset-0 bg-cover bg-center opacity-25"
+          style={{ backgroundImage: "url('/hero-care.jpg')", backgroundPosition: 'center 10%' }}
+        />
+        <div className="absolute inset-0 bg-gradient-to-br from-ink/95 via-ink/85 to-ink/70" />
+        <div className="absolute inset-0 bg-mesh opacity-50" />
         <div className="absolute bottom-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-teal/30 to-transparent" />
         <div className="relative px-5 pt-5 pb-6">
           <div className="flex justify-between items-start">
             <div>
               <p className="text-teal/80 text-xs font-semibold tracking-widest uppercase mb-0.5">Find shifts</p>
-              <h1 className="text-2xl font-black tracking-tight text-white">Open near you</h1>
+              <h1 className="text-2xl font-black tracking-tight text-white">Shifts matched to you</h1>
+              {urgentCount > 0 && (
+                <p className="text-amber-300 text-xs font-bold mt-1">{urgentCount} urgent {urgentCount === 1 ? 'shift' : 'shifts'} need covering now</p>
+              )}
             </div>
             <div className="flex items-center gap-1.5">
               <NotificationBell />

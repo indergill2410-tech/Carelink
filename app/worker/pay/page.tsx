@@ -70,7 +70,12 @@ export default async function PayPage() {
 
       {/* Header */}
       <header className="relative overflow-hidden bg-ink px-6 pt-6 pb-7">
-        <div className="absolute inset-0 bg-mesh opacity-60" />
+        <div
+          className="absolute inset-0 bg-cover bg-center opacity-20"
+          style={{ backgroundImage: "url('/hero-care.jpg')", backgroundPosition: 'center 25%' }}
+        />
+        <div className="absolute inset-0 bg-gradient-to-br from-ink/95 via-ink/85 to-ink/70" />
+        <div className="absolute inset-0 bg-mesh opacity-50" />
         <div className="relative flex items-center justify-between">
           <div>
             <p className="text-[11px] font-semibold text-teal/80 uppercase tracking-widest mb-0.5">Pay Summary</p>
