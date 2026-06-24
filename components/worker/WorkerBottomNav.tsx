@@ -1,13 +1,14 @@
 'use client'
 
 import { usePathname } from 'next/navigation'
-import { CalendarCheck, Clock, Wallet, UserCircle } from 'lucide-react'
+import { Home, Search, Clock, Wallet, UserCircle } from 'lucide-react'
 
 const NAV_ITEMS = [
-  { href: '/worker',           icon: CalendarCheck, label: 'Feed'      },
-  { href: '/worker/my-shifts', icon: Clock,         label: 'My Shifts' },
-  { href: '/worker/pay',       icon: Wallet,        label: 'Pay'       },
-  { href: '/worker/profile',   icon: UserCircle,    label: 'Profile'   },
+  { href: '/worker',           icon: Home,       label: 'Home'      },
+  { href: '/worker/shifts',    icon: Search,     label: 'Find'      },
+  { href: '/worker/my-shifts', icon: Clock,      label: 'My Shifts' },
+  { href: '/worker/pay',       icon: Wallet,     label: 'Pay'       },
+  { href: '/worker/profile',   icon: UserCircle, label: 'Profile'   },
 ] as const
 
 export function WorkerBottomNav() {
