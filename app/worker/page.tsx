@@ -3,13 +3,13 @@ import { createClient } from '@/utils/supabase/server'
 import { prisma } from '@/lib/prisma'
 import { Button } from '@/components/ui/button'
 import {
-  CalendarCheck, Wallet, UserCircle,
-  Clock, AlertTriangle, MapPin, ArrowRight,
+  CalendarCheck, Clock, AlertTriangle, MapPin, ArrowRight,
   Zap, ShieldCheck,
 } from 'lucide-react'
 import { revalidatePath } from 'next/cache'
 import { LogoutButton } from '@/components/LogoutButton'
 import { NotificationBell } from '@/components/NotificationBell'
+import { WorkerBottomNav } from '@/components/worker/WorkerBottomNav'
 import { AcceptShiftSchema } from '@/lib/validations'
 import { notifyFacilityShiftFilled, notifyShiftAccepted } from '@/lib/notifications'
 import { getComplianceStatusForDocuments } from '@/lib/compliance'
@@ -468,24 +468,7 @@ export default async function WorkerPortal({
         </div>
       )}
 
-      {/* ── Bottom Navigation ───────────────────────────────────────────── */}
-      <nav className="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-2xl glass-light border-t border-surface-3 flex justify-around pb-safe">
-        {[
-          { href: '/worker',           icon: CalendarCheck, label: 'Shifts',    active: true  },
-          { href: '/worker/my-shifts', icon: Clock,         label: 'My Shifts', active: false },
-          { href: '/worker/pay',       icon: Wallet,        label: 'Pay',       active: false },
-          { href: '/worker/profile',   icon: UserCircle,    label: 'Profile',   active: false },
-        ].map(item => (
-          <a key={item.href} href={item.href} className="flex flex-col items-center gap-1 py-3 px-4 min-w-[60px] group">
-            <div className={`p-1.5 rounded-xl transition-all duration-150 ${item.active ? 'bg-teal/10' : 'group-hover:bg-surface-2'}`}>
-              <item.icon className={`w-5 h-5 transition-colors duration-150 ${item.active ? 'text-teal' : 'text-ink/35 group-hover:text-ink/60'}`} />
-            </div>
-            <span className={`text-[10px] font-semibold transition-colors duration-150 ${item.active ? 'text-teal' : 'text-ink/35 group-hover:text-ink/60'}`}>
-              {item.label}
-            </span>
-          </a>
-        ))}
-      </nav>
+      <WorkerBottomNav />
     </div>
   )
 }

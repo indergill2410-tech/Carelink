@@ -2,9 +2,10 @@ import { redirect } from 'next/navigation'
 import { createClient } from '@/utils/supabase/server'
 import { createServerClient } from '@supabase/ssr'
 import { prisma } from '@/lib/prisma'
-import { CalendarCheck, Clock, Wallet, UserCircle } from 'lucide-react'
+import { UserCircle } from 'lucide-react'
 import { LogoutButton } from '@/components/LogoutButton'
 import { NotificationBell } from '@/components/NotificationBell'
+import { WorkerBottomNav } from '@/components/worker/WorkerBottomNav'
 import ProfileClient from './ProfileClient'
 import { normalizeAvailability } from '@/lib/availability'
 
@@ -68,13 +69,6 @@ export default async function ProfilePage() {
     documents: docsWithUrls,
   }
 
-  const NAV = [
-    { href: '/worker',           icon: CalendarCheck, label: 'Feed',      active: false },
-    { href: '/worker/my-shifts', icon: Clock,         label: 'My Shifts', active: false },
-    { href: '/worker/pay',       icon: Wallet,        label: 'Pay',       active: false },
-    { href: '/worker/profile',   icon: UserCircle,    label: 'Profile',   active: true  },
-  ]
-
   return (
     <div className="min-h-screen bg-surface-1 flex flex-col max-w-2xl mx-auto relative">
 
@@ -118,19 +112,7 @@ export default async function ProfilePage() {
 
       <ProfileClient initialData={profileData} />
 
-      {/* Bottom Nav */}
-      <nav className="fixed bottom-0 left-0 right-0 max-w-2xl mx-auto z-50">
-        <div className="glass-light border-t border-surface-2 flex justify-around px-2 pt-2.5 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
-          {NAV.map(item => (
-            <a key={item.href} href={item.href} className={`flex flex-col items-center gap-0.5 transition-colors ${item.active ? 'text-teal' : 'text-ink/35 hover:text-ink/60'}`}>
-              <div className={`p-2 rounded-xl transition-colors ${item.active ? 'bg-teal/10' : ''}`}>
-                <item.icon className="w-5 h-5" />
-              </div>
-              <span className="text-[10px] font-semibold">{item.label}</span>
-            </a>
-          ))}
-        </div>
-      </nav>
+      <WorkerBottomNav />
     </div>
   )
 }
