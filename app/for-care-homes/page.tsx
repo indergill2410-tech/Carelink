@@ -146,6 +146,33 @@ export default function ForCareHomesPage() {
         </div>
       </section>
 
+      {/* Testimonials */}
+      <section className="bg-surface-0 px-4 py-16 sm:px-6 lg:px-8">
+        <div className="mx-auto max-w-6xl">
+          <p className="text-xs font-black uppercase tracking-[0.18em] text-teal mb-8">What care homes say</p>
+          <div className="grid gap-5 sm:grid-cols-3">
+            {[
+              { quote: "We had an urgent gap at 6am. A verified RN was confirmed before handover. Exactly what we needed.", name: 'Aged Care Manager', role: 'Melbourne facility' },
+              { quote: "The compliance records alone are worth it. I know every carer is cleared before they set foot in the building.", name: 'Director of Care', role: 'Sydney facility' },
+              { quote: "Posting a shift takes two minutes. It used to take two hours of phone calls.", name: 'Roster Coordinator', role: 'Brisbane facility' },
+            ].map(({ quote, name, role }) => (
+              <div key={name} className="rounded-[24px] border border-surface-3 bg-surface-1 p-6 shadow-card">
+                <p className="text-sm leading-7 text-ink/65 italic">&ldquo;{quote}&rdquo;</p>
+                <div className="mt-5 flex items-center gap-3">
+                  <div className="flex h-9 w-9 items-center justify-center rounded-full bg-teal/15 text-xs font-black text-teal">
+                    {name[0]}
+                  </div>
+                  <div>
+                    <p className="text-sm font-black text-ink">{name}</p>
+                    <p className="text-xs text-ink/45">{role}</p>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
       {/* FAQ */}
       <section className="px-4 py-20 sm:px-6 lg:px-8">
         <div className="mx-auto max-w-3xl">
