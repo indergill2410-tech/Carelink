@@ -74,6 +74,32 @@ export function getComplianceStatusForDocuments(
   return 'AMBER'
 }
 
+export type ExpiryBucket = 'EXPIRED' | 'EXPIRING_SOON' | 'VALID' | 'NO_EXPIRY'
+
+/** Whole days from `now` until the document expires. Negative = already expired. */
+export function getDaysUntilExpiry(
+  expiresAt: Date | string | null | undefined,
+  now = new Date(),
+): number | null {
+  if (!expiresAt) return null
+  const date = expiresAt instanceof Date ? expiresAt : new Date(expiresAt)
+  if (Number.isNaN(date.getTime())) return null
+  return Math.ceil((date.getTime() - now.getTime()) / 86_400_000)
+}
+
+/** Classify a document by how close it is to expiry. `soonDays` defaults to 30. */
+export function getExpiryBucket(
+  doc: ComplianceDocumentLike,
+  now = new Date(),
+  soonDays = 30,
+): ExpiryBucket {
+  const days = getDaysUntilExpiry(doc.expiresAt, now)
+  if (days === null) return 'NO_EXPIRY'
+  if (days < 0) return 'EXPIRED'
+  if (days <= soonDays) return 'EXPIRING_SOON'
+  return 'VALID'
+}
+
 export function getComplianceProgress(role: string, documents: ComplianceDocumentLike[], now = new Date()) {
   const required = getRequiredComplianceDocTypes(role)
   const byType = new Map(documents.map(doc => [doc.docType, doc]))
