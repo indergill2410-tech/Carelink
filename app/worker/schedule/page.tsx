@@ -13,7 +13,7 @@ const TZ = 'Australia/Melbourne'
 
 const STATUS_META: Record<string, { label: string; dot: string; chip: string }> = {
   MATCHED:    { label: 'Confirmed',   dot: 'bg-amber-500',   chip: 'bg-amber-50 text-amber-700 border-amber-200' },
-  CLOCKED_IN: { label: 'In progress', dot: 'bg-blue-500',    chip: 'bg-blue-50 text-blue-700 border-blue-200' },
+  CLOCKED_IN: { label: 'In progress', dot: 'bg-sage-500',    chip: 'bg-sage-50 text-sage-700 border-sage-200' },
   COMPLETED:  { label: 'Completed',   dot: 'bg-emerald-500', chip: 'bg-emerald-50 text-emerald-700 border-emerald-200' },
   CANCELLED:  { label: 'Cancelled',   dot: 'bg-stone-400',   chip: 'bg-surface-2 text-ink/45 border-surface-3' },
 }

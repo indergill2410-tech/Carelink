@@ -8,14 +8,14 @@ import { cancelShift, requestShift, updateFacilitySettings } from './_actions'
 export const dynamic = 'force-dynamic'
 
 const ROLE_META: Record<string, { label: string; color: string }> = {
-  NURSE: { label: 'RN',  color: 'bg-sky-100 text-sky-700 border-sky-200' },
-  EN:    { label: 'EN',  color: 'bg-violet-100 text-violet-700 border-violet-200' },
-  PCA:   { label: 'PCA', color: 'bg-amber-100 text-amber-700 border-amber-200' },
+  NURSE: { label: 'RN',  color: 'bg-amber-100 text-amber-700 border-amber-200' },
+  EN:    { label: 'EN',  color: 'bg-sage-100 text-sage-700 border-sage-200' },
+  PCA:   { label: 'PCA', color: 'bg-clay-100 text-clay-700 border-clay-200' },
 }
 
 const STATUS_BAR: Record<string, string> = {
   PENDING: 'bg-amber-400', MATCHED: 'bg-emerald-500',
-  CLOCKED_IN: 'bg-blue-500', COMPLETED: 'bg-emerald-500', CANCELLED: 'bg-stone-300',
+  CLOCKED_IN: 'bg-sage-500', COMPLETED: 'bg-emerald-500', CANCELLED: 'bg-stone-300',
 }
 
 const SHIFT_TEMPLATES = [

@@ -31,7 +31,7 @@ export default async function FacilityCompliancePage() {
 
   const kpiItems = [
     { label: 'Approved', value: approved.length, icon: CheckCircle, bg: 'bg-emerald-50 border-emerald-200', accent: 'text-emerald-700' },
-    { label: 'Awaiting Review', value: pending.length, icon: Clock, bg: 'bg-blue-50 border-blue-200', accent: 'text-blue-700' },
+    { label: 'Awaiting Review', value: pending.length, icon: Clock, bg: 'bg-sage-50 border-sage-200', accent: 'text-sage-700' },
     { label: 'Expiring ≤30d', value: expiringSoon.length, icon: CalendarClock, bg: 'bg-amber-50 border-amber-200', accent: 'text-amber-700' },
     { label: 'Expired', value: expired.length, icon: AlertTriangle, bg: 'bg-rose-50 border-rose-200', accent: 'text-rose-700' },
   ]

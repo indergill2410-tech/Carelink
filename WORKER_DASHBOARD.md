@@ -5,7 +5,7 @@ Living record of the worker (carer) side build. Updated each phase.
 ## Decisions
 
 - **Schema strategy**: extend existing Prisma models (`User`, `Notification`, `Shift`, `ComplianceDocument`, `ShiftRating`) and add new models only where there's no equivalent (`ShiftAssignment`, `WorkerEarnings`, `PreferredWorker`). We do **not** create parallel `worker_profiles` / `worker_credentials` tables — that would orphan live data and break the facility dashboard.
-- **Accent colour**: warm amber `#D97706` (existing brand), per product decision — not the directive's blue. Keeps the live app cohesive.
+- **Palette** (whole app): warm amber `#D97706` primary, **sage `#7C8B5E`** secondary, **clay/dusty-rose `#B06E62`** tertiary — all pulled from the hero photo (amber scrubs · sage plants · rose cardigan). Roles: RN amber · EN sage · PCA clay. Warm neutrals only (cream→stone surfaces, ink text); no cool blue/slate anywhere. Status green/amber/red kept as functional signals. Tokens live in `tailwind.config.js`.
 - **Data access**: Prisma for all queries; Supabase client for auth only. Live production DB is `ansojajzpnkbrcqoeile` (6 users, 2 facilities, 10 shifts at build start).
 
 ## Existing worker surface (pre-build)

@@ -47,7 +47,7 @@ export function FacilityShell({
     { label: 'Awaiting Staff', value: kpis.awaiting.toString(), color: 'text-amber-600' },
     { label: 'Confirmed',      value: kpis.confirmed.toString(), color: 'text-emerald-600' },
     { label: 'Completed',      value: kpis.completed.toString(), color: 'text-ink/70' },
-    { label: 'Care Hours',     value: `${kpis.totalHours.toFixed(0)}h`, color: 'text-sky-600' },
+    { label: 'Care Hours',     value: `${kpis.totalHours.toFixed(0)}h`, color: 'text-amber-600' },
     { label: 'Fill Rate',      value: `${kpis.fillRate}%`, color: kpis.fillRate >= 80 ? 'text-emerald-600' : kpis.fillRate >= 50 ? 'text-amber-600' : 'text-rose-600' },
   ]
 

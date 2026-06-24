@@ -79,10 +79,10 @@ export default async function InsightsPage() {
 
         <Card className="hover:shadow-card-hover transition-shadow duration-300">
           <CardHeader className="border-b border-surface-2">
-            <CardTitle className="flex items-center gap-2 text-sm"><BarChart3 className="w-4 h-4 text-violet-500" /> Role Distribution</CardTitle>
+            <CardTitle className="flex items-center gap-2 text-sm"><BarChart3 className="w-4 h-4 text-sage-500" /> Role Distribution</CardTitle>
           </CardHeader>
           <CardContent className="p-5 space-y-4">
-            {([['NURSE', 'bg-sky-500', 'text-sky-600', 'Registered Nurses'], ['EN', 'bg-violet-500', 'text-violet-600', 'Enrolled Nurses'], ['PCA', 'bg-amber-500', 'text-amber-600', 'Personal Care Assistants']] as const).map(([role, bar, txt, label]) => {
+            {([['NURSE', 'bg-amber-500', 'text-amber-600', 'Registered Nurses'], ['EN', 'bg-sage-500', 'text-sage-600', 'Enrolled Nurses'], ['PCA', 'bg-clay-500', 'text-clay-600', 'Personal Care Assistants']] as const).map(([role, bar, txt, label]) => {
               const count = roleDistrib[role as keyof typeof roleDistrib]
               const pct = shifts.length > 0 ? (count / shifts.length) * 100 : 0
               return (
@@ -108,7 +108,7 @@ export default async function InsightsPage() {
             {[
               { label: 'Awaiting Staff', status: 'PENDING', bar: 'bg-amber-400' },
               { label: 'Confirmed', status: 'MATCHED', bar: 'bg-emerald-500' },
-              { label: 'On Shift', status: 'CLOCKED_IN', bar: 'bg-blue-500' },
+              { label: 'On Shift', status: 'CLOCKED_IN', bar: 'bg-sage-500' },
               { label: 'Completed', status: 'COMPLETED', bar: 'bg-emerald-500' },
               { label: 'Cancelled', status: 'CANCELLED', bar: 'bg-stone-300' },
             ].map(({ label, status, bar }) => {

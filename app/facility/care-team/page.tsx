@@ -7,9 +7,9 @@ import { getComplianceStatusForDocuments } from '@/lib/compliance'
 export const dynamic = 'force-dynamic'
 
 const ROLE_META: Record<string, { label: string; color: string }> = {
-  NURSE: { label: 'RN',  color: 'bg-sky-100 text-sky-700 border-sky-200' },
-  EN:    { label: 'EN',  color: 'bg-violet-100 text-violet-700 border-violet-200' },
-  PCA:   { label: 'PCA', color: 'bg-amber-100 text-amber-700 border-amber-200' },
+  NURSE: { label: 'RN',  color: 'bg-amber-100 text-amber-700 border-amber-200' },
+  EN:    { label: 'EN',  color: 'bg-sage-100 text-sage-700 border-sage-200' },
+  PCA:   { label: 'PCA', color: 'bg-clay-100 text-clay-700 border-clay-200' },
 }
 
 export default async function FacilityCareTeamPage() {
@@ -21,9 +21,9 @@ export default async function FacilityCareTeamPage() {
   const pcas   = workers.filter(w => w.role === 'PCA')
 
   const roleGroups = [
-    { label: 'Registered Nurses', short: 'RN', workers: nurses, color: 'text-sky-700', bg: 'bg-sky-50 border-sky-200' },
-    { label: 'Enrolled Nurses', short: 'EN', workers: ens, color: 'text-violet-700', bg: 'bg-violet-50 border-violet-200' },
-    { label: 'Personal Care Assistants', short: 'PCA', workers: pcas, color: 'text-amber-700', bg: 'bg-amber-50 border-amber-200' },
+    { label: 'Registered Nurses', short: 'RN', workers: nurses, color: 'text-amber-700', bg: 'bg-amber-50 border-amber-200' },
+    { label: 'Enrolled Nurses', short: 'EN', workers: ens, color: 'text-sage-700', bg: 'bg-sage-50 border-sage-200' },
+    { label: 'Personal Care Assistants', short: 'PCA', workers: pcas, color: 'text-clay-700', bg: 'bg-clay-50 border-clay-200' },
   ]
 
   return (

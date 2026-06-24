@@ -38,8 +38,8 @@ export default async function FacilityBillingPage() {
     <FacilityShell facility={facility} kpis={kpis}>
       <div className="space-y-6">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-violet-50 border border-violet-200 flex items-center justify-center">
-            <CreditCard className="w-5 h-5 text-violet-600" />
+          <div className="w-10 h-10 rounded-xl bg-sage-50 border border-sage-200 flex items-center justify-center">
+            <CreditCard className="w-5 h-5 text-sage-600" />
           </div>
           <div>
             <h1 className="font-black text-ink text-xl tracking-tight">Billing</h1>
@@ -48,8 +48,8 @@ export default async function FacilityBillingPage() {
         </div>
 
         {/* Coming-soon banner */}
-        <div className="rounded-2xl border border-violet-200 bg-violet-50/70 p-5 flex items-start gap-4">
-          <Clock className="w-6 h-6 text-violet-500 shrink-0 mt-0.5" />
+        <div className="rounded-2xl border border-sage-200 bg-sage-50/70 p-5 flex items-start gap-4">
+          <Clock className="w-6 h-6 text-sage-500 shrink-0 mt-0.5" />
           <div>
             <p className="font-black text-ink tracking-tight">Full invoicing coming soon</p>
             <p className="text-sm text-ink/55 mt-0.5">Automated tax invoices, timesheet exports, and direct payment processing are in development. In the meantime, here&apos;s your care hours summary.</p>
@@ -60,7 +60,7 @@ export default async function FacilityBillingPage() {
         <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
           <div className="bg-white border border-surface-2 rounded-2xl p-5 shadow-card">
             <p className="text-label text-ink/40 mb-2">Total Care Hours</p>
-            <p className="text-3xl font-black font-mono text-sky-700">{totalHours.toFixed(1)}h</p>
+            <p className="text-3xl font-black font-mono text-amber-700">{totalHours.toFixed(1)}h</p>
           </div>
           <div className="bg-white border border-surface-2 rounded-2xl p-5 shadow-card">
             <p className="text-label text-ink/40 mb-2">Completed Shifts</p>

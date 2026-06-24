@@ -14,14 +14,14 @@ import { acceptShift } from '../_actions'
 export const dynamic = 'force-dynamic'
 
 const ROLE_GRADIENT: Record<string, string> = {
-  NURSE: 'from-sky-500 to-blue-600',
-  EN:    'from-violet-500 to-purple-700',
-  PCA:   'from-amber-500 to-amber-700',
+  NURSE: 'from-amber-500 to-amber-700',
+  EN:    'from-sage-500 to-sage-700',
+  PCA:   'from-clay-400 to-clay-600',
 }
 const ROLE_BG: Record<string, string> = {
-  NURSE: 'bg-sky-50    text-sky-700    border-sky-200',
-  EN:    'bg-violet-50 text-violet-700 border-violet-200',
-  PCA:   'bg-amber-50  text-amber-700  border-amber-200',
+  NURSE: 'bg-amber-50 text-amber-700 border-amber-200',
+  EN:    'bg-sage-50 text-sage-700 border-sage-200',
+  PCA:   'bg-clay-50 text-clay-700 border-clay-200',
 }
 const WORKER_ROLES = ['NURSE', 'EN', 'PCA'] as const
 const ROLE_LABEL: Record<string, string> = {

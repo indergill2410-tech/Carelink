@@ -8,14 +8,14 @@ import { cancelShift } from '../_actions'
 export const dynamic = 'force-dynamic'
 
 const ROLE_META: Record<string, { label: string; color: string }> = {
-  NURSE: { label: 'RN',  color: 'bg-sky-100 text-sky-700 border-sky-200' },
-  EN:    { label: 'EN',  color: 'bg-violet-100 text-violet-700 border-violet-200' },
-  PCA:   { label: 'PCA', color: 'bg-amber-100 text-amber-700 border-amber-200' },
+  NURSE: { label: 'RN',  color: 'bg-amber-100 text-amber-700 border-amber-200' },
+  EN:    { label: 'EN',  color: 'bg-sage-100 text-sage-700 border-sage-200' },
+  PCA:   { label: 'PCA', color: 'bg-clay-100 text-clay-700 border-clay-200' },
 }
 
 const STATUS_BAR: Record<string, string> = {
   PENDING: 'bg-amber-400', MATCHED: 'bg-emerald-500',
-  CLOCKED_IN: 'bg-blue-500', COMPLETED: 'bg-emerald-500', CANCELLED: 'bg-stone-300',
+  CLOCKED_IN: 'bg-sage-500', COMPLETED: 'bg-emerald-500', CANCELLED: 'bg-stone-300',
 }
 
 const STATUS_ORDER = ['CLOCKED_IN', 'MATCHED', 'PENDING', 'COMPLETED', 'CANCELLED']
@@ -49,8 +49,8 @@ export default async function LiveShiftBoardPage() {
     <FacilityShell facility={facility} kpis={kpis}>
       <div className="space-y-6">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-blue-50 border border-blue-200 flex items-center justify-center">
-            <Radio className="w-5 h-5 text-blue-600" />
+          <div className="w-10 h-10 rounded-xl bg-sage-50 border border-sage-200 flex items-center justify-center">
+            <Radio className="w-5 h-5 text-sage-600" />
           </div>
           <div>
             <h1 className="font-black text-ink text-xl tracking-tight">Live Shift Board</h1>
@@ -75,8 +75,8 @@ export default async function LiveShiftBoardPage() {
                   <h2 className="text-xs font-black uppercase tracking-wider text-ink/40">{groupLabel}</h2>
                   <span className="bg-surface-2 text-ink/40 text-[10px] font-bold px-1.5 py-0.5 rounded-full">{groupShifts.length}</span>
                   {groupLabel === 'On Shift Now' && (
-                    <span className="flex items-center gap-1 text-[10px] font-bold text-blue-600 bg-blue-50 px-2 py-0.5 rounded-full border border-blue-200">
-                      <span className="w-1.5 h-1.5 bg-blue-500 rounded-full animate-pulse" /> LIVE
+                    <span className="flex items-center gap-1 text-[10px] font-bold text-sage-600 bg-sage-50 px-2 py-0.5 rounded-full border border-sage-200">
+                      <span className="w-1.5 h-1.5 bg-sage-500 rounded-full animate-pulse" /> LIVE
                     </span>
                   )}
                 </div>

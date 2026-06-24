@@ -252,7 +252,7 @@ export default function LandingPage() {
               { icon: Clock, label: 'Faster response', value: 'Shifts filled in minutes', tone: 'bg-amber-50 text-teal' },
               { icon: ShieldCheck, label: 'Peace of mind', value: 'Only verified carers', tone: 'bg-teal/10 text-teal' },
               { icon: ClipboardCheck, label: 'Stay compliant', value: 'Checks current, always', tone: 'bg-emerald-50 text-emerald-600' },
-              { icon: Users, label: 'Full visibility', value: 'See who\'s on shift, live', tone: 'bg-sky-50 text-sky-600' },
+              { icon: Users, label: 'Full visibility', value: 'See who\'s on shift, live', tone: 'bg-amber-50 text-amber-600' },
             ].map(({ icon: Icon, label, value, tone }) => (
               <div key={label} className="rounded-[24px] border border-surface-3 bg-surface-0 p-6 shadow-card">
                 <span className={`flex h-11 w-11 items-center justify-center rounded-2xl ${tone}`}>

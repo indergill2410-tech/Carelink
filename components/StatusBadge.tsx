@@ -5,7 +5,7 @@ type Status = 'PENDING' | 'MATCHED' | 'CLOCKED_IN' | 'COMPLETED' | 'CANCELLED' |
 const CONFIG: Record<Status, { dot: string; badge: string; label: string }> = {
   PENDING:    { dot: 'bg-amber-400 animate-pulse',    badge: 'bg-amber-50  text-amber-800  border-amber-200',    label: 'Awaiting Staff'  },
   MATCHED:    { dot: 'bg-emerald-500',                badge: 'bg-emerald-50 text-emerald-700 border-emerald-200', label: 'Confirmed'       },
-  CLOCKED_IN: { dot: 'bg-blue-500 animate-pulse',     badge: 'bg-blue-50  text-blue-700  border-blue-200',       label: 'On Shift'        },
+  CLOCKED_IN: { dot: 'bg-sage-500 animate-pulse',     badge: 'bg-sage-50  text-sage-700  border-sage-200',       label: 'On Shift'        },
   COMPLETED:  { dot: 'bg-emerald-500',                badge: 'bg-emerald-50 text-emerald-700 border-emerald-200', label: 'Completed'       },
   CANCELLED:  { dot: 'bg-stone-400',                  badge: 'bg-stone-50 text-stone-500  border-stone-200',     label: 'Cancelled'       },
   DRAFT:      { dot: 'bg-stone-300',                  badge: 'bg-stone-50 text-stone-500  border-stone-200',     label: 'Draft'           },

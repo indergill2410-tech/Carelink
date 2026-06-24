@@ -40,7 +40,7 @@ export default async function CertificationsPage() {
   const riskDocs = [...data.expired, ...data.expiringSoon] // expired first, then soonest expiring
 
   const kpis = [
-    { label: 'Awaiting Review', value: data.pending.length, icon: FileCheck, accent: 'text-blue-600', bg: 'bg-blue-50 border-blue-200' },
+    { label: 'Awaiting Review', value: data.pending.length, icon: FileCheck, accent: 'text-sage-600', bg: 'bg-sage-50 border-sage-200' },
     { label: 'Expiring ≤30 days', value: data.expiringSoon.length, icon: CalendarClock, accent: 'text-amber-700', bg: 'bg-amber-50 border-amber-200' },
     { label: 'Expired', value: data.expired.length, icon: AlertTriangle, accent: 'text-rose-700', bg: 'bg-rose-50 border-rose-200' },
     { label: 'Verified Carers', value: verified.length, icon: ShieldCheck, accent: 'text-emerald-700', bg: 'bg-emerald-50 border-emerald-200' },
@@ -81,8 +81,8 @@ export default async function CertificationsPage() {
         <Card>
           <CardHeader className="border-b border-surface-2">
             <CardTitle className="flex items-center gap-2 text-sm">
-              <FileCheck className="w-4 h-4 text-blue-500" /> Documents Awaiting Review
-              <span className="ml-1 bg-blue-100 text-blue-700 text-[10px] font-black px-1.5 py-0.5 rounded-full">{data.pending.length}</span>
+              <FileCheck className="w-4 h-4 text-sage-500" /> Documents Awaiting Review
+              <span className="ml-1 bg-sage-100 text-sage-700 text-[10px] font-black px-1.5 py-0.5 rounded-full">{data.pending.length}</span>
             </CardTitle>
           </CardHeader>
           <CardContent className="p-0">
