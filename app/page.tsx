@@ -158,6 +158,25 @@ export default function LandingPage() {
         </div>
       </section>
 
+      {/* Stats strip */}
+      <section className="bg-surface-0 px-4 py-12 sm:px-6 lg:px-8">
+        <div className="mx-auto max-w-6xl">
+          <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+            {[
+              { value: '< 2 min', label: 'To post a shift' },
+              { value: 'RN · EN · PCA', label: 'Roles matched' },
+              { value: '100%', label: 'Award wages paid' },
+              { value: '24 / 7', label: 'Shifts available' },
+            ].map(({ value, label }) => (
+              <div key={label} className="rounded-2xl border border-surface-3 bg-surface-1 px-5 py-6 text-center shadow-card">
+                <p className="font-black text-ink font-mono text-xl sm:text-2xl tracking-tight">{value}</p>
+                <p className="mt-1.5 text-xs font-semibold text-ink/45 uppercase tracking-wider">{label}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
       {/* Our Story */}
       <section id="story" className="bg-gradient-to-br from-ink via-[#241a12] to-[#33240f] px-4 py-20 text-white sm:px-6 lg:px-8">
         <div className="mx-auto max-w-6xl">
