@@ -15,7 +15,7 @@ export default async function FacilityAnalyticsPage() {
 
   const kpiItems = [
     { label: 'Fill Rate', value: `${fillRate}%`, sub: 'shifts filled vs requested', color: fillRate >= 80 ? 'text-emerald-700' : fillRate >= 50 ? 'text-amber-700' : 'text-rose-700' },
-    { label: 'Total Care Hours', value: `${totalHours.toFixed(0)}h`, sub: 'completed shifts', color: 'text-sky-700' },
+    { label: 'Total Care Hours', value: `${totalHours.toFixed(0)}h`, sub: 'completed shifts', color: 'text-amber-700' },
     { label: 'Avg Shift Length', value: `${avgHours.toFixed(1)}h`, sub: 'per completed shift', color: 'text-ink/70' },
     { label: 'Cancellation Rate', value: `${cancelRate}%`, sub: 'of all requests', color: cancelRate > 20 ? 'text-rose-700' : 'text-ink/50' },
   ]
@@ -25,9 +25,9 @@ export default async function FacilityAnalyticsPage() {
   const monthMax = Math.max(...monthEntries.map(([, v]) => v), 1)
 
   const roleColors: Record<string, string> = {
-    NURSE: 'bg-sky-500',
-    EN:    'bg-violet-500',
-    PCA:   'bg-amber-500',
+    NURSE: 'bg-amber-500',
+    EN:    'bg-sage-500',
+    PCA:   'bg-clay-500',
   }
   const roleLabels: Record<string, string> = { NURSE: 'Registered Nurse', EN: 'Enrolled Nurse', PCA: 'Personal Care Assistant' }
 
@@ -35,8 +35,8 @@ export default async function FacilityAnalyticsPage() {
     <FacilityShell facility={facility} kpis={kpis}>
       <div className="space-y-6">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-sky-50 border border-sky-200 flex items-center justify-center">
-            <BarChart2 className="w-5 h-5 text-sky-600" />
+          <div className="w-10 h-10 rounded-xl bg-amber-50 border border-amber-200 flex items-center justify-center">
+            <BarChart2 className="w-5 h-5 text-amber-600" />
           </div>
           <div>
             <h1 className="font-black text-ink text-xl tracking-tight">Analytics</h1>
@@ -118,7 +118,7 @@ export default async function FacilityAnalyticsPage() {
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 text-center">
                 {[
                   { label: 'Completed', count: completedShifts, color: 'text-emerald-600', icon: CheckCircle },
-                  { label: 'Active', count: shifts.filter(s => s.status === 'MATCHED' || s.status === 'CLOCKED_IN').length, color: 'text-blue-600', icon: Clock },
+                  { label: 'Active', count: shifts.filter(s => s.status === 'MATCHED' || s.status === 'CLOCKED_IN').length, color: 'text-sage-600', icon: Clock },
                   { label: 'Pending', count: shifts.filter(s => s.status === 'PENDING').length, color: 'text-amber-600', icon: Clock },
                   { label: 'Cancelled', count: cancelled, color: 'text-rose-500', icon: XCircle },
                 ].map(item => (

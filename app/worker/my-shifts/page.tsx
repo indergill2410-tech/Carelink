@@ -17,14 +17,14 @@ import { calculateShiftPay } from '@/lib/pay-engine'
 export const dynamic = 'force-dynamic'
 
 const ROLE_BAR: Record<string, string> = {
-  NURSE: 'bg-gradient-to-r from-sky-400 to-sky-600',
-  EN:    'bg-gradient-to-r from-violet-500 to-purple-600',
-  PCA:   'bg-gradient-to-r from-teal to-electric-dim',
+  NURSE: 'bg-gradient-to-r from-amber-400 to-amber-600',
+  EN:    'bg-gradient-to-r from-sage-500 to-sage-700',
+  PCA:   'bg-gradient-to-r from-clay-400 to-clay-600',
 }
 
 const STATUS_BAR: Record<string, string> = {
-  MATCHED:    'bg-gradient-to-r from-amber-400 to-orange-400',
-  CLOCKED_IN: 'bg-gradient-to-r from-blue-500 to-sky-500',
+  MATCHED:    'bg-gradient-to-r from-amber-400 to-amber-600',
+  CLOCKED_IN: 'bg-gradient-to-r from-sage-400 to-sage-600',
   COMPLETED:  'bg-gradient-to-r from-emerald-500 to-teal',
   CANCELLED:  'bg-surface-3',
 }
@@ -251,8 +251,8 @@ export default async function MyShiftsPage({
               </div>
             )}
             {isClockedIn && shift.clockInAt && (
-              <div className="flex items-center gap-2 text-xs text-blue-600 font-semibold">
-                <div className="w-2 h-2 rounded-full bg-blue-500 animate-pulse" />
+              <div className="flex items-center gap-2 text-xs text-sage-600 font-semibold">
+                <div className="w-2 h-2 rounded-full bg-sage-500 animate-pulse" />
                 On duty since {formatTime(shift.clockInAt)}
               </div>
             )}

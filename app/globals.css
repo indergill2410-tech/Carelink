@@ -212,7 +212,7 @@
     box-shadow: 0 0 20px rgba(217, 119, 6, 0.40);
   }
   .glow-blue {
-    box-shadow: 0 0 20px rgba(59, 130, 246, 0.40);
+    box-shadow: 0 0 20px rgba(124, 139, 94, 0.40);
   }
   .glow-rose {
     box-shadow: 0 0 20px rgba(244, 63, 94, 0.40);
@@ -255,7 +255,7 @@
   }
   .status-dot.pending   { background-color: #fbbf24; animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite; }
   .status-dot.matched   { @apply bg-emerald-500; }
-  .status-dot.clocked   { @apply bg-blue-500; animation: pulse-ring-blue 1.8s ease-out infinite; }
+  .status-dot.clocked   { @apply bg-sage-500; animation: pulse-ring-blue 1.8s ease-out infinite; }
   .status-dot.completed { @apply bg-emerald-500; }
   .status-dot.cancelled { @apply bg-stone-400; }
   .status-dot.urgent    { background-color: #f43f5e; animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite; }

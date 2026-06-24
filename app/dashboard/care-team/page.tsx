@@ -10,9 +10,9 @@ import { toggleCompliance, toggleWorkerActive, updateWorkerProfile } from '../_a
 export const dynamic = 'force-dynamic'
 
 const ROLE_CARDS = [
-  { role: 'NURSE' as const, label: 'Registered Nurses', bg: 'bg-sky-100', icon: 'text-sky-600' },
-  { role: 'EN' as const, label: 'Enrolled Nurses', bg: 'bg-violet-100', icon: 'text-violet-600' },
-  { role: 'PCA' as const, label: 'Personal Care Assistants', bg: 'bg-amber-100', icon: 'text-amber-600' },
+  { role: 'NURSE' as const, label: 'Registered Nurses', bg: 'bg-amber-100', icon: 'text-amber-600' },
+  { role: 'EN' as const, label: 'Enrolled Nurses', bg: 'bg-sage-100', icon: 'text-sage-600' },
+  { role: 'PCA' as const, label: 'Personal Care Assistants', bg: 'bg-clay-100', icon: 'text-clay-600' },
 ]
 
 export default async function CareTeamPage() {

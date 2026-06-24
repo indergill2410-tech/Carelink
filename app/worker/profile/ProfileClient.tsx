@@ -48,7 +48,7 @@ const DOC_STATUS_CONFIG: Record<DocStatus, {
   APPROVED: { border: 'border-emerald-200', bg: 'bg-emerald-50/50', icon: CheckCircle2, color: 'text-emerald-500', label: 'Approved'  },
   REJECTED: { border: 'border-rose-200',    bg: 'bg-rose-50/50',    icon: XCircle,      color: 'text-rose-500',   label: 'Rejected'  },
   EXPIRED:  { border: 'border-amber-200',   bg: 'bg-amber-50/50',   icon: AlertCircle,  color: 'text-amber-500',  label: 'Expired'   },
-  PENDING:  { border: 'border-blue-200',    bg: 'bg-blue-50/50',    icon: Clock,        color: 'text-blue-500',   label: 'In Review' },
+  PENDING:  { border: 'border-sage-200',    bg: 'bg-sage-50/50',    icon: Clock,        color: 'text-sage-500',   label: 'In Review' },
   MISSING:  { border: 'border-surface-3',   bg: 'bg-white',         icon: FileText,     color: 'text-ink/30',     label: 'Missing'   },
 }
 

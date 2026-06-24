@@ -65,8 +65,8 @@ export default async function DashboardOverview() {
                   <div key={s.id} className="flex items-center gap-4 px-5 py-3.5 hover:bg-surface-1 transition-colors group">
                     <div className={`w-9 h-9 rounded-xl flex items-center justify-center font-black text-[11px] shrink-0 ${
                       s.urgent ? 'bg-rose-100 text-rose-700' :
-                      s.role === 'NURSE' ? 'bg-sky-100 text-sky-700' :
-                      s.role === 'EN' ? 'bg-violet-100 text-violet-700' : 'bg-amber-100 text-amber-700'
+                      s.role === 'NURSE' ? 'bg-amber-100 text-amber-700' :
+                      s.role === 'EN' ? 'bg-sage-100 text-sage-700' : 'bg-clay-100 text-clay-700'
                     }`}>{s.role}</div>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2">
